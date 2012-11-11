@@ -1,20 +1,19 @@
-(defun change-func (begin end)
+
+(defun change-func (var begin end &rest)
   "does stuff"
-  (setq val (buffer-substring-no-properties begin end))
-  (setq previous-state 
-	(mapcar 
-	   'symbol-value
-	 '(begin end val)
-	 )
+  (setq contents (buffer-substring-no-properties begin end))
+  (set var
+	(mapcar 'symbol-value '(begin end contents))
 	)
-)
+  (print before-change)
+  (print after-change)
+  )
 
 (add-hook 'before-change-functions
-	  'change-func
+	  (apply-partially 'change-func 'before-change)
 	  nil
 	  t)
-
 (add-hook 'after-change-functions
-	  'change-func
+	  (apply-partially 'change-func 'after-change)
 	  nil
 	  t)
