@@ -5,11 +5,10 @@
   (set var
 	(mapcar 'symbol-value '(begin end contents))
 	)
-  (print (symbol-value var))
+  (print (append (symbol-value var) old_length))
   )
 
 (add-hook 'after-change-functions
 	  (apply-partially 'change-func 'after-change)
 	  nil
 	  t)
-
