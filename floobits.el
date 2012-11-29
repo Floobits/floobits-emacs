@@ -26,9 +26,9 @@
 (defun after-change (begin end old_length)
   (let ((text (get-text begin end)))
     (add-to-list 'floobits-change-set (cons 'after `(,begin ,end ,text)))
-    (process-send-string floo (json-encode 'floobits-change-set)))
+    (process-send-string floo (concat (json-encode floobits-change-set) "\n"))
   (print floobits-change-set)
-  (setq floobits-change-set nil))
+  (setq floobits-change-set)))
 
 (add-hook 'before-change-functions 
 	  'before-change
