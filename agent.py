@@ -11,14 +11,13 @@ class FloobitsClientProtocol(LineReceiver):
         self.factory = factory
 
     def connectionMade(self):
-        self.factory.numProtocols = self.factory.numProtocols + 1
-        self.floo = reactor.connectTCP("staging.floobits.com", 3148, FloobitsClientFactory())
+        print('connected to server')
 
     def lineReceived(self, line):
         print line
 
     def connectionLost(self, reason):
-        self.factory.numProtocols = self.factory.numProtocols - 1
+        print('connection to server lost', reason)
 
     def dataReceived(self, data):
         print('received data', data)
@@ -29,7 +28,6 @@ class FloobitsClientFactory(ReconnectingClientFactory):
         print 'Started to connect.'
 
     def buildProtocol(self, addr):
-        print 'Connected.'
         self.resetDelay()
         return FloobitsClientProtocol(self)
 
@@ -49,18 +47,18 @@ class AgentProtocol(LineReceiver):
         self.floo = None
 
     def connectionMade(self):
-        self.factory.numProtocols = self.factory.numProtocols + 1
         self.floo = FloobitsClientFactory()
         reactor.connectTCP("staging.floobits.com", 3148, self.floo)
 
     def connectionLost(self, reason):
-        self.factory.numProtocols = self.factory.numProtocols - 1
+        print 'connection lost', reason
 
     def lineReceived(self, line):
-        pass
+        print('line', line)
 
     def dataReceived(self, data):
-        self.transport.write(data)
+        #        self.transport.write(data)
+        print('got data ', data)
 
 
 class AgentFactory(Factory):
@@ -85,5 +83,5 @@ class AgentFactory(Factory):
     def highlight(self):
         pass
 
-TCP4ServerEndpoint(reactor, 8007).listen(AgentFactory)
+TCP4ServerEndpoint(reactor, 4567).listen(AgentFactory())
 reactor.run()
