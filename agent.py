@@ -7,37 +7,58 @@ from twisted.internet import reactor
 
 import dmp
 
+bufs = {}
 
-class FloobitsClientProtocol(LineReceiver):
+
+class FloobitsLineReceiver(LineReceiver):
+    delimiter = '\n'
+
     def __init__(self, factory):
         self.factory = factory
+
+    def lineReceived(self, line):
+        req = json.loads(line)
+
+        event_name = req.get('name')
+        if not event_name:
+            raise ValueError("no name key in req", req)
+
+        method = getattr(self, "floo_%s" % req['name'], None)
+        if method:
+            return method(req, line)
+
+        raise ValueError("no name key in req", req)
+
+
+class FloobitsFlooProtocol(FloobitsLineReceiver):
+
+    def floo_room_info(self, req, line):
+        global bufs
+        bufs = req['bufs']
+        for buf in req['bufs']:
+            self.factory.sendToEditor(req['bufs'])
 
     def connectionMade(self):
         self.factory.onConnection()
         print('connected to server')
 
-    def lineReceived(self, line):
-        print line
-
     def connectionLost(self, reason):
         print('connection to server lost', reason)
 
-    def dataReceived(self, data):
-        print('received data', data)
 
+class FloobitsFlooFactory(ReconnectingClientFactory):
 
-class FloobitsClientFactory(ReconnectingClientFactory):
-
-    def __init__(self):
+    def __init__(self, sendToEditor):
         self.buf_in = []
         self.buf_out = []
+        self.sendToEditor = sendToEditor
 
     def startedConnecting(self, connector):
         print 'Started to connect.'
 
     def buildProtocol(self, addr):
         self.resetDelay()
-        self.protocol = FloobitsClientProtocol(self)
+        self.protocol = FloobitsFlooProtocol(self)
         return self.protocol
 
     def onConnection(self):
@@ -63,16 +84,14 @@ class FloobitsClientFactory(ReconnectingClientFactory):
         ReconnectingClientFactory.clientConnectionFailed(self, connector, reason)
 
 
-class AgentProtocol(LineReceiver):
-    delimiter = '\n'
+class EditorProtocol(FloobitsLineReceiver):
 
     def __init__(self, factory):
-        self.factory = factory
+        FloobitsLineReceiver.__init__(self, factory)
         self.floo = None
-        self.delimiter = '\n'
 
     def connectionMade(self):
-        self.floo = FloobitsClientFactory()
+        self.floo = FloobitsFlooFactory(self.factory.sendToEditor)
         reactor.connectTCP("staging.floobits.com", 3148, self.floo)
 
     def connectionLost(self, reason):
@@ -80,22 +99,11 @@ class AgentProtocol(LineReceiver):
         self.floo.stopTrying()
         self.floo.doStop()
 
-    def lineReceived(self, line):
-        print('line', line)
-        try:
-            req = json.loads(line)
-        except Exception, e:
-            print e
-            return
+    def floo_auth(self, req, raw):
+        if 'room_owner' not in req:
+            req['room_owner'] = req['username']
+            return self.floo.sendLine(json.dumps(req))
 
-        if 'event' in req and req['event']:
-            method = getattr(self, req['event'], None)
-            if method:
-                return method(req, line)
-
-        print 'no handler for req: ', line
-
-    def auth(self, req, raw):
         self.floo.sendLine(raw)
 
     def get_buf(self):
@@ -115,8 +123,15 @@ class AgentProtocol(LineReceiver):
 
 
 class AgentFactory(Factory):
+    def sendToEditor(self, line):
+        #TODO: make sure we have a protocol
+        if not isinstance(line, basestring):
+            line = json.dumps(line)
+        self.protocol.sendLine(line)
+
     def buildProtocol(self, addr):
-        return AgentProtocol(self)
+        self.protocol = EditorProtocol(self)
+        return self.protocol
 
 TCP4ServerEndpoint(reactor, 4567).listen(AgentFactory())
 reactor.run()
