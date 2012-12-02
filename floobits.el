@@ -5,12 +5,12 @@
 (setq floobits-agent-port 4567)
 (setq floobits-change-set ())
 
-(defcustom floobits-username nil
+(defcustom floobits-username "ggreer"
   "Username for floobits"
   :type 'string
   )
 
-(defcustom floobits-secret nil
+(defcustom floobits-secret "1234"
   "Secret for floobits"
   :type 'string
   )
@@ -20,11 +20,16 @@
   :type 'string
   )
 
+(defcustom floobits-share-dir "~/share"
+  "Room for floobits"
+  :type 'string
+  )
+
 (defun floobits-listener(process response)
   (print response))
 
 (defun floobits-auth()
-  (let ((req (list `(event . auth)
+  (let ((req (list `(name . auth)
 	     `(username . ,floobits-username)
 	     `(room . ,floobits-room)
 	     `(secret . ,floobits-secret))))
