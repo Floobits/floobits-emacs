@@ -25,9 +25,9 @@
 
 (defun floobits-auth()
   (let ((req (list `(event . auth)
-	     `('username . ,floobits-username)
-	     `('room . ,floobits-room)
-	     `('secret . ,floobits-secret))))
+	     `(username . ,floobits-username)
+	     `(room . ,floobits-room)
+	     `(secret . ,floobits-secret))))
     (send-to-agent req)))
 
 (defun create-connection()
