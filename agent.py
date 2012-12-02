@@ -13,6 +13,7 @@ class FloobitsClientProtocol(LineReceiver):
         self.factory = factory
 
     def connectionMade(self):
+        self.factory.onConnection()
         print('connected to server')
 
     def lineReceived(self, line):
@@ -26,12 +27,32 @@ class FloobitsClientProtocol(LineReceiver):
 
 
 class FloobitsClientFactory(ReconnectingClientFactory):
+
+    def __init__(self):
+        self.buf_in = []
+        self.buf_out = []
+
     def startedConnecting(self, connector):
         print 'Started to connect.'
 
     def buildProtocol(self, addr):
         self.resetDelay()
-        return FloobitsClientProtocol(self)
+        self.protocol = FloobitsClientProtocol(self)
+        return self.protocol
+
+    def onConnection(self):
+        while len(self.buf_in):
+            line = self.buf_in.pop()
+            print('sending line', line)
+            self.protocol.sendLine(line)
+
+    def sendLine(self, line):
+        if not self.protocol:
+            self.buf_in.append(line)
+            print('not connected yet!')
+            return
+
+        self.protocol.sendLine(line)
 
     def clientConnectionLost(self, connector, reason):
         print 'Lost connection.  Reason:', reason
@@ -43,10 +64,12 @@ class FloobitsClientFactory(ReconnectingClientFactory):
 
 
 class AgentProtocol(LineReceiver):
+    delimiter = '\n'
 
     def __init__(self, factory):
         self.factory = factory
         self.floo = None
+        self.delimiter = '\n'
 
     def connectionMade(self):
         self.floo = FloobitsClientFactory()
@@ -54,6 +77,8 @@ class AgentProtocol(LineReceiver):
 
     def connectionLost(self, reason):
         print 'connection lost', reason
+        self.floo.stopTrying()
+        self.floo.doStop()
 
     def lineReceived(self, line):
         print('line', line)
@@ -64,23 +89,14 @@ class AgentProtocol(LineReceiver):
             return
 
         if 'event' in req and req['event']:
-            method = getattr(self.factory, req['event'], None)
+            method = getattr(self, req['event'], None)
             if method:
-                return method(req)
+                return method(req, line)
 
         print 'no handler for req: ', line
 
-    def dataReceived(self, data):
-        #        self.transport.write(data)
-        print('got data ', data)
-
-
-class AgentFactory(Factory):
-    def buildProtocol(self, addr):
-        return AgentProtocol(self)
-
-    def auth(self, data):
-        pass
+    def auth(self, req, raw):
+        self.floo.sendLine(raw)
 
     def get_buf(self):
         pass
@@ -96,6 +112,11 @@ class AgentFactory(Factory):
 
     def highlight(self):
         pass
+
+
+class AgentFactory(Factory):
+    def buildProtocol(self, addr):
+        return AgentProtocol(self)
 
 TCP4ServerEndpoint(reactor, 4567).listen(AgentFactory())
 reactor.run()
