@@ -1,3 +1,5 @@
+import json
+
 from twisted.protocols.basic import LineReceiver
 from twisted.internet.protocol import Factory, ReconnectingClientFactory
 from twisted.internet.endpoints import TCP4ServerEndpoint
@@ -55,6 +57,18 @@ class AgentProtocol(LineReceiver):
 
     def lineReceived(self, line):
         print('line', line)
+        try:
+            req = json.loads(line)
+        except Exception, e:
+            print e
+            return
+
+        if 'event' in req and req['event']:
+            method = getattr(self.factory, req['event'], None)
+            if method:
+                return method(req)
+
+        print 'no handler for req: ', line
 
     def dataReceived(self, data):
         #        self.transport.write(data)
@@ -65,7 +79,7 @@ class AgentFactory(Factory):
     def buildProtocol(self, addr):
         return AgentProtocol(self)
 
-    def authorize(self, data):
+    def auth(self, data):
         pass
 
     def get_buf(self):
