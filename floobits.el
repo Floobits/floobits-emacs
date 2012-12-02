@@ -1,15 +1,41 @@
 (require 'json)
 
+(setq floobits-agent-version "0.01")
+(setq floobits-agent-host "localhost")
+(setq floobits-agent-port 4567)
 (setq floobits-change-set ())
+
+(defcustom floobits-username nil
+  "Username for floobits"
+  :type 'string
+  )
+
+(defcustom floobits-secret nil
+  "Secret for floobits"
+  :type 'string
+  )
+
+(defcustom floobits-room "test"
+  "Room for floobits"
+  :type 'string
+  )
 
 (defun floobits-listener(process response)
   (print response))
 
-(defun create-connection()
-  (setq floo (open-network-stream "floobits" nil "localhost" 4567))
-  (set-process-coding-system floo 'utf-8 'utf-8)
-  (set-process-filter floo 'floobits-listener))
+(defun floobits-auth()
+  (let ((req (list `(event . auth)
+	     `('username . ,floobits-username)
+	     `('room . ,floobits-room)
+	     `('secret . ,floobits-secret))))
+    (send-to-agent req)))
 
+(defun create-connection()
+  (setq floo (open-network-stream "floobits" nil floobits-agent-host floobits-agent-port))
+  (set-process-coding-system floo 'utf-8 'utf-8)
+  (set-process-filter floo 'floobits-listener)
+  (floobits-auth))
+  
 (defun change-func (var begin end &optional &rest old_length)
   "does stuff"
   (setq contents (buffer-substring-no-properties begin end))
@@ -17,6 +43,7 @@
        (mapcar 'symbol-value '(begin end contents old_length))))
 
 (defun send-to-agent (req)
+  (add-to-list 'req (cons 'version floobits-agent-version))
   (process-send-string floo (concat (json-encode req) "\n")))
 
 (defun get-text (begin end)
