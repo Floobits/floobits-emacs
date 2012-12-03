@@ -4,6 +4,7 @@
 (setq floobits-agent-host "localhost")
 (setq floobits-agent-port 4567)
 (setq floobits-change-set ())
+(setq floobits-agent-buffer "")
 
 (defcustom floobits-username "ggreer"
   "Username for floobits"
@@ -17,7 +18,7 @@
 
 (defcustom floobits-room "test"
   "Room for floobits"
-  :type 'string
+  :type 'stringq
   )
 
 (defcustom floobits-share-dir "~/share"
@@ -25,8 +26,22 @@
   :type 'string
   )
 
+(defun floobits-switch (text)
+  (print text))
+;  (let* ((json-key-type 'string) 
+;	 (req (json-read-from-string text)))
+;;    (message "%s" req)))
+
 (defun floobits-listener(process response)
-  (print response))
+  (setq floobits-agent-buffer (concat floobits-agent-buffer response))
+  (let ((position (search "\n" floobits-agent-buffer)))
+       (if (not (eq nil position))
+	   (progn (print position)
+		  (floobits-switch (substring floobits-agent-buffer 0 position))
+		  (setq floobits-agent-buffer 
+			(substring floobits-agent-buffer 
+				   (if (> (length floobits-agent-buffer) position) (+ 1 position) position)))
+		  (floobits-listener process "")))))
 
 (defun floobits-auth()
   (let ((req (list `(name . auth)
