@@ -1,4 +1,4 @@
-emacs
+Floobits plugin for Emacs
 =====
 
-Floobits plugin for emacs
+## Development status: unstable. you don't want to use this yet
