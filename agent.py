@@ -35,8 +35,7 @@ class FloobitsFlooProtocol(FloobitsLineReceiver):
     def floo_room_info(self, req, line):
         global bufs
         bufs = req['bufs']
-        for buf in req['bufs']:
-            self.factory.sendToEditor(req['bufs'])
+        self.factory.sendToEditor(req['bufs'])
 
     def connectionMade(self):
         self.factory.onConnection()
@@ -128,6 +127,7 @@ class AgentFactory(Factory):
         if not isinstance(line, basestring):
             line = json.dumps(line)
         self.protocol.sendLine(line)
+        # self.protocol.transport.write(line)
 
     def buildProtocol(self, addr):
         self.protocol = EditorProtocol(self)
