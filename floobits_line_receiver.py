@@ -21,3 +21,8 @@ class FloobitsLineReceiver(LineReceiver):
             return method(req, line)
 
         raise ValueError("no name key in req", req)
+
+    def sendLine(self, line):
+        if not isinstance(line, basestring):
+            line = json.dumps(line)
+        LineReceiver.sendLine(self, line)

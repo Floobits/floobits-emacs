@@ -1,17 +1,13 @@
-import json
-
 from twisted.internet.protocol import Factory
 from twisted.internet.endpoints import TCP4ServerEndpoint
 from twisted.internet import reactor
 
-from foo_protocol import FlooProtocol
+from floo_protocol import FlooProtocol
 
 
 class AgentFactory(Factory):
     def sendToEditor(self, line):
         #TODO: make sure we have a protocol
-        if not isinstance(line, basestring):
-            line = json.dumps(line)
         self.protocol.sendLine(line)
 
     def buildProtocol(self, addr):

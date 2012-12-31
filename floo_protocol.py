@@ -24,8 +24,7 @@ class FlooProtocol(FloobitsLineReceiver):
         self.floo.doStop()
 
     def floo_auth(self, req, raw):
-        if 'room_owner' not in req:
-            req['room_owner'] = req['username']
-            return self.floo.sendLine(json.dumps(req))
+        room = req['room']
+        owner = req.get('room_owner')
 
-        self.floo.sendLine(raw)
+        self.floo.auth(room, owner)
