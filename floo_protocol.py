@@ -1,21 +1,20 @@
 import json
 
 from twisted import reactor
-import dmp
 
-from utils import FloobitsLineReceiver
 from floo_conn import FloobitsConnFactory
-
-BUFS = {}
+from floobits_line_receiver import FloobitsLineReceiver
 
 
 class FlooProtocol(FloobitsLineReceiver):
+    """Talks to editors"""
 
     def __init__(self, factory):
         FloobitsLineReceiver.__init__(self, factory)
         self.floo = None
 
     def connectionMade(self):
+        """ set up a connection to the backend """
         self.floo = FloobitsConnFactory(self.factory.sendToEditor)
         reactor.connectTCP("staging.floobits.com", 3148, self.floo)
 
@@ -30,18 +29,3 @@ class FlooProtocol(FloobitsLineReceiver):
             return self.floo.sendLine(json.dumps(req))
 
         self.floo.sendLine(raw)
-
-    def get_buf(self):
-        pass
-
-    def room_info(self):
-        pass
-
-    def join(self):
-        pass
-
-    def part(self):
-        pass
-
-    def highlight(self):
-        pass

@@ -13,7 +13,6 @@ class AgentFactory(Factory):
         if not isinstance(line, basestring):
             line = json.dumps(line)
         self.protocol.sendLine(line)
-        # self.protocol.transport.write(line)
 
     def buildProtocol(self, addr):
         self.protocol = FlooProtocol(self)
