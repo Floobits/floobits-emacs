@@ -12,6 +12,7 @@ class FloobitsConnProtocol(FloobitsLineReceiver):
     VERSION = "0.01"
 
     def __init__(self, factory, send_to_editor):
+        self.authed = False
         FloobitsLineReceiver.__init__(self, factory)
         self.send_to_editor = send_to_editor
 
@@ -21,6 +22,15 @@ class FloobitsConnProtocol(FloobitsLineReceiver):
 
     def connectionLost(self, reason):
         print('connection to server lost', reason)
+
+    def auth(self, room, owner):
+        self.sendLine({
+            'username': settings.username,
+            'secret': settings.secret,
+            'version': self.VERSION,
+            'room': room,
+            'room_owner': owner
+        })
 
     def floo_room_info(self, req, line):
         print req
@@ -53,8 +63,8 @@ class FloobitsConnProtocol(FloobitsLineReceiver):
     def floo_error(self):
         pass
 
-    def floo_disconnect(self):
-        pass
+    def floo_disconnect(self, req, raw):
+        print('diconnected: ', req['reason'])
 
     def floo_msg(self):
         pass
@@ -62,10 +72,15 @@ class FloobitsConnProtocol(FloobitsLineReceiver):
 
 class FloobitsConnFactory(ReconnectingClientFactory):
 
-    def __init__(self, send_to_editor):
+    def __init__(self, send_to_editor, room, owner):
         self._bufIn = []
         self._bufOut = []
-        self.sendToEditor = send_to_editor
+        self.send_to_editor = send_to_editor
+        self.secret = None
+        self.username = None
+        self.authed = False
+        self.room = room
+        self.room_owner = owner
 
     def startedConnecting(self, connector):
         print 'Started to connect.'
@@ -76,22 +91,16 @@ class FloobitsConnFactory(ReconnectingClientFactory):
         return self.protocol
 
     def onConnection(self):
-        while len(self._bufIn):
-            line = self._bufIn.pop()
-            print('sending line', line)
-            self.protocol.sendLine(line)
+        self.protocol.auth(self.room, self.room_owner)
 
-    def auth(self, room, owner):
-        self.protocol.sendLine({
-            'username': settings.username,
-            'secret': settings.secret,
-            'version': self.VERSION,
-            'room': room,
-            'room_owner': owner or settings.username
-        })
+        # while len(self._bufIn):
+        #     line = self._bufIn.pop()
+        #     print('sending line', line)
+        #     self.protocol.sendLine(line)
 
     def clientConnectionLost(self, connector, reason):
         print 'Lost connection.  Reason:', reason
+        self.authed = False
         ReconnectingClientFactory.clientConnectionLost(self, connector, reason)
 
     def clientConnectionFailed(self, connector, reason):

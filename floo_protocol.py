@@ -1,6 +1,4 @@
-import json
-
-from twisted import reactor
+from  twisted.internet import reactor
 
 from floo_conn import FloobitsConnFactory
 from floobits_line_receiver import FloobitsLineReceiver
@@ -15,8 +13,7 @@ class FlooProtocol(FloobitsLineReceiver):
 
     def connectionMade(self):
         """ set up a connection to the backend """
-        self.floo = FloobitsConnFactory(self.factory.sendToEditor)
-        reactor.connectTCP("staging.floobits.com", 3148, self.floo)
+        print("received connection from editor")
 
     def connectionLost(self, reason):
         print 'connection lost', reason
@@ -26,5 +23,5 @@ class FlooProtocol(FloobitsLineReceiver):
     def floo_auth(self, req, raw):
         room = req['room']
         owner = req.get('room_owner')
-
-        self.floo.auth(room, owner)
+        self.floo = FloobitsConnFactory(self.factory.sendToEditor, room, owner)
+        reactor.connectTCP("staging.floobits.com", 3148, self.floo)
