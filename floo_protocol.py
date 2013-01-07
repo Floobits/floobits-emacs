@@ -22,6 +22,9 @@ class FlooProtocol(FloobitsLineReceiver):
 
     def floo_auth(self, req, raw):
         room = req['room']
-        owner = req.get('room_owner')
-        self.floo = FloobitsConnFactory(self.factory.sendToEditor, room, owner)
+        username = req['username']
+        owner = req.get('room_owner', username)
+        secret = req['secret']
+        print(raw)
+        self.floo = FloobitsConnFactory(self.factory.sendToEditor, username, room, owner, secret)
         reactor.connectTCP("staging.floobits.com", 3148, self.floo)

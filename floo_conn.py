@@ -13,6 +13,7 @@ class FloobitsConnProtocol(FloobitsLineReceiver):
 
     def __init__(self, factory, send_to_editor):
         self.authed = False
+        self.perms = []
         FloobitsLineReceiver.__init__(self, factory)
         self.send_to_editor = send_to_editor
 
@@ -23,18 +24,9 @@ class FloobitsConnProtocol(FloobitsLineReceiver):
     def connectionLost(self, reason):
         print('connection to server lost', reason)
 
-    def auth(self, room, owner):
-        self.sendLine({
-            'username': settings.username,
-            'secret': settings.secret,
-            'version': self.VERSION,
-            'room': room,
-            'room_owner': owner
-        })
-
     def floo_room_info(self, req, line):
-        print req
-        self.sendToEditor(req['bufs'])
+        self.perms = req['perms']
+        self.send_to_editor(req['bufs'])
 
     def floo_patch(self):
         pass
@@ -72,15 +64,14 @@ class FloobitsConnProtocol(FloobitsLineReceiver):
 
 class FloobitsConnFactory(ReconnectingClientFactory):
 
-    def __init__(self, send_to_editor, room, owner):
+    def __init__(self, send_to_editor, username, room, owner, secret):
         self._bufIn = []
         self._bufOut = []
         self.send_to_editor = send_to_editor
-        self.secret = None
-        self.username = None
-        self.authed = False
+        self.username = username
+        self.secret = secret
         self.room = room
-        self.room_owner = owner
+        self.room_owner = owner or settings.username
 
     def startedConnecting(self, connector):
         print 'Started to connect.'
@@ -91,7 +82,15 @@ class FloobitsConnFactory(ReconnectingClientFactory):
         return self.protocol
 
     def onConnection(self):
-        self.protocol.auth(self.room, self.room_owner)
+        auth = {
+            'username': self.username,
+            'secret': self.secret,
+            'version': self.protocol.VERSION,
+            'room': self.room,
+            'room_owner': self.room_owner
+        }
+        print('joining room %s/%s' % (self.room_owner, self.room))
+        self.protocol.sendLine(auth)
 
         # while len(self._bufIn):
         #     line = self._bufIn.pop()
