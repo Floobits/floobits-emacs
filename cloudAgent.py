@@ -1,7 +1,7 @@
 class CloudAgent():
     CLOUD_VERSION = "0.01"
 
-    def cloud_room_info(self, req, line):
+    def cloud_room_info(self, req):
         self.perms = req['perms']
         self.bufs = req['bufs']
         self.tree = req['tree']
