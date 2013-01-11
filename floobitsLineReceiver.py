@@ -12,20 +12,20 @@ class FloobitsLineReceiver(LineReceiver):
 
     def dispatch(self, event):
         attr = "{prefix}_{event}".format(event=event, prefix=self.dispatchPrefix)
-        return getattr(self, attr, None)
+        return getattr(self.agent, attr, None)
 
     def lineReceived(self, line):
         req = json.loads(line)
 
-        event_name = req.get('name')
-        if not event_name:
-            raise ValueError("no name key in req", req)
+        event = req.get('name')
+        if not event:
+            raise AttributeError("no name key in req", req)
 
-        method = self.dispatch(req['name'])
+        method = self.dispatch(event)
         if method:
             return method(req, line)
 
-        raise ValueError("no name key in req", req)
+        raise ValueError("Could not dispatch event", event)
 
     def sendLine(self, line):
         if not isinstance(line, basestring):

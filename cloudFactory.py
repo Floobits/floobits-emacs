@@ -6,16 +6,15 @@ import cloudProtocol
 class CloudFactory(ReconnectingClientFactory):
     """manages cloud connections (ie, to the backend service)"""
 
-    def __init__(self, agent, connectDefered):
+    def __init__(self, agent):
         self.agent = agent
-        self.connectDefered = connectDefered
 
     def startedConnecting(self, connector):
         print 'Started to connect.'
 
     def buildProtocol(self, addr):
         self.resetDelay()
-        self.protocol = cloudProtocol.CloudProtocol(self.connectDefered, self.agent)
+        self.protocol = cloudProtocol.CloudProtocol(self.agent, "cloud")
         self.connectDefered = None
         return self.protocol
 
