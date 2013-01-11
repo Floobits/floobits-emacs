@@ -1,12 +1,15 @@
-from  twisted.internet import reactor
+from  twisted.internet import reactor, defer
 
 import settings
 import cloudFactory
 
 
 class Agent(object):
+    VERSION = "0.01"
+
     def __init__(self, editorFactory):
         self.editorFactory = editorFactory
+        self.bufs = {}
         self.cloudFactory = None
         self.username = None
         self.secret = None
@@ -18,16 +21,58 @@ class Agent(object):
         self.secret = secret
         self.room = room
         self.room_owner = owner or settings.username
-        self.cloudFactory = cloudFactory.CloudFactory(self)
+        d = defer.Deferred()
+        d.addCallback(self._onCloud)
+        self.cloudFactory = cloudFactory.CloudFactory(self, d)
         reactor.connectTCP("staging.floobits.com", 3148, self.cloudFactory)
 
-    def sendCloud(self, req):
+    def sendToCloud(self, req):
+        #TODO: the factory or protocol may not exist
         self.cloudFactory.protocol.sendLine(req)
 
-    def sendEditor(self, req):
+    def sendToEditor(self, req):
         self.editorFactory.protocol.sendLine(req)
 
-    def onConnection(self):
+    def cloud_room_info(self, req, line):
+        self.perms = req['perms']
+        self.bufs = req['bufs']
+        self.tree = req['tree']
+        self.agent.send(req['bufs'])
+
+    def cloud_patch(self):
+        pass
+
+    def cloud_get_buf(self):
+        pass
+
+    def cloud_create_buf(self):
+        pass
+
+    def cloud_rename_buf(self):
+        pass
+
+    def cloud_delete_buf(self):
+        pass
+
+    def cloud_join(self):
+        pass
+
+    def cloud_part(self):
+        pass
+
+    def cloud_highlight(self):
+        pass
+
+    def cloud_error(self):
+        pass
+
+    def cloud_disconnect(self, req, raw):
+        print('diconnected: ', req['reason'])
+
+    def cloud_msg(self):
+        pass
+
+    def _onCloud(self):
         auth = {
             'username': self.username,
             'secret': self.secret,
@@ -36,4 +81,4 @@ class Agent(object):
             'room_owner': self.room_owner
         }
         print('joining room %s/%s' % (self.room_owner, self.room))
-        self.sendCloud(auth)
+        self.sendToCloud(auth)

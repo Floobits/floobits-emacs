@@ -9,6 +9,9 @@ class FloobitsLineReceiver(LineReceiver):
     def __init__(self, agent):
         self.agent = agent
 
+    def dispatch(self, event):
+        return getattr(self, "floo_{event}".format(event=event), None)
+
     def lineReceived(self, line):
         req = json.loads(line)
 
@@ -16,7 +19,7 @@ class FloobitsLineReceiver(LineReceiver):
         if not event_name:
             raise ValueError("no name key in req", req)
 
-        method = getattr(self, "floo_%s" % req['name'], None)
+        method = self.dispatch(req['name'])
         if method:
             return method(req, line)
 
