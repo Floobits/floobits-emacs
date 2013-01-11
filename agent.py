@@ -1,23 +1,39 @@
-from twisted.internet.protocol import Factory
-from twisted.internet.endpoints import TCP4ServerEndpoint
-from twisted.internet import reactor
+from  twisted.internet import reactor
 
-from floo_protocol import FlooProtocol
-
-
-class AgentFactory(Factory):
-    def sendToEditor(self, line):
-        #TODO: make sure we have a protocol
-        self.protocol.sendLine(line)
-
-    def buildProtocol(self, addr):
-        self.protocol = FlooProtocol(self)
-        return self.protocol
+import settings
+import cloudFactory
 
 
-def main():
-    TCP4ServerEndpoint(reactor, 4567).listen(AgentFactory())
-    reactor.run()
+class Agent(object):
+    def __init__(self, editorFactory):
+        self.editorFactory = editorFactory
+        self.cloudFactory = None
+        self.username = None
+        self.secret = None
+        self.room = None
+        self.room_owner = None
 
-if __name__ == "__main__":
-    main()
+    def auth(self, username, room, owner, secret):
+        self.username = username
+        self.secret = secret
+        self.room = room
+        self.room_owner = owner or settings.username
+        self.cloudFactory = cloudFactory.CloudFactory(self)
+        reactor.connectTCP("staging.floobits.com", 3148, self.cloudFactory)
+
+    def sendCloud(self, req):
+        self.cloudFactory.protocol.sendLine(req)
+
+    def sendEditor(self, req):
+        self.editorFactory.protocol.sendLine(req)
+
+    def onConnection(self):
+        auth = {
+            'username': self.username,
+            'secret': self.secret,
+            'version': self.protocol.VERSION,
+            'room': self.room,
+            'room_owner': self.room_owner
+        }
+        print('joining room %s/%s' % (self.room_owner, self.room))
+        self.sendCloud(auth)

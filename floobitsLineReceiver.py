@@ -6,8 +6,8 @@ from twisted.protocols.basic import LineReceiver
 class FloobitsLineReceiver(LineReceiver):
     delimiter = '\n'
 
-    def __init__(self, factory):
-        self.factory = factory
+    def __init__(self, agent):
+        self.agent = agent
 
     def lineReceived(self, line):
         req = json.loads(line)

@@ -1,15 +1,9 @@
-from  twisted.internet import reactor
 
-from floo_conn import FloobitsConnFactory
-from floobits_line_receiver import FloobitsLineReceiver
+import floobitsLineReceiver
 
 
-class FlooProtocol(FloobitsLineReceiver):
+class EditorProtocol(floobitsLineReceiver.FloobitsLineReceiver):
     """Talks to editors"""
-
-    def __init__(self, factory):
-        FloobitsLineReceiver.__init__(self, factory)
-        self.floo = None
 
     def connectionMade(self):
         """ set up a connection to the backend """
@@ -25,6 +19,5 @@ class FlooProtocol(FloobitsLineReceiver):
         username = req['username']
         owner = req.get('room_owner', username)
         secret = req['secret']
-        print(raw)
-        self.floo = FloobitsConnFactory(self.factory.sendToEditor, username, room, owner, secret)
-        reactor.connectTCP("staging.floobits.com", 3148, self.floo)
+
+        self.agent.auth(username, room, owner, secret)

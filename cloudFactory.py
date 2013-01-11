@@ -1,39 +1,21 @@
 from twisted.internet.protocol import ReconnectingClientFactory
 
-import settings
 import cloudProtocol
 
 
 class CloudFactory(ReconnectingClientFactory):
     """manages cloud connections (ie, to the backend service)"""
 
-    def __init__(self, send_to_editor, username, room, owner, secret):
-        self._bufIn = []
-        self._bufOut = []
-        self.send_to_editor = send_to_editor
-        self.username = username
-        self.secret = secret
-        self.room = room
-        self.room_owner = owner or settings.username
+    def __init__(self, agent):
+        self.agent = agent
 
     def startedConnecting(self, connector):
         print 'Started to connect.'
 
     def buildProtocol(self, addr):
         self.resetDelay()
-        self.protocol = cloudProtocol.CloudProtocol(self, self.send_to_editor)
+        self.protocol = cloudProtocol.CloudProtocol(self.agent)
         return self.protocol
-
-    def onConnection(self):
-        auth = {
-            'username': self.username,
-            'secret': self.secret,
-            'version': self.protocol.VERSION,
-            'room': self.room,
-            'room_owner': self.room_owner
-        }
-        print('joining room %s/%s' % (self.room_owner, self.room))
-        self.protocol.sendLine(auth)
 
         # while len(self._bufIn):
         #     line = self._bufIn.pop()
