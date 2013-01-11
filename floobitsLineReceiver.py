@@ -6,11 +6,13 @@ from twisted.protocols.basic import LineReceiver
 class FloobitsLineReceiver(LineReceiver):
     delimiter = '\n'
 
-    def __init__(self, agent):
+    def __init__(self, agent, dispatchPrefix):
+        self.dispatchPrefix = dispatchPrefix
         self.agent = agent
 
     def dispatch(self, event):
-        return getattr(self, "floo_{event}".format(event=event), None)
+        attr = "{prefix}_{event}".format(event=event, prefix=self.dispatchPrefix)
+        return getattr(self, attr, None)
 
     def lineReceived(self, line):
         req = json.loads(line)

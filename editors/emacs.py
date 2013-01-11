@@ -1,0 +1,2 @@
+class Emacs():
+    pass

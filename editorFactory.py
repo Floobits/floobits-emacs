@@ -9,10 +9,6 @@ class EditorFactory(Factory):
         Factory.__init__(self)
         self.agent = agent.Agent(self)
 
-    def sendToEditor(self, line):
-        #TODO: make sure we have a protocol
-        self.protocol.sendLine(line)
-
     def buildProtocol(self, addr):
-        self.protocol = editorProtocol.EditorProtocol(self.agent)
+        self.protocol = editorProtocol.EditorProtocol(self.agent, "editor")
         return self.protocol

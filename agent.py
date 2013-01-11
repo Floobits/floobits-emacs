@@ -2,9 +2,10 @@ from  twisted.internet import reactor, defer
 
 import settings
 import cloudFactory
+from editors import emacs
 
 
-class Agent(object):
+class Agent(emacs.Emacs):
     VERSION = "0.01"
 
     def __init__(self, editorFactory):
@@ -71,6 +72,14 @@ class Agent(object):
 
     def cloud_msg(self):
         pass
+
+    def editor_auth(self, req, raw):
+        room = req['room']
+        username = req['username']
+        owner = req.get('room_owner', username)
+        secret = req['secret']
+
+        self.sendToCloud(username, room, owner, secret)
 
     def _onCloud(self):
         auth = {
