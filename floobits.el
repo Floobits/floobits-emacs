@@ -6,17 +6,22 @@
 (setq floobits-change-set ())
 (setq floobits-agent-buffer "")
 
-(defcustom floobits-username "ggreer"
+(defcustom floobits-username "kans"
   "Username for floobits"
   :type 'string
   )
 
-(defcustom floobits-secret "1234"
+(defcustom floobits-secret "1aiwkewqzwauexwnmqk9u9q3c"
   "Secret for floobits"
   :type 'string
   )
 
 (defcustom floobits-room "test"
+  "Room for floobits"
+  :type 'stringq
+  )
+
+(defcustom floobits-room-owner "ggreer"
   "Room for floobits"
   :type 'stringq
   )
@@ -28,18 +33,18 @@
 
 (defun floobits-switch (text)
   (print text))
-;  (let* ((json-key-type 'string) 
+;  (let* ((json-key-type 'string)
 ;	 (req (json-read-from-string text)))
 ;;    (message "%s" req)))
 
 (defun floobits-listener(process response)
-  (setq floobits-agent-buffer (concat floobits-agent-buffer response))
+  (setq floobits-agent-buffer (concat floobits-agen t-buffer response))
   (let ((position (search "\n" floobits-agent-buffer)))
        (if (not (eq nil position))
 	   (progn (print position)
-		  (floobits-switch (substring floobits-agent-buffer 0 position))
-		  (setq floobits-agent-buffer 
-			(substring floobits-agent-buffer 
+		  (floobits-switch (substring floobits-agent-buffer 0 position)) 
+		  (setq floobits-agent-buffer
+			(substring floobits-agent-buffer
 				   (if (> (length floobits-agent-buffer) position) (+ 1 position) position)))
 		  (floobits-listener process "")))))
 
@@ -47,23 +52,26 @@
   (let ((req (list `(name . auth)
 	     `(username . ,floobits-username)
 	     `(room . ,floobits-room)
-	     `(secret . ,floobits-secret))))
-    (send-to-agent req)))
+	     `(secret . ,floobits-secret)
+	     `(room_owner . ,floobits-room-owner))))
+    (send-to-agent req 'auth)))
 
 (defun create-connection()
   (setq floo (open-network-stream "floobits" nil floobits-agent-host floobits-agent-port))
   (set-process-coding-system floo 'utf-8 'utf-8)
   (set-process-filter floo 'floobits-listener)
   (floobits-auth))
-  
+
 (defun change-func (var begin end &optional &rest old_length)
   "does stuff"
   (setq contents (buffer-substring-no-properties begin end))
   (set var
        (mapcar 'symbol-value '(begin end contents old_length))))
 
-(defun send-to-agent (req)
+(defun send-to-agent (req event)
   (add-to-list 'req (cons 'version floobits-agent-version))
+  (add-to-list 'req (cons 'name event))
+  (add-to-list 'req (cons 'buf (buffer-file-name)))
   (process-send-string floo (concat (json-encode req) "\n")))
 
 (defun get-text (begin end)
@@ -71,19 +79,19 @@
 
 (defun before-change (begin end)
   (let ((text (get-text begin end)))
-    (add-to-list 'floobits-change-set (cons 'before `(,begin ,end ,text)))))
+    (add-to-list 'floobits-change-set (cons 'before `(,begin ,end ,text))))) 
 
 (defun after-change (begin end old_length)
-  (let ((text (get-text begin end)))
+  (let ((text (get-text begin end)))  
     (add-to-list 'floobits-change-set (cons 'after `(,begin ,end ,text)))
-    (send-to-agent floobits-change-set)
+    (send-to-agent floobits-change-set 'change)
   (setq floobits-change-set)))
 
 (defun after-new-buffer ()
   (let ((req '("event" "new-buffer")))
     (add-to-list 'req (cons 'text (get-text point-min point-max)))
     (add-to-list 'req (cons 'path (file-name-directory load-file-name)))
-    (send-to-agent req)))
+    (send-to-agent req 'new-buffer)))
 
 (add-hook 'before-change-functions 'before-change nil t)
 (add-hook 'after-change-functions 'after-change nil t)
