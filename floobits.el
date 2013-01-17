@@ -31,29 +31,36 @@
   :type 'string
   )
 
+(defun floobits-event-room_info (req)
+  "does a thing"
+  (message "in call %s" req)
+  )
+
 (defun floobits-switch (text)
-  (print text))
-;  (let* ((json-key-type 'string)
-;	 (req (json-read-from-string text)))
-;;    (message "%s" req)))
+  (let* ((json-key-type 'string)
+  (req (json-read-from-string text))
+  (event (cdr (assoc "name" req)))
+  (func (concat "floobits-event-" event)))
+  (message "got event: %s" event)
+  (funcall (read func) req)))
 
 (defun floobits-listener(process response)
-  (setq floobits-agent-buffer (concat floobits-agen t-buffer response))
+  (setq floobits-agent-buffer (concat floobits-agent-buffer response))
   (let ((position (search "\n" floobits-agent-buffer)))
        (if (not (eq nil position))
-	   (progn (print position)
-		  (floobits-switch (substring floobits-agent-buffer 0 position)) 
-		  (setq floobits-agent-buffer
-			(substring floobits-agent-buffer
-				   (if (> (length floobits-agent-buffer) position) (+ 1 position) position)))
-		  (floobits-listener process "")))))
+     (progn (print position)
+      (floobits-switch (substring floobits-agent-buffer 0 position))
+      (setq floobits-agent-buffer
+      (substring floobits-agent-buffer
+           (if (> (length floobits-agent-buffer) position) (+ 1 position) position)))
+      (floobits-listener process "")))))
 
 (defun floobits-auth()
   (let ((req (list `(name . auth)
-	     `(username . ,floobits-username)
-	     `(room . ,floobits-room)
-	     `(secret . ,floobits-secret)
-	     `(room_owner . ,floobits-room-owner))))
+       `(username . ,floobits-username)
+       `(room . ,floobits-room)
+       `(secret . ,floobits-secret)
+       `(room_owner . ,floobits-room-owner))))
     (send-to-agent req 'auth)))
 
 (defun create-connection()
@@ -79,10 +86,10 @@
 
 (defun before-change (begin end)
   (let ((text (get-text begin end)))
-    (add-to-list 'floobits-change-set (cons 'before `(,begin ,end ,text))))) 
+    (add-to-list 'floobits-change-set (cons 'before `(,begin ,end ,text)))))
 
 (defun after-change (begin end old_length)
-  (let ((text (get-text begin end)))  
+  (let ((text (get-text begin end)))
     (add-to-list 'floobits-change-set (cons 'after `(,begin ,end ,text)))
     (send-to-agent floobits-change-set 'change)
   (setq floobits-change-set)))
