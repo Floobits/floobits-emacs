@@ -34,6 +34,9 @@
 (defun floobits-event-room_info (req)
   "does a thing"
   (message "in call %s" req)
+  (mapcar '(lambda (name)
+	     (substring (buffer-name name) 0 2))
+	  (buffer-list))
   )
 
 (defun floobits-switch (text)
