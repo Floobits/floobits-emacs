@@ -16,3 +16,6 @@ class Emacs():
 
     def editor_change(self, req):
         print req
+
+    def editor_buffer_list(self, req):
+        print req

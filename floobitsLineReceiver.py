@@ -25,7 +25,7 @@ class FloobitsLineReceiver(LineReceiver):
             pass
             # raise AttributeError("no name version in req", req)
 
-        attr = "{p}_{e}".format(p=self.dispatchPrefix, e=event)
+        attr = "{p}_{e}".format(p=self.dispatchPrefix, e=event.replace('-', '_'))
         method = getattr(self.agent, attr, None)
         if not method:
             raise ValueError("Could not dispatch {e} for version {v}".format(e=event, v=version))
