@@ -28,16 +28,25 @@
 
 (defcustom floobits-share-dir "~/share"
   "Room for floobits"
-  :type 'string
-  )
+  :type 'string)
+
+(defun floobits-filter-func (condp lst)
+  (delq nil
+	(mapcar (lambda (x) (and (funcall condp x) x)) lst)))
+
+(defun floobits-is-buffer-public(buf) 
+       (cond  
+       ((string="*" (substring (buffer-name buf) 0 1)) nil)
+       ((string= " *" (substring (buffer-name buf) 0 2)) nil)
+       (t t)))
 
 (defun floobits-event-room_info (req)
   "does a thing"
   (message "in call %s" req)
-  (mapcar '(lambda (name)
-	     (substring (buffer-name name) 0 2))
-	  (buffer-list))
-  )
+  (let* ((public-buffers 
+	 (mapcar '(lambda (buffer) (buffer-name buffer)) (floobits-filter-func 'floobits-is-buffer-public (buffer-list))))
+    (req (list `(buffers . ,public-buffers))))
+    (send-to-agent req 'buffer-list)))
 
 (defun floobits-switch (text)
   (let* ((json-key-type 'string)
