@@ -34,24 +34,30 @@
   (delq nil
 	(mapcar (lambda (x) (and (funcall condp x) x)) lst)))
 
-(defun floobits-is-buffer-public(buf) 
-       (cond  
-       ((string="*" (substring (buffer-name buf) 0 1)) nil)
-       ((string= " *" (substring (buffer-name buf) 0 2)) nil)
-       (t t)))
+(defun _floobits-is-buffer-public(buf)
+  (let ((name (buffer-name buf)))
+    (cond  
+     ((string="*" (substring name 0 1)) nil)
+     ((string=" " (substring name 0 1)) nil)
+     ((< (length name) 11) t)
+     ((string="floobits.el" (substring name 0 11)) nil)
+     (t t))))
 
 (defun floobits-get-public-buffers ()
   "returns buffers that aren't internal to emacs"
- (mapcar 
-  '(lambda (buffer) (buffer-name buffer))
-  (floobits-filter-func 'floobits-is-buffer-public (buffer-list))))
+  (floobits-filter-func '_floobits-is-buffer-public (buffer-list)))
+
+(defun floobits-get-buffer-text (name)
+  "returns properties free text of buffer with name (name)"
+  (message "name: %s" name)
+  (with-current-buffer (set-buffer (get-buffer-create name))
+    (buffer-substring-no-properties (point-min) (point-max))))
 
 (defun floobits-event-room_info (req)
   "does a thing"
-  (message "in call %s" req)
-  (let* ((public-buffers (floobits-get-public-buffers))
-    (req (list `(buffers . ,public-buffers))))
-    (send-to-agent req 'buffer-list)))
+  (mapcar 'floobits-get-buffer-text (floobits-get-public-buffers))
+;    (req (list `(buffers . ,buffers))))
+ ;   (send-to-agent req 'buffer-list)))
 
 (defun floobits-switch (text)
   (let* ((json-key-type 'string)
