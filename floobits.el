@@ -40,11 +40,16 @@
        ((string= " *" (substring (buffer-name buf) 0 2)) nil)
        (t t)))
 
+(defun floobits-get-public-buffers ()
+  "returns buffers that aren't internal to emacs"
+ (mapcar 
+  '(lambda (buffer) (buffer-name buffer))
+  (floobits-filter-func 'floobits-is-buffer-public (buffer-list))))
+
 (defun floobits-event-room_info (req)
   "does a thing"
   (message "in call %s" req)
-  (let* ((public-buffers 
-	 (mapcar '(lambda (buffer) (buffer-name buffer)) (floobits-filter-func 'floobits-is-buffer-public (buffer-list))))
+  (let* ((public-buffers (floobits-get-public-buffers))
     (req (list `(buffers . ,public-buffers))))
     (send-to-agent req 'buffer-list)))
 
