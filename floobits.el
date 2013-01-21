@@ -55,7 +55,7 @@
 
 (defun floobits-event-room_info (req)
   "does a thing"
-  (mapcar 'floobits-get-buffer-text (floobits-get-public-buffers))
+  (mapcar 'floobits-get-buffer-text (floobits-get-public-buffers)))
 ;    (req (list `(buffers . ,buffers))))
  ;   (send-to-agent req 'buffer-list)))
 
@@ -79,11 +79,11 @@
       (floobits-listener process "")))))
 
 (defun floobits-auth()
-  (let ((req (list `(name . auth)
-       `(username . ,floobits-username)
-       `(room . ,floobits-room)
-       `(secret . ,floobits-secret)
-       `(room_owner . ,floobits-room-owner))))
+  (let ((req (list (cons 'name auth)
+		   (cons 'username floobits-username)
+		   (cons 'room floobits-room)
+		   (cons 'secret floobits-secret)
+		   (cons 'room_owner floobits-room-owner))))
     (send-to-agent req 'auth)))
 
 (defun create-connection()
