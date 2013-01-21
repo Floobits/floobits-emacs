@@ -13,7 +13,7 @@ class CloudAgent():
         self.perms = req['perms']
         self.bufs = req['bufs']
         self.tree = req['tree']
-        self.projectPath = utils.unfuck_path('./shared')
+        self.projectPath = utils.unfuck_path(os.path.abspath('./shared'))
         self.sendToEditor(req)
         self.readOnly = True
 
@@ -45,6 +45,7 @@ class CloudAgent():
         filePath = os.path.join(self.basePath, req['path'])
         with open(filePath, 'w') as fd:
             fd.write(req['buf'])
+        req['full_path'] = filePath
         del req['buf']
         self.sendToEditor(req)
 
