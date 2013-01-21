@@ -32,11 +32,11 @@
 
 (defun floobits-filter-func (condp lst)
   (delq nil
-	(mapcar (lambda (x) (and (funcall condp x) x)) lst)))
+  (mapcar (lambda (x) (and (funcall condp x) x)) lst)))
 
 (defun _floobits-is-buffer-public(buf)
   (let ((name (buffer-name buf)))
-    (cond  
+    (cond
      ((string="*" (substring name 0 1)) nil)
      ((string=" " (substring name 0 1)) nil)
      ((< (length name) 11) t)
@@ -59,6 +59,10 @@
 ;    (req (list `(buffers . ,buffers))))
  ;   (send-to-agent req 'buffer-list)))
 
+(defun floobits-event-get_buf (req)
+  (let ((filename (cdr (assoc "full_path" req))))
+  (find-file filename)))
+
 (defun floobits-switch (text)
   (let* ((json-key-type 'string)
   (req (json-read-from-string text))
@@ -75,15 +79,15 @@
       (floobits-switch (substring floobits-agent-buffer 0 position))
       (setq floobits-agent-buffer
       (substring floobits-agent-buffer
-           (if (> (length floobits-agent-buffer) position) (+ 1 position) position)))
+        (if (> (length floobits-agent-buffer) position) (+ 1 position) position)))
       (floobits-listener process "")))))
 
 (defun floobits-auth()
-  (let ((req (list (cons 'name auth)
-		   (cons 'username floobits-username)
-		   (cons 'room floobits-room)
-		   (cons 'secret floobits-secret)
-		   (cons 'room_owner floobits-room-owner))))
+  (let ((req (list
+    (cons 'username floobits-username)
+    (cons 'room floobits-room)
+    (cons 'secret floobits-secret)
+    (cons 'room_owner floobits-room-owner))))
     (send-to-agent req 'auth)))
 
 (defun create-connection()
