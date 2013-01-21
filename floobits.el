@@ -47,15 +47,15 @@
   "returns buffers that aren't internal to emacs"
   (floobits-filter-func '_floobits-is-buffer-public (buffer-list)))
 
-(defun floobits-get-buffer-text (name)
+(defun floobits-get-buffer-text (buffer)
   "returns properties free text of buffer with name (name)"
-  (message "name: %s" name)
-  (with-current-buffer (set-buffer (get-buffer-create name))
-    (buffer-substring-no-properties (point-min) (point-max))))
+  (with-current-buffer buffer)
+  ; (with-current-buffer (set-buffer (get-buffer-create name))
+    (buffer-substring-no-properties (point-min) (point-max)))
 
 (defun floobits-event-room_info (req)
-  "does a thing"
-  (mapcar 'floobits-get-buffer-text (floobits-get-public-buffers)))
+  "does a thing")
+  ;(mapcar 'floobits-get-buffer-text (floobits-get-public-buffers)))
 ;    (req (list `(buffers . ,buffers))))
  ;   (send-to-agent req 'buffer-list)))
 
@@ -105,21 +105,23 @@
 (defun send-to-agent (req event)
   (add-to-list 'req (cons 'version floobits-agent-version))
   (add-to-list 'req (cons 'name event))
-  (add-to-list 'req (cons 'buf (buffer-file-name)))
   (process-send-string floo (concat (json-encode req) "\n")))
 
 (defun get-text (begin end)
   (buffer-substring-no-properties begin end))
 
 (defun before-change (begin end)
-  (let ((text (get-text begin end)))
-    (add-to-list 'floobits-change-set (cons 'before `(,begin ,end ,text)))))
+  (if (eq (_floobits-is-buffer-public (current-buffer)) t)
+    (let ((text (floobits-get-buffer-text (current-buffer))))
+      (add-to-list 'floobits-change-set (cons 'before text)))))
 
 (defun after-change (begin end old_length)
-  (let ((text (get-text begin end)))
-    (add-to-list 'floobits-change-set (cons 'after `(,begin ,end ,text)))
-    (send-to-agent floobits-change-set 'change)
-  (setq floobits-change-set)))
+  (if (eq (_floobits-is-buffer-public (current-buffer)) t)
+     (let ((text (floobits-get-buffer-text (current-buffer))))
+      (add-to-list 'floobits-change-set (cons 'after text))
+      (add-to-list 'floobits-change-set (cons 'full_path (buffer-file-name (current-buffer))))
+      (send-to-agent floobits-change-set 'change)
+    (setq floobits-change-set))))
 
 (defun after-new-buffer ()
   (let ((req '("event" "new-buffer")))
@@ -127,8 +129,8 @@
     (add-to-list 'req (cons 'path (file-name-directory load-file-name)))
     (send-to-agent req 'new-buffer)))
 
-(add-hook 'before-change-functions 'before-change nil t)
-(add-hook 'after-change-functions 'after-change nil t)
+(add-hook 'before-change-functions 'before-change nil nil)
+(add-hook 'after-change-functions 'after-change nil nil)
 (add-hook 'find-file-hook 'after-new-buffer nil t)
 
 (create-connection)
