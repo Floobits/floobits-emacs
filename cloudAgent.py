@@ -70,8 +70,10 @@ class CloudAgent():
     def cloud_error(self, req):
         pass
 
-    def cloud_disconnect(self, req, raw):
-        print('diconnected: ', req['reason'])
+    def cloud_disconnect(self, req):
+        self.cloudFactory.reconnect = False
+        self.sendToEditor(req)
+        print('diconnected: ', req)
 
     def cloud_msg(self):
         pass
