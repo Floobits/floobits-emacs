@@ -1,7 +1,8 @@
 from  twisted.internet import reactor
 
-import cloudFactory
 import dmp
+
+import cloudFactory
 import dmp_monkey
 
 dmp_monkey.monkey_patch()
@@ -20,6 +21,8 @@ class Emacs():
         reactor.connectTCP("staging.floobits.com", 3148, self.cloudFactory)
 
     def editor_change(self, req):
+        if not self.is_shared(req['full_path']):
+            return
         print req
 
     def editor_buffer_list(self, req):

@@ -1,9 +1,5 @@
 import os
 
-def get_full_path(p):
-    full_path = os.path.join(G.PROJECT_PATH, p)
-    return unfuck_path(full_path)
-
 
 def unfuck_path(p):
     return os.path.normcase(os.path.normpath(p))

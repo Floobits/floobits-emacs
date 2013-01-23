@@ -6,6 +6,10 @@ import utils
 class CloudAgent():
     CLOUD_VERSION = "0.01"
 
+    def is_shared(self, p):
+        p = utils.unfuck_path(p)
+        return self.basePath == p[:len(self.basePath)]
+
     def sendToCloud(self, req):
         raise NotImplemented('')
 
