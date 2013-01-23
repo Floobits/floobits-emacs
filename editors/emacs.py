@@ -1,12 +1,17 @@
 from  twisted.internet import reactor
 
 import cloudFactory
+import dmp
+import dmp_monkey
+
+dmp_monkey.monkey_patch()
 
 
 class Emacs():
     EDITOR_VERSION = "0.01"
 
     def editor_auth(self, req):
+        print req
         self.room = req['room']
         self.username = req['username']
         self.room_owner = req.get('room_owner', self.username)
