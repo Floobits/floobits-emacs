@@ -53,6 +53,9 @@
   ; (with-current-buffer (set-buffer (get-buffer-create name))
     (buffer-substring-no-properties (point-min) (point-max)))
 
+(defun floobits-event-disconnect (req)
+  (message "Disconnected: %s" (cdr (assoc "reason" req))))
+
 (defun floobits-event-room_info (req)
   "does a thing")
   ;(mapcar 'floobits-get-buffer-text (floobits-get-public-buffers)))
@@ -65,11 +68,10 @@
 
 (defun floobits-switch (text)
   (let* ((json-key-type 'string)
-  (req (json-read-from-string text))
-  (event (cdr (assoc "name" req)))
-  (func (concat "floobits-event-" event)))
-  (message "got event: %s" event)
-  (funcall (read func) req)))
+	 (req (json-read-from-string text))
+	 (event (cdr (assoc "name" req)))
+	 (func (concat "floobits-event-" event)))
+    (funcall (read func) req)))
 
 (defun floobits-listener(process response)
   (setq floobits-agent-buffer (concat floobits-agent-buffer response))
