@@ -5,6 +5,7 @@
 (setq floobits-agent-port 4567)
 (setq floobits-change-set ())
 (setq floobits-agent-buffer "")
+(setq floobits-room-owner "kans")
 
 (defcustom floobits-username "kans"
   "Username for floobits"
@@ -18,12 +19,7 @@
 
 (defcustom floobits-room "test"
   "Room for floobits"
-  :type 'stringq
-  )
-
-(defcustom floobits-room-owner "ggreer"
-  "Room for floobits"
-  :type 'stringq
+  :type 'string
   )
 
 (defcustom floobits-share-dir "~/share"
@@ -40,8 +36,17 @@
      ((string="*" (substring name 0 1)) nil)
      ((string=" " (substring name 0 1)) nil)
      ((< (length name) 11) t)
-     ((string="floobits.el" (substring name 0 11)) nil)
+     ((string= "floobits.el" (substring name 0 11)) nil)
      (t t))))
+
+(defun _floobits-is-buffer-shared(buf)
+  (let ((name (buffer-name buf))
+	(length (length floobits-share-dir)))
+    (cond
+     ((not (boundp floobits-share-dir)) nil)
+     ((< (length name) length) nil)
+     (string= floobits-share-dir (substring name 0 length) t)
+     (t nil))))
 
 (defun floobits-get-public-buffers ()
   "returns buffers that aren't internal to emacs"
@@ -131,7 +136,7 @@
     (add-to-list 'req (cons 'path (file-name-directory load-file-name)))
     (send-to-agent req 'new-buffer)))
 
-(add-hook 'before-change-functions 'before-change nil nil)
+;;(add-hook 'before-change-functions 'before-change nil nil)
 (add-hook 'after-change-functions 'after-change nil nil)
 (add-hook 'find-file-hook 'after-new-buffer nil t)
 
