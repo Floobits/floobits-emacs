@@ -2,6 +2,8 @@ import os
 
 
 def unfuck_path(p):
+    if not p:
+        return ""
     return os.path.normcase(os.path.normpath(p))
 
 

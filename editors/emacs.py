@@ -21,7 +21,10 @@ class Emacs():
         reactor.connectTCP("staging.floobits.com", 3148, self.cloudFactory)
 
     def editor_change(self, req):
-        if not self.is_shared(req['full_path']):
+        path = req['full_path']
+        if not path:
+            return
+        if not self.is_shared(path):
             return
         print req
 
