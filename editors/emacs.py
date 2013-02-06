@@ -1,13 +1,12 @@
 import hashlib
-
 from twisted.internet import reactor
 
 import dmp
-
-import cloudFactory
 import dmp_monkey
+import cloudFactory
 
 dmp_monkey.monkey_patch()
+DMP = dmp.diff_match_patch()
 
 
 class Emacs():
@@ -20,6 +19,7 @@ class Emacs():
         self.room_owner = req.get('room_owner', self.username)
         self.secret = req['secret']
         self.cloudFactory = cloudFactory.CloudFactory(self)
+        # TODO: make these a setting. also, ssl
         reactor.connectTCP("floobits.com", 3148, self.cloudFactory)
 
     def editor_change(self, req):
@@ -32,7 +32,7 @@ class Emacs():
             print("buf not found for path %s. not sending patch" % path)
             return
 
-        patches = dmp.diff_match_patch().patch_make(buf['buf'], req['after'])
+        patches = DMP.patch_make(buf['buf'], req['after'])
         patch_str = ''
         for patch in patches:
             patch_str += str(patch)
