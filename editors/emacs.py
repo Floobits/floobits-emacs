@@ -29,7 +29,7 @@ class Emacs():
 
         buf = self.getBufByPath(path)
         if not buf:
-            print("buf not found. not sending patch")
+            print("buf not found for path %s. not sending patch" % path)
             return
 
         patches = dmp.diff_match_patch().patch_make(buf['buf'], req['after'])
