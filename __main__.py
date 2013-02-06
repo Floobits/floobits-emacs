@@ -6,4 +6,5 @@ import editorFactory
 if __name__ == "__main__":
     server = editorFactory.EditorFactory()
     TCP4ServerEndpoint(reactor, 4567).listen(server)
+    print('Starting up...')
     reactor.run()
