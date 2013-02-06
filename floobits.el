@@ -17,7 +17,7 @@
   :type 'string
   )
 
-(defcustom floobits-room "test"
+(defcustom floobits-room "asdf"
   "Room for floobits"
   :type 'string
   )
@@ -69,7 +69,9 @@
 
 (defun floobits-event-get_buf (req)
   (let ((filename (cdr (assoc "full_path" req))))
-  (find-file filename)))
+    (if (not (eq filename nil))
+      (find-file filename)
+    (message "filename does not exist for buffer %s" (cdr (assoc "id" req))))))
 
 (defun floobits-switch (text)
   (let* ((json-key-type 'string)
