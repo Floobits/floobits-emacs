@@ -1,5 +1,6 @@
 import cloudAgent
 from editors import emacs
+import utils
 
 
 class Agent(cloudAgent.CloudAgent, emacs.Emacs):
@@ -31,3 +32,16 @@ class Agent(cloudAgent.CloudAgent, emacs.Emacs):
             'room_owner': self.room_owner
         }
         self.sendToCloud(auth)
+
+    def isShared(self, p):
+        p = utils.unfuck_path(p)
+        return self.basePath == p[:len(self.basePath)]
+
+    def getBufByPath(self, filepath):
+        if not self.isShared(filepath):
+            return
+
+        filepath = filepath[len(self.basePath) + 1:]
+        for bufId, buf in self.bufs.iteritems():
+            if buf['path'] == filepath:
+                return buf

@@ -6,16 +6,11 @@ import utils
 class CloudAgent():
     CLOUD_VERSION = "0.01"
 
-    def is_shared(self, p):
-        p = utils.unfuck_path(p)
-        return self.basePath == p[:len(self.basePath)]
-
     def sendToCloud(self, req):
         raise NotImplemented('')
 
     def cloud_room_info(self, req):
         self.perms = req['perms']
-        self.bufs = req['bufs']
         self.tree = req['tree']
         self.projectPath = utils.unfuck_path(os.path.abspath('./shared'))
         self.sendToEditor(req)
@@ -29,8 +24,10 @@ class CloudAgent():
         print('making dir', self.basePath)
         utils.mkdir(self.basePath)
 
-        for bufId, buf in self.bufs.iteritems():
+        self.bufs = {}
+        for bufId, buf in req['bufs'].iteritems():
             bufId = int(bufId)  # json keys must be strings
+            self.bufs[bufId] = buf
             newDir = os.path.split(os.path.join(self.basePath, buf['path']))[0]
             utils.mkdir(newDir)
             self.sendToCloud({
@@ -44,14 +41,16 @@ class CloudAgent():
         pass
 
     def cloud_get_buf(self, req):
-        print('Got buf', req)
-        self.bufs[req['id']] = req
+        bufId = req['id']
+        self.bufs[bufId] = req
         filePath = os.path.join(self.basePath, req['path'])
         with open(filePath, 'w') as fd:
             fd.write(req['buf'])
+        self.bufs[bufId]['full_path'] = filePath
+        print('got buf %s. buf is now %s' % (bufId, self.bufs[bufId]))
         req['full_path'] = filePath
-        del req['buf']
         self.sendToEditor(req)
+        del self.bufs[bufId]['name']
 
     def cloud_create_buf(self, req):
         pass
