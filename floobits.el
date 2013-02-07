@@ -67,6 +67,23 @@
 ;    (req (list `(buffers . ,buffers))))
  ;   (send-to-agent req 'buffer-list)))
 
+(defun floobits-event-join (req))
+
+(defun floobits-event-edit (req)
+  (message "got an edit event %s" req)
+  (let* ((filename (cdr (assoc "full_path" req)))
+    (buf (get-file-buffer filename))
+    (edits (cdr (assoc "edits" req))))
+    (if buf
+      (progn
+        (with-current-buffer buf)
+          (save-excursion
+            (atomic-change-group
+              (loop for edit in edits do
+                (goto-char (nth 0 edit))
+                (delete-region (nth 0 edit) (+ (nth 0 edit) (nth 1 edit)))
+                (insert (nth 3 edit)))))))))
+
 (defun floobits-event-get_buf (req)
   (let ((filename (cdr (assoc "full_path" req))))
     (if (not (eq filename nil))
