@@ -47,6 +47,10 @@ class CloudAgent():
         bufId = req['id']
         buf = self.bufs[bufId]
         patches = DMP.patch_fromText(req['patch'])
+
+        if buf['md5'] != req['md5_before']:
+            print('starting md5s don\'t match for %s. this is dangerous!' % buf['path'])
+
         t = DMP.patch_apply(patches, buf['buf'])
 
         clean_patch = True
@@ -54,7 +58,6 @@ class CloudAgent():
             if not applied_patch:
                 clean_patch = False
                 break
-
         if not clean_patch:
             print('Patch not applied cleanly. Re-fetching buffer')
             self.sendToCloud({
@@ -65,16 +68,30 @@ class CloudAgent():
 
         md5_after = hashlib.md5(t[0].encode('utf-8')).hexdigest()
         if md5_after != req['md5_after']:
-            print('md5 sum mismatch')
+            print('%s new hash %s != expected %s. re-fetching buffer...' % \
+                (buf['path'], md5_after, req['md5_after']))
 
         buf['buf'] = t[0]
         buf['md5'] = md5_after
 
-        # For now at least save the new buffer state to disk
-        with open(buf['full_path'], 'w') as fd:
-            fd.write(buf['buf'])
+        req['offsets'] = t[2]
+        req['buf'] = buf
+        self.sendToEditor({
+            'name': 'edit',
+            'edits': t[2],
+            'full_path': buf['full_path'],
+        })
 
-        # TODO: send something useful to the editor
+            # new_sels = []
+            # for sel in selections:
+            #     a = sel.a
+            #     b = sel.b
+            #     new_offset = len(patch_text) - length
+            #     if sel.a > offset:
+            #         a += new_offset
+            #     if sel.b > offset:
+            #         b += new_offset
+            #     new_sels.append(sublime.Region(a, b))
 
     def cloud_get_buf(self, req):
         bufId = req['id']
