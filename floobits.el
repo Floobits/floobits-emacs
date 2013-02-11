@@ -63,16 +63,12 @@
 
 (defun floobits-event-room_info (req)
   "does a thing")
-  ;(mapcar 'floobits-get-buffer-text (floobits-get-public-buffers)))
-;    (req (list `(buffers . ,buffers))))
- ;   (send-to-agent req 'buffer-list)))
 
 (defun floobits-event-join (req))
 
 (defun floobits-event-part (req))
 
 (defun floobits-event-edit (req)
-  (message "got an edit event %s" req)
   (let* ((filename (cdr (assoc "full_path" req)))
     (buf (get-file-buffer filename))
     (edits (cdr (assoc "edits" req)))
@@ -81,10 +77,8 @@
         (edit-start (+ 1 (elt edit 0)))
         (edit-length (elt edit 1))
         (edit-end (min (+ 1 (buffer-size)) (+ edit-start edit-length))))
-        (message "deleting region from %s to %s" edit-start edit-end)
         (delete-region edit-start edit-end)
         (when (eq 3 (length edit))
-          (message "inserting %s" (elt edit 2))
           (goto-char edit-start)
           (insert (elt edit 2)))))))
     (if buf
