@@ -41,7 +41,7 @@
 
 (defun _floobits-is-buffer-shared(buf)
   (let ((name (buffer-name buf))
-	(length (length floobits-share-dir)))
+  (length (length floobits-share-dir)))
     (cond
      ((not (boundp floobits-share-dir)) nil)
      ((< (length name) length) nil)
@@ -69,20 +69,29 @@
 
 (defun floobits-event-join (req))
 
+(defun floobits-event-part (req))
+
 (defun floobits-event-edit (req)
   (message "got an edit event %s" req)
   (let* ((filename (cdr (assoc "full_path" req)))
     (buf (get-file-buffer filename))
-    (edits (cdr (assoc "edits" req))))
+    (edits (cdr (assoc "edits" req)))
+    (apply-edit (lambda (edit)
+      (let* ((inhibit-modification-hooks t)
+        (edit-start (+ 1 (elt edit 0)))
+        (edit-length (elt edit 1))
+        (edit-end (min (+ 1 (buffer-size)) (+ edit-start edit-length))))
+        (message "deleting region from %s to %s" edit-start edit-end)
+        (delete-region edit-start edit-end)
+        (when (eq 3 (length edit))
+          (message "inserting %s" (elt edit 2))
+          (goto-char edit-start)
+          (insert (elt edit 2)))))))
     (if buf
-      (progn
-        (with-current-buffer buf)
-          (save-excursion
-            (atomic-change-group
-              (loop for edit in edits do
-                (goto-char (nth 0 edit))
-                (delete-region (nth 0 edit) (+ (nth 0 edit) (nth 1 edit)))
-                (insert (nth 3 edit)))))))))
+      (with-current-buffer buf
+        (save-excursion
+          (atomic-change-group
+            (mapcar apply-edit edits)))))))
 
 (defun floobits-event-get_buf (req)
   (let ((filename (cdr (assoc "full_path" req))))
@@ -92,21 +101,20 @@
 
 (defun floobits-switch (text)
   (let* ((json-key-type 'string)
-	 (req (json-read-from-string text))
-	 (event (cdr (assoc "name" req)))
-	 (func (concat "floobits-event-" event)))
+   (req (json-read-from-string text))
+   (event (cdr (assoc "name" req)))
+   (func (concat "floobits-event-" event)))
     (funcall (read func) req)))
 
 (defun floobits-listener(process response)
   (setq floobits-agent-buffer (concat floobits-agent-buffer response))
   (let ((position (search "\n" floobits-agent-buffer)))
-       (if (not (eq nil position))
-     (progn (print position)
+    (when position
       (floobits-switch (substring floobits-agent-buffer 0 position))
       (setq floobits-agent-buffer
       (substring floobits-agent-buffer
         (if (> (length floobits-agent-buffer) position) (+ 1 position) position)))
-      (floobits-listener process "")))))
+      (floobits-listener process ""))))
 
 (defun floobits-auth()
   (let ((req (list
