@@ -68,8 +68,8 @@ class CloudAgent():
 
         md5_after = hashlib.md5(t[0].encode('utf-8')).hexdigest()
         if md5_after != req['md5_after']:
-            print('%s new hash %s != expected %s. re-fetching buffer...' % \
-                (buf['path'], md5_after, req['md5_after']))
+            print('%s new hash %s != expected %s. re-fetching buffer...' %
+                 (buf['path'], md5_after, req['md5_after']))
 
         buf['buf'] = t[0]
         buf['md5'] = md5_after
