@@ -148,12 +148,6 @@
     (message "deleting floobits conn")
     (setq floobits-conn nil)))
 
-; (defun floobits-change-func (var begin end &optional &rest old_length)
-;   "does stuff"
-;   (setq contents (buffer-substring-no-properties begin end))
-;   (set var
-;     (mapcar 'symbol-value '(begin end contents old_length))))
-
 (defun floobits-send-to-agent (req event)
   (add-to-list 'req (cons 'version floobits-agent-version))
   (add-to-list 'req (cons 'name event))
