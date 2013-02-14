@@ -6,7 +6,6 @@
 (setq floobits-agent-port 4567)
 (setq floobits-change-set ())
 (setq floobits-agent-buffer "")
-
 (setq floobits-conn nil)
 
 (defcustom floobits-username "kans"
@@ -36,7 +35,7 @@
     (domain (url-host url-struct))
     (port (url-port url-struct))
     (path (url-filename url-struct))
-    (_ (string-match "^/r/\\(.*\\)/\\(.*\\)$" path))
+    (_ (string-match "^/r/\\(.*\\)/\\(.*\\)/" path))
     (owner (match-string 1 path))
     (room (match-string 2 path)))
     (print (list path room owner))
