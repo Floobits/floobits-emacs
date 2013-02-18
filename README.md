@@ -12,4 +12,4 @@ Floobits plugin for Emacs
 # Usage
 
 1. `M-x floobits-join-room`
-1. Enter the room URL (https://floobits.com/r/room\_owner/room\_name)
+1. Enter the room URL (https://floobits.com/r/room_owner/room_name)
