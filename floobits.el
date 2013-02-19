@@ -6,7 +6,6 @@
 (setq floobits-agent-port 4567)
 (setq floobits-change-set ())
 (setq floobits-agent-buffer "")
-
 (setq floobits-conn nil)
 
 (defcustom floobits-username "kans"
@@ -29,6 +28,11 @@
   (delq nil
   (mapcar (lambda (x) (and (funcall condp x) x)) lst)))
 
+(defun floobits-launch-agent ()
+  (when (boundp 'floobits-twisted-agent)
+    (delete-process floobits-twisted-agent))
+  (start-process "floobits-twisted-agent" "*Messages*" "~/floobits-agent"))
+
 (defun floobits-join-room (floourl)
 "Join a floobits room"
   (interactive (list (read-from-minibuffer "Floobits room URL (owner/room): " "https://floobits.com/r/")))
@@ -36,17 +40,17 @@
     (domain (url-host url-struct))
     (port (url-port url-struct))
     (path (url-filename url-struct))
-    (_ (string-match "^/r/\\(.*\\)/\\(.*\\)$" path))
+    (_ (string-match "^/r/\\(.*\\)/\\(.*\\)/" path))
     (owner (match-string 1 path))
     (room (match-string 2 path)))
     (print (list path room owner))
     (if (and room owner)
       (progn
+        (floobits-destroy-connection)
         (setq floobits-room room)
         (setq floobits-room-owner owner)
-        (floobits-destroy-connection)
         (floobits-create-connection))
-    (message "Invalid url! I should look like: https://floobits.com/r/owner/room"))))
+    (message "Invalid url! I should look like: https://floobits.com/r/owner/room/"))))
 
 (defun _floobits-is-buffer-public(buf)
   (let ((name (buffer-name buf)))
@@ -149,12 +153,6 @@
     (message "deleting floobits conn")
     (setq floobits-conn nil)))
 
-; (defun floobits-change-func (var begin end &optional &rest old_length)
-;   "does stuff"
-;   (setq contents (buffer-substring-no-properties begin end))
-;   (set var
-;     (mapcar 'symbol-value '(begin end contents old_length))))
-
 (defun floobits-send-to-agent (req event)
   (add-to-list 'req (cons 'version floobits-agent-version))
   (add-to-list 'req (cons 'name event))
@@ -185,3 +183,4 @@
 ;;(add-hook 'before-change-functions 'before-change nil nil)
 (add-hook 'after-change-functions 'floobits-after-change nil nil)
 (add-hook 'find-file-hook 'floobits-after-new-buffer nil t)
+(floobits-launch-agent)
