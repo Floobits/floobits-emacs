@@ -40,7 +40,7 @@
     (domain (url-host url-struct))
     (port (url-port url-struct))
     (path (url-filename url-struct))
-    (_ (string-match "^/r/\\(.*\\)/\\(.*\\)" path))
+    (_ (string-match "^/r/\\(.*\\)/\\(.*\\)/" path))
     (owner (match-string 1 path))
     (room (match-string 2 path)))
     (print (list path room owner))
@@ -50,7 +50,7 @@
         (setq floobits-room room)
         (setq floobits-room-owner owner)
         (floobits-create-connection))
-    (message "Invalid url! I should look like: https://floobits.com/r/owner/room"))))
+    (message "Invalid url! I should look like: https://floobits.com/r/owner/room/"))))
 
 (defun _floobits-is-buffer-public(buf)
   (let ((name (buffer-name buf)))
