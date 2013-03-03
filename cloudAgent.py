@@ -34,6 +34,7 @@ class CloudAgent():
         for bufId, buf in req['bufs'].iteritems():
             bufId = int(bufId)  # json keys must be strings
             self.bufs[bufId] = buf
+            self.bufs[bufId]['buf'] = ''
             newDir = os.path.split(os.path.join(self.basePath, buf['path']))[0]
             utils.mkdir(newDir)
             self.sendToCloud({
