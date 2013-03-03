@@ -8,11 +8,13 @@
 (setq floobits-agent-buffer "")
 (setq floobits-conn nil)
 
-(defcustom floobits-username "kans"
+; To set this: M-x customize-variable RET floobits-username
+(defcustom floobits-username ""
   "Username for floobits"
   :type 'string)
 
-(defcustom floobits-secret "1aiwkewqzwauexwnmqk9u9q3c"
+; To set this: M-x customize-variable RET floobits-secret
+(defcustom floobits-secret ""
   "Secret for floobits"
   :type 'string)
 
@@ -34,23 +36,34 @@
   (start-process "floobits-twisted-agent" "*Messages*" "~/floobits-agent"))
 
 (defun floobits-join-room (floourl)
-"Join a floobits room"
-  (interactive (list (read-from-minibuffer "Floobits room URL (owner/room): " "https://floobits.com/r/")))
-  (let* ((url-struct (url-generic-parse-url floourl))
-    (domain (url-host url-struct))
-    (port (url-port url-struct))
-    (path (url-filename url-struct))
-    (_ (string-match "^/r/\\(.*\\)/\\(.*\\)/" path))
-    (owner (match-string 1 path))
-    (room (match-string 2 path)))
-    (print (list path room owner))
-    (if (and room owner)
-      (progn
-        (floobits-destroy-connection)
-        (setq floobits-room room)
-        (setq floobits-room-owner owner)
-        (floobits-create-connection))
-    (message "Invalid url! I should look like: https://floobits.com/r/owner/room/"))))
+  "Join a floobits room"
+  (interactive (list
+    (cond
+      ((string= "" floobits-username) "")
+      ((string= "" floobits-secret) "")
+      (t (read-from-minibuffer "Floobits room URL (owner/room): " "https://floobits.com/r/")))))
+    (cond
+      ((string= "" floobits-username) (message "Customize floobits-username first: customize-variable RET floobits-username"))
+      ((string= "" floobits-secret) (message "Customize floobits-username first: customize-variable RET floobits-username"))
+      (t (progn
+        (let* ((url-struct (url-generic-parse-url floourl))
+          (domain (url-host url-struct))
+          (port (url-port url-struct))
+          (path (url-filename url-struct))
+          (path
+            (if (string= "/" (substring path -1))
+              (concat path "")
+              (concat path "/")))
+          (_ (string-match "^/r/\\(.*\\)/\\(.*\\)/" path))
+          (owner (match-string 1 path))
+          (room (match-string 2 path)))
+          (print (list path room owner))
+            (progn
+              (floobits-destroy-connection)
+              (setq floobits-room room)
+              (setq floobits-room-owner owner)
+              (floobits-create-connection))
+            (message "Invalid url! I should look like: https://floobits.com/r/owner/room/"))))))
 
 (defun _floobits-is-buffer-public(buf)
   (let ((name (buffer-name buf)))
@@ -90,6 +103,7 @@
   (message "%s joined the room"  (floo-get-item req 'username)))
 
 (defun floobits-event-part (req)
+  (message "%s req")
   (message "%s left the room" (floo-get-item req 'username)))
 
 (defun floobits-event-edit (req)
