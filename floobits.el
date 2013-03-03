@@ -32,8 +32,14 @@
 
 (defun floobits-launch-agent ()
   (when (boundp 'floobits-twisted-agent)
+    (kill-process floobits-twisted-agent)
     (delete-process floobits-twisted-agent))
   (start-process "floobits-twisted-agent" "*Messages*" "~/floobits-agent"))
+
+(defun floobits-leave-room ()
+  "leaves the current rooom"
+  (interactive)
+  (floobits-destroy-connection))
 
 (defun floobits-join-room (floourl)
   "Join a floobits room"
@@ -100,10 +106,11 @@
    (message "Successfully joined room %s" floobits-room))
 
 (defun floobits-event-join (req)
+  (message "%s" req)
   (message "%s joined the room"  (floo-get-item req 'username)))
 
 (defun floobits-event-part (req)
-  (message "%s req")
+  (message "%s" req)
   (message "%s left the room" (floo-get-item req 'username)))
 
 (defun floobits-event-edit (req)
@@ -133,10 +140,11 @@
 
 (defun floobits-switch (text)
   (let* ((json-key-type 'string)
-   (req (json-read-from-string text))
-   (event (cdr (assoc "name" req)))
-   (func (concat "floobits-event-" event)))
-    (funcall (read func) req)))
+    (req (json-read-from-string text))
+    (event (cdr (assoc "name" req)))
+    (func (concat "floobits-event-" event)))
+    (print (floo-get-item req 'name))
+      (funcall (read func) req)))
 
 (defun floobits-listener (process response)
   (setq floobits-agent-buffer (concat floobits-agent-buffer response))
@@ -163,9 +171,9 @@
   (floobits-auth))
 
 (defun floobits-destroy-connection ()
-  (when (and (boundp 'floobits-conn) floobits-conn)
+  (when floobits-conn
     (message "deleting floobits conn")
-    (setq floobits-conn nil)))
+    (delete-process floobits-conn)))
 
 (defun floobits-send-to-agent (req event)
   (add-to-list 'req (cons 'version floobits-agent-version))
