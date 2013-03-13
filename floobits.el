@@ -7,7 +7,7 @@
 (setq floobits-change-set ())
 (setq floobits-agent-buffer "")
 (setq floobits-conn nil)
-
+(setq max-specpdl-size 1500)
 ; To set this: M-x customize-variable RET floobits-username
 (defcustom floobits-username ""
   "Username for floobits"
@@ -63,13 +63,13 @@
           (_ (string-match "^/r/\\(.*\\)/\\(.*\\)/" path))
           (owner (match-string 1 path))
           (room (match-string 2 path)))
-          (print (list path room owner))
+          (if (and path room owner)
             (progn
               (floobits-destroy-connection)
               (setq floobits-room room)
               (setq floobits-room-owner owner)
               (floobits-create-connection))
-            (message "Invalid url! I should look like: https://floobits.com/r/owner/room/"))))))
+            (message "Invalid url! I should look like: https://floobits.com/r/owner/room/")))))))
 
 (defun _floobits-is-buffer-public(buf)
   (let ((name (buffer-name buf)))
