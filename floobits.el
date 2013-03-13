@@ -1,3 +1,4 @@
+(require 'cl)
 (require 'json)
 (require 'url)
 
@@ -8,6 +9,7 @@
 (setq floobits-agent-buffer "")
 (setq floobits-conn nil)
 (setq max-specpdl-size 1500)
+(setq floobits-current-position '((mark . 1) (point . 1) (name . "")))
 ; To set this: M-x customize-variable RET floobits-username
 (defcustom floobits-username ""
   "Username for floobits"
@@ -25,6 +27,21 @@
 (defmacro floo-get-item (alist key)
   "just grab an element from an alist"
   (list 'cdr (list 'assoc key alist)))
+
+(defun floobits-post-command-func ()
+  "used for grabbing changes in point for highlighting"
+  (let* ((name (buffer-name (current-buffer)))
+    (current (list
+      (cons 'point (or (point) -1))
+      (cons 'mark (or (mark) -1))
+      (cons 'name (or name "")))))
+    (unless (equal current floobits-current-position)
+      (setq floobits-current-position current)
+      (let* ((mark (floo-get-item current 'mark))
+        (req (list
+          (cons 'ranges (list (list mark mark)))
+          (cons 'full-path (buffer-file-name (current-buffer))))))
+        (floobits-send-to-agent req 'highlight)))))
 
 (defun floobits-filter-func (condp lst)
   (delq nil
@@ -178,7 +195,8 @@
 (defun floobits-send-to-agent (req event)
   (add-to-list 'req (cons 'version floobits-agent-version))
   (add-to-list 'req (cons 'name event))
-  (process-send-string floobits-conn (concat (json-encode req) "\n")))
+  (when (boundp floobits-conn)
+    (process-send-string floobits-conn (concat (json-encode req) "\n"))))
 
 (defun floobits-get-text (begin end)
   (buffer-substring-no-properties begin end))
@@ -204,5 +222,5 @@
 
 ;;(add-hook 'before-change-functions 'before-change nil nil)
 (add-hook 'after-change-functions 'floobits-after-change nil nil)
-(add-hook 'find-file-hook 'floobits-after-new-buffer nil t)
+;;(add-hook 'post-command-hook 'floobits-post-command-func nil nil)
 (floobits-launch-agent)
