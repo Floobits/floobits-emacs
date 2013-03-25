@@ -10,7 +10,7 @@ DMP = dmp.diff_match_patch()
 
 
 class CloudAgent():
-    CLOUD_VERSION = "0.01"
+    CLOUD_VERSION = "0.02"
 
     def sendToCloud(self, req):
         raise NotImplemented('')
