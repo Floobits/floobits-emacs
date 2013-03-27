@@ -1,3 +1,5 @@
+import sys
+
 import cloudAgent
 from editors import emacs
 import utils
@@ -29,7 +31,9 @@ class Agent(cloudAgent.CloudAgent, emacs.Emacs):
             'username': self.username,
             'secret': self.secret,
             'room': self.room,
-            'room_owner': self.room_owner
+            'room_owner': self.room_owner,
+            'platform': sys.platform(),
+            'client': self.CLIENT
         }
         self.sendToCloud(auth)
 

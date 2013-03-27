@@ -11,6 +11,7 @@ DMP = dmp.diff_match_patch()
 
 class Emacs():
     EDITOR_VERSION = "0.01"
+    CLIENT = "emacs"
 
     def editor_auth(self, req):
         print req
