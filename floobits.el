@@ -195,8 +195,8 @@
 (defun floobits-send-to-agent (req event)
   (add-to-list 'req (cons 'version floobits-agent-version))
   (add-to-list 'req (cons 'name event))
-  (when (boundp floobits-conn)
-    (process-send-string floobits-conn (concat (json-encode req) "\n"))))
+  ;(when (boundp floobits-conn)
+    (process-send-string floobits-conn (concat (json-encode req) "\n")));)
 
 (defun floobits-get-text (begin end)
   (buffer-substring-no-properties begin end))
