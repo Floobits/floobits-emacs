@@ -32,7 +32,7 @@ class Agent(cloudAgent.CloudAgent, emacs.Emacs):
             'secret': self.secret,
             'room': self.room,
             'room_owner': self.room_owner,
-            'platform': sys.platform(),
+            'platform': sys.platform,
             'client': self.CLIENT
         }
         self.sendToCloud(auth)
