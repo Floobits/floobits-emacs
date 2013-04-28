@@ -51,7 +51,7 @@
   (when (boundp 'floobits-twisted-agent)
     (kill-process floobits-twisted-agent)
     (delete-process floobits-twisted-agent))
-  (start-process "floobits-twisted-agent" "*Messages*" "~/floobits-agent"))
+  (start-process "floobits-twisted-agent" "*Messages*" "~/.emacs.d/floobits/twisted_agent/"))
 
 (defun floobits-leave-room ()
   "leaves the current rooom"
