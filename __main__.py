@@ -8,15 +8,15 @@ import editorFactory
 
 
 def onErr(err):
-	print 'AVENGE MEEEEEEEEE!'
-	sys.exit(1)
+    print 'AVENGE MEEEEEEEEE!', err
+    sys.exit(1)
 
 
 if __name__ == "__main__":
     server = editorFactory.EditorFactory()
     endpoint = TCP4ServerEndpoint(reactor, 4567)
     listener = endpoint.listen(server)
-    listener.addErrback(onErr);
+    listener.addErrback(onErr)
 
     print('Starting up...')
     reactor.run()

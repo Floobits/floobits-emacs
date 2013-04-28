@@ -12,6 +12,7 @@ class FloobitsLineReceiver(LineReceiver):
         self.version = getattr(self.agent, "{p}_VERSION".format(p=self.dispatchPrefix.upper()))
 
     def lineReceived(self, line):
+        print line
         req = json.loads(line)
 
         event = req.get('name')
