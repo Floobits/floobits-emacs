@@ -1,5 +1,4 @@
-Floobits plugin for Emacs
-=====
+# [Floobits](https://floobits.com/) plugin for Emacs
 
 Real-time collaborative editing. Think Etherpad, but with native editors. This is the plugin for Emacs. We're also working on plugins for [Sublime Text](https://github.com/Floobits/sublime-text-2-plugin) and [Vim](https://github.com/Floobits/vim-plugin).
 
