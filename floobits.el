@@ -130,7 +130,8 @@
   (message "Disconnected: %s" (floo-get-item req 'reason)))
 
 (defun floobits-event-room_info (req)
-   (message "Successfully joined room %s" floobits-room))
+   (message "Successfully joined room %s" floobits-room)
+   (dired (floo-get-item req 'project_path)))
 
 (defun floobits-event-join (req)
   (message "%s" req)
@@ -170,8 +171,8 @@
     (req (json-read-from-string text))
     (event (cdr (assoc "name" req)))
     (func (concat "floobits-event-" event)))
-    (print (floo-get-item req 'name))
-      (funcall (read func) req)))
+    (if (fboundp 'func)
+      (funcall (read func) req))))
 
 (defun floobits-listener (process response)
   (setq floobits-agent-buffer (concat floobits-agent-buffer response))
@@ -233,4 +234,4 @@
 ;;(add-hook 'before-change-functions 'before-change nil nil)
 (add-hook 'after-change-functions 'floobits-after-change nil nil)
 ;;(add-hook 'post-command-hook 'floobits-post-command-func nil nil)
-(floobits-launch-agent)
+;(floobits-launch-agent)
