@@ -1,0 +1,22 @@
+__VERSION__ = '0.01'
+
+DEBUG = False
+
+MAX_RETRIES = 20
+INITIAL_RECONNECT_DELAY = 500  # milliseconds
+
+COLAB_DIR = ''
+PROJECT_PATH = ''
+DEFAULT_HOST = 'floobits.com'
+DEFAULT_PORT = 3448
+SECURE = True
+
+USERNAME = ''
+SECRET = ''
+
+ALERT_ON_MSG = True
+
+ROOM_WINDOW = None
+
+CHAT_VIEW = None
+CHAT_VIEW_PATH = None
