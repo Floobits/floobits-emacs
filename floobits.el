@@ -79,7 +79,6 @@
     (error "Floobits username not found. Please define a username and secret in ~/.floorc"))
   (if (or (not (boundp 'floobits-secret)) (string= "" floobits-secret))
     (error "Floobits secret not found. Please define a username and secret in ~/.floorc"))
-  (print floourl)
   (let* ((url-struct (url-generic-parse-url floourl))
     (domain (url-host url-struct))
     (port (url-port url-struct))
