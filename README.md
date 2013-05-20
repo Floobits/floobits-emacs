@@ -6,8 +6,8 @@ Real-time collaborative editing. Think Etherpad, but with native editors. This i
 
 # Setup
 
-1. Copy floobits.el into `~/.emacs.d/`
-1. Add `(load "~/.emacs.d/floobits.el")` to your Emacs init file (`~/.emacs` or `~/.emacs.d/init.el` typically)
+1. `git clone https://github.com/Floobits/emacs-plugin.git ~/.emacs.d/floobits`
+1. Add `(load "~/.emacs.d/floobits/floobits.el")` to your Emacs init file (`~/.emacs` or `~/.emacs.d/init.el` typically)
 
 # Usage
 
