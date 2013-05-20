@@ -10,23 +10,36 @@
 (setq floobits-conn nil)
 (setq max-specpdl-size 1500)
 (setq floobits-current-position '((mark . 1) (point . 1) (name . "")))
-; To set this: M-x customize-variable RET floobits-username
-(defcustom floobits-username ""
-  "Username for floobits"
-  :type 'string)
+; ; To set this: M-x customize-variable RET floobits-username
+; (defcustom floobits-username ""
+;   "Username for floobits"
+;   :type 'string)
 
-; To set this: M-x customize-variable RET floobits-secret
-(defcustom floobits-secret ""
-  "Secret for floobits"
-  :type 'string)
+; ; To set this: M-x customize-variable RET floobits-secret
+; (defcustom floobits-secret ""
+;   "Secret for floobits"
+;   :type 'string)
 
-(defcustom floobits-share-dir "~/share"
-  "Room for floobits"
-  :type 'string)
+; (defcustom floobits-share-dir "~/share"
+;   "Room for floobits"
+;   :type 'string)
 
 (defmacro floo-get-item (alist key)
   "just grab an element from an alist"
   (list 'cdr (list 'assoc key alist)))
+
+(defun floobits-load-floorc ()
+  "loads floorc file vars"
+  (condition-case nil
+    (progn
+      (with-temp-buffer
+        (insert-file-contents "~/.floorc")
+        (goto-char 1)
+        (let ((strings (split-string (buffer-string) "\n" t)))
+          (loop for s in strings do
+            (let ((substrings (split-string s " " t)))
+              (set (intern (concat "floobits-" (car substrings))) (cadr substrings)))))))
+  (error nil)))
 
 (defun floobits-post-command-func ()
   "used for grabbing changes in point for highlighting"
@@ -51,7 +64,7 @@
   (when (boundp 'floobits-twisted-agent)
     (kill-process floobits-twisted-agent)
     (delete-process floobits-twisted-agent))
-  (start-process "floobits-twisted-agent" "*Messages*" "~/.emacs.d/floobits/twisted_agent/"))
+  (start-process "floobits-twisted-agent" "*Messages*" "~/.emacs.d/floobits/twisted_agent/__main__.py"))
 
 (defun floobits-leave-room ()
   "leaves the current rooom"
@@ -60,33 +73,31 @@
 
 (defun floobits-join-room (floourl)
   "Join a floobits room"
-  (interactive (list
-    (cond
-      ((string= "" floobits-username) "")
-      ((string= "" floobits-secret) "")
-      (t (read-from-minibuffer "Floobits room URL (owner/room): " "https://floobits.com/r/")))))
-    (cond
-      ((string= "" floobits-username) (message "Customize floobits-username first: customize-variable RET floobits-username"))
-      ((string= "" floobits-secret) (message "Customize floobits-username first: customize-variable RET floobits-username"))
-      (t (progn
-        (let* ((url-struct (url-generic-parse-url floourl))
-          (domain (url-host url-struct))
-          (port (url-port url-struct))
-          (path (url-filename url-struct))
-          (path
-            (if (string= "/" (substring path -1))
-              (concat path "")
-              (concat path "/")))
-          (_ (string-match "^/r/\\(.*\\)/\\(.*\\)/" path))
-          (owner (match-string 1 path))
-          (room (match-string 2 path)))
-          (if (and path room owner)
-            (progn
-              (floobits-destroy-connection)
-              (setq floobits-room room)
-              (setq floobits-room-owner owner)
-              (floobits-create-connection))
-            (message "Invalid url! I should look like: https://floobits.com/r/owner/room/")))))))
+  (interactive (list (read-from-minibuffer "Floobits room URL (owner/room): " "https://floobits.com/r/")))
+  (floobits-load-floorc)
+  (if (or (not (boundp 'floobits-username)) (string= "" floobits-username))
+    (error "Floobits username not found. Please define a username and secret in ~/.floorc"))
+  (if (or (not (boundp 'floobits-secret)) (string= "" floobits-secret))
+    (error "Floobits secret not found. Please define a username and secret in ~/.floorc"))
+  (print floourl)
+  (let* ((url-struct (url-generic-parse-url floourl))
+    (domain (url-host url-struct))
+    (port (url-port url-struct))
+    (path (url-filename url-struct))
+    (path
+      (if (string= "/" (substring path -1))
+        (concat path "")
+        (concat path "/")))
+    (_ (string-match "^/r/\\(.*\\)/\\(.*\\)/" path))
+    (owner (match-string 1 path))
+    (room (match-string 2 path)))
+    (if (and path room owner)
+      (progn
+        (floobits-destroy-connection)
+        (setq floobits-room room)
+        (setq floobits-room-owner owner)
+        (floobits-create-connection))
+      (message "Invalid url! I should look like: https://floobits.com/r/owner/room/"))))
 
 (defun _floobits-is-buffer-public(buf)
   (let ((name (buffer-name buf)))
