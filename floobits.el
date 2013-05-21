@@ -26,7 +26,7 @@
 
 (defmacro floo-get-item (alist key)
   "just grab an element from an alist"
-  (list 'cdr (list 'assoc key alist)))
+  (list 'cdr (list 'assoc-string key alist)))
 
 (defun floobits-load-floorc ()
   "loads floorc file vars"
@@ -130,8 +130,16 @@
   (message "Disconnected: %s" (floo-get-item req 'reason)))
 
 (defun floobits-event-room_info (req)
-   (message "Successfully joined room %s" floobits-room)
-   (dired (floo-get-item req 'project_path)))
+  (message "Successfully joined room %s" floobits-room)
+  (message "req is %s" req)
+  (message "project path is %s" (floo-get-item req 'project_path))
+  (message "name is %s" (cdr (assoc "project_path" req)))
+  req
+  (dired (floo-get-item req "project_path")))
+;req is ((name . room_info) (project_path . /Users/ggreer/.floobits/share/ggreer/vim-test))
+;req is ((name . room_info) (project_path . /Users/ggreer/.floobits/share/ggreer/vim-test))
+; project path is nil
+; name is nil
 
 (defun floobits-event-join (req)
   (message "%s" req)
@@ -167,12 +175,14 @@
     (message "filename does not exist for buffer %s" (floo-get-item req 'id)))))
 
 (defun floobits-switch (text)
+  (message "%s" text)
   (let* ((json-key-type 'string)
     (req (json-read-from-string text))
-    (event (cdr (assoc "name" req)))
+    (event (floo-get-item req "name"))
     (func (concat "floobits-event-" event)))
-    (if (fboundp 'func)
-      (funcall (read func) req))))
+    (if (fboundp (intern-soft func))
+      (funcall (read func) req)
+      (message "func %s doesn't exist" func))))
 
 (defun floobits-listener (process response)
   (setq floobits-agent-buffer (concat floobits-agent-buffer response))
