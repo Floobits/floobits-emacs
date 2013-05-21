@@ -65,10 +65,11 @@
   (mapcar (lambda (x) (and (funcall condp x) x)) lst)))
 
 (defun floobits-launch-agent ()
-  (when (boundp 'floobits-twisted-agent)
-    (kill-process floobits-twisted-agent)
-    (delete-process floobits-twisted-agent))
-  (start-process "floobits-twisted-agent" "*Messages*" "~/.emacs.d/floobits/twisted_agent/__main__.py"))
+  (when (boundp 'floobits-python-agent)
+    (kill-process floobits-python-agent)
+    (delete-process floobits-python-agent))
+  ; Assumes floobits.el is in the same dir as floobits.py
+  (start-process "floobits-python-agent" "*Messages*" (concat (file-name-directory load-file-name) "floobits.py")))
 
 (defun floobits-leave-room ()
   "leaves the current rooom"
