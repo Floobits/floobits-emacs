@@ -276,8 +276,11 @@ class EmacsConnection(object):
         self.to_emacs_q.append(json.dumps(data) + '\n')
 
     def reconnect(self):
-        self.conn.shutdown(socket.SHUT_RDWR)
-        self.conn.close()
+        try:
+            self.conn.shutdown(socket.SHUT_RDWR)
+            self.conn.close()
+        except Exception:
+            pass
         self.sock.close()
         sys.exit(1)
 
@@ -326,8 +329,10 @@ class EmacsConnection(object):
                     return self.reconnect()
 
         if _out:
-            for p in self.to_emacs_q:
+            while len(self.to_emacs_q) > 0:
+                p = self.to_emacs_q.pop(0)
                 try:
+                    msg.debug("to emacs: %s" % p)
                     self.conn.sendall(p)
                 except Exception as e:
                     msg.error('Couldn\'t write to socket: %s' % str(e))

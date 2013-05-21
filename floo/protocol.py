@@ -57,8 +57,12 @@ class BaseProtocol(object):
                 return buf
         return None
 
-    def save_buf(self, data):
-        raise NotImplemented()
+    def save_buf(self, buf):
+        path = utils.get_full_path(buf['path'])
+        utils.mkdir(os.path.split(path)[0])
+        with open(path, 'wb') as fd:
+            fd.write(buf['buf'].encode('utf-8'))
+        return path
 
     def chat(self, data):
         raise NotImplemented()
