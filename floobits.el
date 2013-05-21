@@ -28,6 +28,10 @@
   "just grab an element from an alist"
   (list 'cdr (list 'assoc-string key alist)))
 
+(defmacro floo-set-item (alist key value)
+  "set an element in an alist"
+  (list 'add-to-list alist (list 'cons key value)))
+
 (defun floobits-load-floorc ()
   "loads floorc file vars"
   (condition-case nil
@@ -207,10 +211,9 @@
     (delete-process floobits-conn)))
 
 (defun floobits-send-to-agent (req event)
-  (add-to-list 'req (cons 'version floobits-agent-version))
-  (add-to-list 'req (cons 'name event))
-  ;(when (boundp floobits-conn)
-    (process-send-string floobits-conn (concat (json-encode req) "\n")));)
+  (floo-set-item 'req 'name event)
+  (floo-set-item 'req 'version floobits-agent-version)
+  (process-send-string floobits-conn (concat (json-encode req) "\n")))
 
 (defun floobits-get-text (begin end)
   (buffer-substring-no-properties begin end))
@@ -218,20 +221,20 @@
 (defun floobits-before-change (begin end)
   (if (eq (_floobits-is-buffer-public (current-buffer)) t)
     (let ((text (floobits-get-buffer-text (current-buffer))))
-      (add-to-list 'floobits-change-set (cons 'before text)))))
+      (floo-set-item 'floobits-change-set 'before text))))
 
 (defun floobits-after-change (begin end old_length)
   (if (eq (_floobits-is-buffer-public (current-buffer)) t)
      (let ((text (floobits-get-buffer-text (current-buffer))))
-      (add-to-list 'floobits-change-set (cons 'after text))
-      (add-to-list 'floobits-change-set (cons 'full_path (buffer-file-name (current-buffer))))
+      (floo-set-item 'floobits-change-set 'after text)
+      (floo-set-item 'floobits-change-set 'full_path (buffer-file-name (current-buffer)))
       (floobits-send-to-agent floobits-change-set 'change)
     (setq floobits-change-set))))
 
 (defun floobits-after-new-buffer ()
   (let ((req '("event" "new-buffer")))
-    (add-to-list 'req (cons 'text (floobits-get-text point-min point-max)))
-    (add-to-list 'req (cons 'path (file-name-directory load-file-name)))
+    (floo-set-item 'req 'text (floobits-get-text point-min point-max))
+    (floo-set-item 'req 'path (file-name-directory load-file-name))
     (floobits-send-to-agent req 'new-buffer)))
 
 ;;(add-hook 'before-change-functions 'before-change nil nil)
