@@ -248,9 +248,16 @@
       (message "added %s" added)
       (message "deleted %s" deleted)
       (setq floobits-open-buffers current-buffers)
-      (let ((req (list
+      (let* (
+          (added-text
+            (mapcar
+              (lambda (buf-path)
+                (cons (intern buf-path)
+                  (floobits-get-buffer-text (find-buffer-visiting buf-path))))
+            added))
+        (req (list
         (cons 'current current-buffers)
-        (cons 'added added)
+        (cons 'added added-text)
         (cons 'deleted deleted))))
         (floobits-send-to-agent req 'buffer_list_change)))))
 
