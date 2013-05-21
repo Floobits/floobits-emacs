@@ -20,3 +20,5 @@ ROOM_WINDOW = None
 
 CHAT_VIEW = None
 CHAT_VIEW_PATH = None
+
+EMACS = None

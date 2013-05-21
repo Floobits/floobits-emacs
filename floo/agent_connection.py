@@ -18,7 +18,6 @@ import sublime
 import shared as G
 
 
-
 class AgentConnection(object):
     ''' Simple chat server using select '''
     def __init__(self, owner, room, host=None, port=None, secure=True, on_auth=None, Protocol=None):
@@ -155,7 +154,6 @@ class AgentConnection(object):
 
     def handle(self, req):
         self.net_buf += req
-        new_data = False
         while True:
             before, sep, after = self.net_buf.partition('\n')
             if not sep:
@@ -167,7 +165,6 @@ class AgentConnection(object):
                 msg.error('Data:', before)
                 raise e
             self.protocol.handle(data)
-            new_data = True
             self.net_buf = after
 
     def select(self):

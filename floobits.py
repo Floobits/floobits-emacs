@@ -5,9 +5,11 @@ import traceback
 import urllib2
 import atexit
 import webbrowser
+import select
+import socket
 import subprocess
+import sys
 
-import vim
 from floo import dmp_monkey
 dmp_monkey.monkey_patch()
 
@@ -17,186 +19,63 @@ from floo import msg
 from floo import shared as G
 from floo import utils
 from floo import api
-from floo.vim_protocol import Protocol
+from floo.emacs_protocol import Protocol
 
 
 utils.load_settings()
 
 # enable debug with let floo_log_level = 'debug'
-floo_log_level = vim.eval('floo_log_level')
+floo_log_level = 'debug'
 msg.LOG_LEVEL = msg.LOG_LEVELS.get(floo_log_level.upper(), msg.LOG_LEVELS['MSG'])
 
 agent = None
-call_feedkeys = False
-ticker = None
-ticker_errors = 0
-using_feedkeys = False
-
-ticker_python = """import sys; import subprocess; import time
-args = ['{binary}', '--servername', '{servername}', '--remote-expr', 'g:floobits_global_tick()']
-while True:
-    time.sleep({sleep})
-    # TODO: learn to speak vim or something :(
-    proc = subprocess.Popen(args,
-        stderr=subprocess.PIPE,
-        stdout=subprocess.PIPE)
-    (stdoutdata, stderrdata) = proc.communicate()
-    # # yes, this is stupid...
-    if stdoutdata.strip() == '0':
-        continue
-    if len(stderrdata) == 0:
-        continue
-    sys.stderr.write(stderrdata)
-    sys.exit(1)
-"""
 
 
-def buf_enter():
-    pass
+# def agent_and_protocol(func):
+#     def wrapped(*args, **kwargs):
+#         if agent and agent.protocol:
+#             return func(*args, **kwargs)
+#         msg.debug('ignoring request becuase there is no agent: %s' % func.__name__)
+#     return wrapped
 
 
-def enable_floo_feedkeys():
-    global call_feedkeys
-    if not using_feedkeys:
-        return
-    call_feedkeys = True
-    vim.command("set updatetime=250")
+# @agent_and_protocol
+# def maybe_selection_changed(ping=False):
+#     agent.protocol.maybe_selection_changed(vim.current.buffer, ping)
 
 
-def disable_floo_feedkeys():
-    global call_feedkeys
-    if not using_feedkeys:
-        return
-    call_feedkeys = False
-    vim.command("set updatetime=4000")
+# @agent_and_protocol
+# def maybe_buffer_changed():
+#     agent.protocol.maybe_buffer_changed(vim.current.buffer)
 
 
-def fallback_to_feedkeys(warning):
-    global using_feedkeys
-    using_feedkeys = True
-    warning += " Falling back to f//e hack which will break some key commands. You may need to call FlooPause/FlooUnPause before some commands."
-    msg.warn(warning)
-    enable_floo_feedkeys()
+# @agent_and_protocol
+# def follow(follow_mode=None):
+#     agent.protocol.follow(follow_mode)
 
 
-def ticker_watcher(ticker):
-    global ticker_errors
-
-    if not agent:
-        return
-    ticker.poll()
-    if ticker.returncode is None:
-        return
-    msg.warn('respawning new ticker')
-    ticker_errors += 1
-    if ticker_errors > 10:
-        return fallback_to_feedkeys('Too much trouble with the floobits external ticker.')
-    start_event_loop()
-    sublime.set_timeout(ticker_watcher, 2000, ticker)
-
-
-def start_event_loop():
-    global ticker
-
-    if not bool(int(vim.eval('has("clientserver")'))):
-        return fallback_to_feedkeys("This VIM was not compiled with clientserver support. You should consider using a different vim!")
-
-    exe = getattr(G, 'VIM_EXECUTABLE', None)
-    if not exe:
-        return fallback_to_feedkeys("Your vim was compiled with clientserver, but I don't know the name of the vim executable.  Please define it in your ~/.floorc using the vim_executable directive. e.g. 'vim_executable mvim'.")
-
-    servername = vim.eval("v:servername")
-    if not servername:
-        return fallback_to_feedkeys('I can not identify the servername of this vim. You may need to pass --servername to vim at startup.')
-
-    evaler = ticker_python.format(binary=exe, servername=servername, sleep='0.2')
-    ticker = subprocess.Popen(['python', '-c', evaler],
-                              stderr=subprocess.PIPE,
-                              stdout=subprocess.PIPE)
-    ticker.poll()
-    sublime.set_timeout(ticker_watcher, 500, ticker)
+# def is_modifiable(name_to_check=None):
+#     if not agent or not agent.protocol:
+#         return
+#     vim_buf = vim.current.buffer
+#     name = vim_buf.name
+#     if not name:
+#         return
+#     if name_to_check and name_to_check != name:
+#         msg.warn('Can not call readonly on file: %s' % name)
+#     if not agent.protocol.is_shared(name):
+#         return
+#     if 'patch' not in agent.protocol.perms:
+#         vim.command("call g:FlooSetReadOnly()")
+#         sublime.set_timeout(is_modifiable, 0, name)
 
 
-def vim_input(prompt, default):
-    vim.command('call inputsave()')
-    vim.command("let user_input = input('%s', '%s')" % (prompt, default))
-    vim.command('call inputrestore()')
-    return vim.eval('user_input')
-
-
-def global_tick():
-    """a hack to make vim evented like"""
-    if agent:
-        agent.tick()
-    sublime.call_timeouts()
-
-
-def cursor_hold():
-    global_tick()
-    if not call_feedkeys:
-        return
-    return vim.command("call feedkeys(\"f\\e\", 'n')")
-
-
-def cursor_holdi():
-    global_tick()
-    if not call_feedkeys:
-        return
-    linelen = int(vim.eval("col('$')-1"))
-    if linelen > 0:
-        if int(vim.eval("col('.')")) == 1:
-            vim.command("call feedkeys(\"\<Right>\<Left>\",'n')")
-        else:
-            vim.command("call feedkeys(\"\<Left>\<Right>\",'n')")
-    else:
-        vim.command("call feedkeys(\"\ei\",'n')")
-
-
-def agent_and_protocol(func):
-    def wrapped(*args, **kwargs):
-        if agent and agent.protocol:
-            return func(*args, **kwargs)
-        msg.debug('ignoring request becuase there is no agent: %s' % func.__name__)
-    return wrapped
-
-
-@agent_and_protocol
-def maybe_selection_changed(ping=False):
-    agent.protocol.maybe_selection_changed(vim.current.buffer, ping)
-
-
-@agent_and_protocol
-def maybe_buffer_changed():
-    agent.protocol.maybe_buffer_changed(vim.current.buffer)
-
-
-@agent_and_protocol
-def follow(follow_mode=None):
-    agent.protocol.follow(follow_mode)
-
-
-def is_modifiable(name_to_check=None):
-    if not agent or not agent.protocol:
-        return
-    vim_buf = vim.current.buffer
-    name = vim_buf.name
-    if not name:
-        return
-    if name_to_check and name_to_check != name:
-        msg.warn('Can not call readonly on file: %s' % name)
-    if not agent.protocol.is_shared(name):
-        return
-    if 'patch' not in agent.protocol.perms:
-        vim.command("call g:FlooSetReadOnly()")
-        sublime.set_timeout(is_modifiable, 0, name)
-
-
-@agent_and_protocol
-def maybe_new_file():
-    vim_buf = vim.current.buffer
-    buf = agent.protocol.get_buf(vim_buf)
-    if buf is False:
-        agent.protocol.create_buf(vim_buf.name)
+# @agent_and_protocol
+# def maybe_new_file():
+#     vim_buf = vim.current.buffer
+#     buf = agent.protocol.get_buf(vim_buf)
+#     if buf is False:
+#         agent.protocol.create_buf(vim_buf.name)
 
 
 def share_dir(dir_to_share):
@@ -268,7 +147,7 @@ def create_room(room_name, ln_path=None, share_path=None):
             raise
         if ln_path:
             while True:
-                room_name = vim_input('Room %s already exists. Choose another name: ' % room_name, room_name + "1")
+                room_name = 'whatever'  # vim_input('Room %s already exists. Choose another name: ' % room_name, room_name + "1")
                 new_path = os.path.join(os.path.dirname(ln_path), room_name)
                 try:
                     os.rename(ln_path, new_path)
@@ -289,75 +168,172 @@ def create_room(room_name, ln_path=None, share_path=None):
     join_room(room_url, lambda x: agent.protocol.create_buf(share_path))
 
 
-@agent_and_protocol
-def delete_buf():
-    name = vim.current.buffer.name
-    agent.protocol.delete_buf(name)
+# @agent_and_protocol
+# def delete_buf():
+#     name = vim.current.buffer.name
+#     agent.protocol.delete_buf(name)
 
 
-def stop_everything():
-    global agent
-    if agent:
-        agent.stop()
-        agent = None
-    if ticker:
-        ticker.kill()
-    disable_floo_feedkeys()
-    #TODO: get this value from vim and reset it
-    vim.command("set updatetime=4000")
-#NOTE: not strictly necessary
-atexit.register(stop_everything)
+# def join_room(room_url, on_auth=None):
+#     global agent
+#     msg.debug("room url is %s" % room_url)
+
+#     try:
+#         result = utils.parse_url(room_url)
+#     except Exception as e:
+#         return msg.error(str(e))
+
+#     G.PROJECT_PATH = os.path.realpath(os.path.join(G.COLAB_DIR, result['owner'], result['room']))
+#     utils.mkdir(os.path.dirname(G.PROJECT_PATH))
+
+#     d = ''
+#     # TODO: really bad prompt here
+#     prompt = "Give me a directory to destructively dump data into (or just press enter): "
+#     if not os.path.isdir(G.PROJECT_PATH):
+#         while True:
+#             d = vim_input(prompt, d)
+#             if d == '':
+#                 utils.mkdir(G.PROJECT_PATH)
+#                 break
+#             d = os.path.realpath(os.path.expanduser(d))
+#             if not os.path.isdir(d):
+#                 prompt = '%s is not a directory. Enter an existing path (or press enter): ' % d
+#                 continue
+#             try:
+#                 os.symlink(d, G.PROJECT_PATH)
+#                 break
+#             except Exception as e:
+#                 return msg.error("Couldn't create symlink from %s to %s: %s" % (d, G.PROJECT_PATH, str(e)))
+
+#     vim.command('cd %s' % G.PROJECT_PATH)
+#     msg.debug("joining room %s" % room_url)
+
+#     stop_everything()
+#     try:
+#         start_event_loop()
+#         agent = AgentConnection(on_auth=on_auth, Protocol=Protocol, **result)
+#         # owner and room name are slugfields so this should be safe
+#         agent.connect()
+#     except Exception as e:
+#         msg.error(str(e))
+#         tb = traceback.format_exc()
+#         msg.debug(tb)
+#         stop_everything()
 
 
-def join_room(room_url, on_auth=None):
-    global agent
-    msg.debug("room url is %s" % room_url)
+# def part_room():
+#     if not agent:
+#         return msg.warn('Unable to part room: You are not joined to a room.')
+#     stop_everything()
+#     msg.log('You left the room.')
 
-    try:
-        result = utils.parse_url(room_url)
-    except Exception as e:
-        return msg.error(str(e))
 
-    G.PROJECT_PATH = os.path.realpath(os.path.join(G.COLAB_DIR, result['owner'], result['room']))
-    utils.mkdir(os.path.dirname(G.PROJECT_PATH))
+class EmacsConnection(object):
+    def __init__(self):
+        self.to_emacs_q = []
+        self.net_buf = ''
+        self.agent = None
 
-    d = ''
-    # TODO: really bad prompt here
-    prompt = "Give me a directory to destructively dump data into (or just press enter): "
-    if not os.path.isdir(G.PROJECT_PATH):
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.sock.bind(('localhost', 4567))
+        self.sock.listen(1)
+
+    def start(self):
+        self.conn, addr = self.sock.accept()
+        self.conn.setblocking(0)
         while True:
-            d = vim_input(prompt, d)
-            if d == '':
-                utils.mkdir(G.PROJECT_PATH)
+            self.select()
+
+    def handle(self, req):
+        self.net_buf += req
+        while True:
+            before, sep, after = self.net_buf.partition('\n')
+            if not sep:
                 break
-            d = os.path.realpath(os.path.expanduser(d))
-            if not os.path.isdir(d):
-                prompt = '%s is not a directory. Enter an existing path (or press enter): ' % d
-                continue
             try:
-                os.symlink(d, G.PROJECT_PATH)
-                break
+                data = json.loads(before)
             except Exception as e:
-                return msg.error("Couldn't create symlink from %s to %s: %s" % (d, G.PROJECT_PATH, str(e)))
+                msg.error('Unable to parse json:', e)
+                msg.error('Data:', before)
+                raise e
+            if data['name'] == 'auth':
+                utils.load_settings()
+                room = data['room']
+                owner = data['room_owner']
+                G.USERNAME = data['username']
+                G.SECRET = data['secret']
+                G.PROJECT_PATH = os.path.realpath(os.path.join(G.COLAB_DIR, owner, room))
+                utils.mkdir(os.path.dirname(G.PROJECT_PATH))
+                self.agent = AgentConnection(Protocol=Protocol, room=room, owner=owner)
+                self.agent.connect()
+            else:
+                self.agent.protocol.emacs_handle(data)
+            self.net_buf = after
 
-    vim.command('cd %s' % G.PROJECT_PATH)
-    msg.debug("joining room %s" % room_url)
+    def put(self, name, data):
+        data['name'] = name
+        self.to_emacs_q.append(json.dumps(data) + '\n')
 
-    stop_everything()
-    try:
-        start_event_loop()
-        agent = AgentConnection(on_auth=on_auth, Protocol=Protocol, **result)
-        # owner and room name are slugfields so this should be safe
-        agent.connect()
-    except Exception as e:
-        msg.error(str(e))
-        tb = traceback.format_exc()
-        msg.debug(tb)
-        stop_everything()
+    def reconnect(self):
+        self.conn.shutdown(socket.SHUT_RDWR)
+        self.conn.close()
+        self.sock.close()
+        sys.exit(1)
+
+    def select(self):
+        if not self.conn:
+            msg.error('select(): No socket.')
+            return self.reconnect()
+
+        if self.agent:
+            self.agent.tick()
+
+        out_conns = []
+        if len(self.to_emacs_q) > 0:
+            out_conns.append(self.conn)
+
+        try:
+            _in, _out, _except = select.select([self.conn], out_conns, [self.conn], 0.01)
+        except (select.error, socket.error, Exception) as e:
+            msg.error('Error in select(): %s' % str(e))
+            return self.reconnect()
+
+        if _except:
+            msg.error('Socket error')
+            return self.reconnect()
+
+        if _in:
+            buf = ''
+            while True:
+                try:
+                    d = self.conn.recv(4096)
+                    if not d:
+                        break
+                    buf += d
+                except (socket.error, TypeError):
+                    break
+            if buf:
+                self.empty_selects = 0
+                try:
+                    self.handle(buf)
+                except Exception:
+                    return self.reconnect()
+            else:
+                self.empty_selects += 1
+                if self.empty_selects > 10:
+                    msg.error('No data from sock.recv() {0} times.'.format(self.empty_selects))
+                    return self.reconnect()
+
+        if _out:
+            for p in self.to_emacs_q:
+                try:
+                    self.conn.sendall(p)
+                except Exception as e:
+                    msg.error('Couldn\'t write to socket: %s' % str(e))
+                    return self.reconnect()
 
 
-def part_room():
-    if not agent:
-        return msg.warn('Unable to part room: You are not joined to a room.')
-    stop_everything()
-    msg.log('You left the room.')
+if __name__ == '__main__':
+    G.EMACS = EmacsConnection()
+    G.EMACS.start()
