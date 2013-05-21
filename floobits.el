@@ -155,24 +155,38 @@
   (message "%s" req)
   (message "%s left the room" (floo-get-item req 'username)))
 
+(defun floobits-event-create_view (req)
+  (message "opening file %s" (floo-get-item req 'full_path))
+  (find-file (floo-get-item req 'full_path)))
+
+(defun floobits-event-highlight (req)
+  (when 'floobits-follow-mode
+    (message "opening file %s" (floo-get-item req 'full_path))
+    (find-file (floo-get-item req 'full_path))
+    (let*
+      ((ranges (floo-get-item req 'ranges))
+      (ranges-length (- (length ranges) 1)))
+        (goto-char (elt (elt ranges ranges-length) 0)))))
+
+(defun floobits-apply-edit (edit)
+  (let* ((inhibit-modification-hooks t)
+    (edit-start (+ 1 (elt edit 0)))
+    (edit-length (elt edit 1))
+    (edit-end (min (+ 1 (buffer-size)) (+ edit-start edit-length))))
+    (delete-region edit-start edit-end)
+    (when (eq 3 (length edit))
+      (goto-char edit-start)
+      (insert (elt edit 2)))))
+
 (defun floobits-event-edit (req)
   (let* ((filename (floo-get-item req "full_path"))
     (buf (get-file-buffer filename))
-    (edits (floo-get-item req "edits"))
-    (apply-edit (lambda (edit)
-      (let* ((inhibit-modification-hooks t)
-        (edit-start (+ 1 (elt edit 0)))
-        (edit-length (elt edit 1))
-        (edit-end (min (+ 1 (buffer-size)) (+ edit-start edit-length))))
-        (delete-region edit-start edit-end)
-        (when (eq 3 (length edit))
-          (goto-char edit-start)
-          (insert (elt edit 2)))))))
+    (edits (floo-get-item req "edits")))
     (if buf
       (with-current-buffer buf
         (save-excursion
           (atomic-change-group
-            (mapcar apply-edit edits)))))))
+            (mapcar 'floobits-apply-edit edits)))))))
 
 (defun floobits-event-get_buf (req)
   (let ((filename (floo-get-item req "full_path" )))
@@ -252,9 +266,6 @@
       (added (set-difference current-buffers floobits-open-buffers))
       (deleted (set-difference floobits-open-buffers current-buffers)))
     (when (or added deleted)
-      (message "current %s" current-buffers)
-      (message "added %s" added)
-      (message "deleted %s" deleted)
       (setq floobits-open-buffers current-buffers)
       (let* (
           (added-text
