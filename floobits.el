@@ -131,15 +131,8 @@
 
 (defun floobits-event-room_info (req)
   (message "Successfully joined room %s" floobits-room)
-  (message "req is %s" req)
   (message "project path is %s" (floo-get-item req 'project_path))
-  (message "name is %s" (cdr (assoc "project_path" req)))
-  req
   (dired (floo-get-item req "project_path")))
-;req is ((name . room_info) (project_path . /Users/ggreer/.floobits/share/ggreer/vim-test))
-;req is ((name . room_info) (project_path . /Users/ggreer/.floobits/share/ggreer/vim-test))
-; project path is nil
-; name is nil
 
 (defun floobits-event-join (req)
   (message "%s" req)
@@ -150,9 +143,9 @@
   (message "%s left the room" (floo-get-item req 'username)))
 
 (defun floobits-event-edit (req)
-  (let* ((filename (cdr (assoc "full_path" req)))
+  (let* ((filename (floo-get-item req "full_path"))
     (buf (get-file-buffer filename))
-    (edits (cdr (assoc "edits" req)))
+    (edits (floo-get-item req "edits"))
     (apply-edit (lambda (edit)
       (let* ((inhibit-modification-hooks t)
         (edit-start (+ 1 (elt edit 0)))
@@ -169,7 +162,7 @@
             (mapcar apply-edit edits)))))))
 
 (defun floobits-event-get_buf (req)
-  (let ((filename (cdr (assoc "full_path" req))))
+  (let ((filename (floo-get-item req "full_path" )))
     (if (not (eq filename nil))
       (find-file filename)
     (message "filename does not exist for buffer %s" (floo-get-item req 'id)))))
