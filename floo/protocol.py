@@ -95,7 +95,7 @@ class BaseProtocol(object):
         self.follow_mode = follow_mode
         msg.log('follow mode is %s' % {True: 'enabled', False: 'disabled'}[self.follow_mode])
 
-    def create_buf(self, path):
+    def create_buf(self, path, text=None):
         if 'create_buf' not in self.perms:
             msg.error("Skipping %s. You don't have permission to create buffers in this room." % path)
             return
@@ -122,13 +122,14 @@ class BaseProtocol(object):
             return
 
         try:
-            buf_fd = open(path, 'rb')
-            buf = buf_fd.read().decode('utf-8')
-            rel_path = utils.to_rel_path(path)
+            if text is None:
+                buf_fd = open(path, 'rb')
+                text = buf_fd.read().decode('utf-8')
+                rel_path = utils.to_rel_path(path)
             msg.debug('creating buffer ', rel_path)
             event = {
                 'name': 'create_buf',
-                'buf': buf,
+                'buf': text,
                 'path': rel_path,
             }
             self.agent.put(event)

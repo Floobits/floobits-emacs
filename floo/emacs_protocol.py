@@ -136,9 +136,10 @@ class Protocol(protocol.BaseProtocol):
             return
 
         view = self.get_view(buf['id'])
-        if not view:
+        if view:
+            view.emacs_buf = req['after']
+        else:
             msg.log("oops this is bad. view not found for %s %s" % (buf['id'], buf['path']))
-        view.emacs_buf = req['after']
 
         self.BUFS_CHANGED.append(buf['id'])
 
@@ -149,7 +150,7 @@ class Protocol(protocol.BaseProtocol):
             buf = self.get_buf_by_path(path)
             if not buf:
                 msg.debug('no buf for path %s' % path)
-                # TODO: check is_shared and create_buf if we need to
+                self.create_buf(path, text)
                 continue
             if self.get_view(buf['id']) is None:
                 self.views[buf['id']] = View(buf, text)
