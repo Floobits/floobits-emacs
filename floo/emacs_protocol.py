@@ -18,9 +18,14 @@ emacs = None
 class View(object):
     """editors representation of the buffer"""
 
-    def __init__(self, buf, emacs_buf):
+    def __init__(self, buf, emacs_buf=None):
         self.buf = buf
         self._emacs_buf = emacs_buf
+        if emacs_buf is None:
+            emacs.put('create_view', {
+                'full_path': utils.get_full_path(buf['path']),
+                'id': buf['id'],
+            })
 
     def __repr__(self):
         return '%s %s %s' % (self.native_id, self.buf['id'], self.buf['path'])
@@ -41,7 +46,7 @@ class View(object):
         return self.buf['id']
 
     def is_loading(self):
-        return False
+        return self._emacs_buf is None
 
     def get_text(self):
         return self.emacs_buf
@@ -51,7 +56,7 @@ class View(object):
         emacs.put('get_buf', {
             'id': self.buf['id'],
             'full_path': utils.get_full_path(self.buf['path']),
-            'buf': self.emacs_buf,
+            'buf': text,
         })
 
     def apply_patches(self, buf, patches):
@@ -95,6 +100,12 @@ class View(object):
 
     def highlight(self, ranges, user_id):
         msg.debug('highlighting ranges %s' % (ranges))
+        emacs.put('highlight', {
+            'id': self.buf['id'],
+            'full_path': utils.get_full_path(self.buf['path']),
+            'ranges': ranges,
+            'user_id': user_id,
+        })
 
     def rename(self, name):
         text = self.buf['buf']
@@ -116,9 +127,15 @@ class Protocol(protocol.BaseProtocol):
     def __init__(self, *args, **kwargs):
         global emacs
         super(Protocol, self).__init__(*args, **kwargs)
+        self.follow_mode = True # This is intentional. Emacs stores follow_mode state and discards highlights if it's not following 
         emacs = G.EMACS
         self.views = {}
         self.emacs_bufs = defaultdict(lambda: [""])
+
+    def create_view(self, buf, emacs_buf=None):
+        view = View(buf, emacs_buf)
+        self.views[buf['id']] = view
+        return view
 
     def get_view(self, buf_id):
         view = self.views.get(buf_id)
@@ -128,8 +145,7 @@ class Protocol(protocol.BaseProtocol):
         full_path = utils.get_full_path(buf['path'])
         emacs_buf = self.emacs_bufs.get(full_path)
         if emacs_buf:
-            view = View(buf, emacs_buf)
-            self.views[buf_id] = view
+            view = self.create_view(buf, emacs_buf)
         return view
 
     def update_view(self, data, view):
