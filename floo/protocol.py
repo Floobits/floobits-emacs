@@ -14,6 +14,9 @@ import utils
 import sublime
 
 
+DMP = dmp.diff_match_patch()
+
+
 def buf_populated(func):
     def wrapped(self, data):
         if data.get('id') is None:
@@ -274,7 +277,6 @@ class BaseProtocol(object):
         buf_id = data['id']
         buf = self.FLOO_BUFS[buf_id]
         view = self.get_view(buf_id)
-        DMP = dmp.diff_match_patch()
         if len(data['patch']) == 0:
             msg.error('wtf? no patches to apply. server is being stupid')
             return
