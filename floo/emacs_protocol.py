@@ -164,7 +164,6 @@ class Protocol(protocol.BaseProtocol):
         self.BUFS_CHANGED.append(buf['id'])
 
     def on_emacs_buffer_list_change(self, req):
-        msg.debug("buffers changed", req)
         added = req.get('added') or {}
         for path, text in added.iteritems():
             buf = self.get_buf_by_path(path)
@@ -173,8 +172,8 @@ class Protocol(protocol.BaseProtocol):
                 msg.debug('no buf for path %s' % path)
                 self.create_buf(path, text)
                 continue
-            if self.get_view(buf['id']) is None:
-                self.views[buf['id']] = View(buf, self.emacs_bufs[path])
+            if self.views.get(buf['id']) is None:
+                self.get_view(buf['id'])
             else:
                 msg.debug('view for buf %s already exists. this is not good. we got out of sync' % buf['path'])
 
