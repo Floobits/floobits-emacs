@@ -16,9 +16,9 @@ emacs = None
 class View(object):
     """editors representation of the buffer"""
 
-    def __init__(self, buf):
+    def __init__(self, buf, emacs_buf=""):
         self.buf = buf
-        self.emacs_buf = ""
+        self.emacs_buf = emacs_buf
 
     def __repr__(self):
         return '%s %s %s' % (self.native_id, self.buf['id'], self.buf['path'])
@@ -110,11 +110,7 @@ class Protocol(protocol.BaseProtocol):
         self.views = {}
 
     def get_view(self, buf_id):
-        view = self.views.get(buf_id)
-        if not view:
-            view = View(self.FLOO_BUFS[buf_id])
-            self.views[buf_id] = view
-        return view
+        return self.views.get(buf_id)
 
     def update_view(self, data, view):
         view.set_text(data['buf'])
@@ -140,12 +136,47 @@ class Protocol(protocol.BaseProtocol):
             return
 
         view = self.get_view(buf['id'])
+        if not view:
+            msg.log("oops this is bad. view not found for %s %s" % (buf['id'], buf['path']))
         view.emacs_buf = req['after']
 
         self.BUFS_CHANGED.append(buf['id'])
 
     def on_emacs_buffer_list_change(self, req):
         msg.debug("buffers changed", req)
+        added = req.get('added') or {}
+        for path, text in added.iteritems():
+            buf = self.get_buf_by_path(path)
+            if not buf:
+                msg.debug('no buf for path %s' % path)
+                # TODO: check is_shared and create_buf if we need to
+                continue
+            if self.get_view(buf['id']) is None:
+                self.views[buf['id']] = View(buf, text)
+            else:
+                msg.debug('view for buf %s already exists. this is not good. we got out of sync')
+                self.views[buf['id']].emacs_buf = text
+
+        deleted = req.get('deleted') or []
+        for path in deleted:
+            buf = self.get_buf_by_path(path)
+            if buf:
+                del self.views[buf['id']]
+
+        seen = set()
+        current = req.get('current') or []
+        for path in current:
+            buf = self.get_buf_by_path(path)
+            if not buf:
+                continue
+            if buf['id'] in self.views:
+                seen.add(buf['id'])
+            else:
+                msg.debug('We should have buffer %s in our views but we don\'t' % buf['path'])
+
+        for buf_id, view in self.views.iteritems():
+            if buf_id not in seen:
+                msg.debug('We should not have buffer %s in our views but we do.' % view.buf['path'])
 
     def on_room_info(self, room_info):
         super(Protocol, self).on_room_info(room_info)

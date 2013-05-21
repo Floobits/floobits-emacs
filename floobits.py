@@ -320,11 +320,7 @@ class EmacsConnection(object):
                         break
                 if buf:
                     self.empty_selects = 0
-                    try:
-                        self.handle(buf)
-                    except Exception as e:
-                        msg.log(e)
-                        return self.reconnect()
+                    self.handle(buf)
                 else:
                     self.empty_selects += 1
                     if self.empty_selects > 10:
