@@ -117,7 +117,7 @@ class Protocol(protocol.BaseProtocol):
     def get_view(self, buf_id):
         view = self.views.get(buf_id)
         if not view:
-            view = View(self.bufs[buf_id])
+            view = View(self.FLOO_BUFS[buf_id])
             self.views[buf_id] = view
         return view
 
