@@ -320,7 +320,8 @@ class EmacsConnection(object):
                 self.empty_selects = 0
                 try:
                     self.handle(buf)
-                except Exception:
+                except Exception as e:
+                    msg.log(e)
                     return self.reconnect()
             else:
                 self.empty_selects += 1
