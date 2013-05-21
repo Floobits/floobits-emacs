@@ -144,6 +144,9 @@ class Protocol(protocol.BaseProtocol):
 
         self.BUFS_CHANGED.append(buf['id'])
 
+    def on_emacs_buffer_list_change(self, req):
+        msg.debug("buffers changed", req)
+
     def on_room_info(self, room_info):
         super(Protocol, self).on_room_info(room_info)
         emacs.put('room_info', {'project_path': G.PROJECT_PATH})

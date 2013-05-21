@@ -10,6 +10,7 @@
 (setq floobits-conn nil)
 (setq max-specpdl-size 1500)
 (setq floobits-current-position '((mark . 1) (point . 1) (name . "")))
+(setq floobits-open-buffers nil)
 ; ; To set this: M-x customize-variable RET floobits-username
 ; (defcustom floobits-username ""
 ;   "Username for floobits"
@@ -106,14 +107,14 @@
 (defun _floobits-is-buffer-public(buf)
   (let ((name (buffer-name buf)))
     (cond
-     ((string="*" (substring name 0 1)) nil)
-     ((string=" " (substring name 0 1)) nil)
-     ((< (length name) 11) t)
-     ((string= "floobits.el" (substring name 0 11)) nil)
-     (t t))))
+      ((string="*" (substring name 0 1)) nil)
+      ((string=" " (substring name 0 1)) nil)
+      ((buffer-file-name buf) t)
+      (t nil))))
 
+; TODO: make this function work, then actually use it
 (defun _floobits-is-buffer-shared(buf)
-  (let ((name (buffer-name buf))
+  (let ((name (buffer-file-name buf))
   (length (length floobits-share-dir)))
     (cond
      ((not (boundp floobits-share-dir)) nil)
@@ -238,7 +239,25 @@
     (floo-set-item 'req 'path (file-name-directory load-file-name))
     (floobits-send-to-agent req 'new-buffer)))
 
+(defun floobits-buffer-list-change ()
+  (let* ((current-buffers (mapcar 'buffer-file-name (floobits-get-public-buffers)))
+      (added (set-difference current-buffers floobits-open-buffers))
+      (deleted (set-difference floobits-open-buffers current-buffers)))
+    (when (or added deleted)
+      (message "current %s" current-buffers)
+      (message "added %s" added)
+      (message "deleted %s" deleted)
+      (setq floobits-open-buffers current-buffers)
+      (let ((req (list
+        (cons 'current current-buffers)
+        (cons 'added added)
+        (cons 'deleted deleted))))
+        (floobits-send-to-agent req 'buffer_list_change)))))
+
 ;;(add-hook 'before-change-functions 'before-change nil nil)
 (add-hook 'after-change-functions 'floobits-after-change nil nil)
+(add-hook 'post-command-hook 'floobits-buffer-list-change nil nil)
+;(add-hook 'kill-buffer-hook 'floobits-buffer-list-change nil nil)
 ;;(add-hook 'post-command-hook 'floobits-post-command-func nil nil)
 ;(floobits-launch-agent)
+;deleted (#<killed buffer>)
