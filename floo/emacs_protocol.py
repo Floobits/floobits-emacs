@@ -3,7 +3,7 @@ import protocol
 import shared as G
 import utils
 
-from lib import dmp
+from lib import diff_match_patch as dmp
 import dmp_monkey
 
 
