@@ -42,7 +42,7 @@ class View(object):
             'id': self.buf['id'],
             'full_path': utils.get_full_path(self.buf['path']),
             'buf': self.emacs_buf,
-            })
+        })
 
     def apply_patches(self, buf, patches):
         cursor_offset = self.get_cursor_offset()
@@ -53,7 +53,7 @@ class View(object):
             'id': self.buf['id'],
             'full_path': utils.get_full_path(self.buf['path']),
             'edits': patches[2],
-            })
+        })
 
         for patch in patches[2]:
             offset = patch[0]
