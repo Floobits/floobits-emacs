@@ -38,7 +38,12 @@ class View(object):
 
     def set_text(self, text):
         self.emacs_buf = text
-        # TODO: send this to emacs
+        emacs.put('get_buf', {
+            'id': self.buf['id'],
+            'full_path': utils.get_full_path(self.buf['path']),
+            'buf': self.emacs_buf,
+            })
+        self.buf['buf'] = self.emacs_buf
 
     def apply_patches(self, buf, patches):
         cursor_offset = self.get_cursor_offset()
@@ -55,6 +60,11 @@ class View(object):
                 cursor_offset += new_offset
 
         self.set_cursor_position(cursor_offset)
+        emacs.put('edit', {
+            'id': self.buf['id'],
+            'full_path': utils.get_full_path(self.buf['path']),
+            'edits': patches[2],
+            })
 
     def focus(self):
         pass
@@ -120,6 +130,9 @@ class Protocol(protocol.BaseProtocol):
             view = View(self.FLOO_BUFS[buf_id])
             self.views[buf_id] = view
         return view
+
+    def update_view(self, data, view):
+        view.set_text(data['buf'])
 
     def on_emacs_change(self, req):
         path = req['full_path']

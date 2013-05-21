@@ -47,7 +47,7 @@ class BaseProtocol(object):
     def get_view(self, data):
         raise NotImplemented()
 
-    def update_view(self, data):
+    def update_view(self, data, view):
         raise NotImplemented()
 
     def get_buf(self, data):
