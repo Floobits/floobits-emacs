@@ -244,8 +244,7 @@ class EmacsConnection(object):
     def start(self):
         self.conn, addr = self.sock.accept()
         self.conn.setblocking(0)
-        while True:
-            self.select()
+        self.select()
 
     def handle(self, req):
         self.net_buf += req
@@ -291,55 +290,56 @@ class EmacsConnection(object):
             msg.error('select(): No socket.')
             return self.reconnect()
 
-        if self.agent:
-            self.agent.tick()
+        while True:
+            if self.agent:
+                self.agent.tick()
 
-        out_conns = []
-        if len(self.to_emacs_q) > 0:
-            out_conns.append(self.conn)
+            out_conns = []
+            if len(self.to_emacs_q) > 0:
+                out_conns.append(self.conn)
 
-        try:
-            _in, _out, _except = select.select([self.conn], out_conns, [self.conn], 0.01)
-        except (select.error, socket.error, Exception) as e:
-            msg.error('Error in select(): %s' % str(e))
-            return self.reconnect()
+            try:
+                _in, _out, _except = select.select([self.conn], out_conns, [self.conn], 0.05)
+            except (select.error, socket.error, Exception) as e:
+                msg.error('Error in select(): %s' % str(e))
+                return self.reconnect()
 
-        if _except:
-            msg.error('Socket error')
-            return self.reconnect()
+            if _except:
+                msg.error('Socket error')
+                return self.reconnect()
 
-        if _in:
-            buf = ''
-            while True:
-                try:
-                    d = self.conn.recv(4096)
-                    if not d:
+            if _in:
+                buf = ''
+                while True:
+                    try:
+                        d = self.conn.recv(4096)
+                        if not d:
+                            break
+                        buf += d
+                    except (socket.error, TypeError):
                         break
-                    buf += d
-                except (socket.error, TypeError):
-                    break
-            if buf:
-                self.empty_selects = 0
-                try:
-                    self.handle(buf)
-                except Exception as e:
-                    msg.log(e)
-                    return self.reconnect()
-            else:
-                self.empty_selects += 1
-                if self.empty_selects > 10:
-                    msg.error('No data from sock.recv() {0} times.'.format(self.empty_selects))
-                    return self.reconnect()
+                if buf:
+                    self.empty_selects = 0
+                    try:
+                        self.handle(buf)
+                    except Exception as e:
+                        msg.log(e)
+                        return self.reconnect()
+                else:
+                    self.empty_selects += 1
+                    if self.empty_selects > 10:
+                        msg.error('No data from sock.recv() {0} times.'.format(self.empty_selects))
+                        return self.reconnect()
 
-        if _out:
-            while len(self.to_emacs_q) > 0:
-                p = self.to_emacs_q.pop(0)
-                try:
-                    msg.debug("to emacs: %s" % p)
-                    self.conn.sendall(p)
-                except Exception as e:
-                    msg.error('Couldn\'t write to socket: %s' % str(e))
-                    return self.reconnect()
+            if _out:
+                while len(self.to_emacs_q) > 0:
+                    p = self.to_emacs_q.pop(0)
+                    try:
+                        msg.debug("to emacs: %s" % p)
+                        self.conn.sendall(p)
+                    except Exception as e:
+                        msg.error('Couldn\'t write to socket: %s' % str(e))
+                        return self.reconnect()
 
 
 if __name__ == '__main__':
