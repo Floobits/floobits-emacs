@@ -11,6 +11,7 @@
 (setq max-specpdl-size 1500)
 (setq floobits-current-position '((mark . 1) (point . 1) (name . "")))
 (setq floobits-open-buffers nil)
+(setq floobits-follow-mode nil)
 ; ; To set this: M-x customize-variable RET floobits-username
 ; (defcustom floobits-username ""
 ;   "Username for floobits"
@@ -71,6 +72,11 @@
     (delete-process floobits-python-agent))
   ; Assumes floobits.el is in the same dir as floobits.py
   (start-process "floobits-python-agent" "*Messages*" (concat (file-name-directory load-file-name) "floobits.py")))
+
+(defun floobits-follow-mode-toggle ()
+  "Toggles following of recent changes in a room"
+  (interactive)
+  (setq floobits-follow-mode (not floobits-follow-mode)))
 
 (defun floobits-leave-room ()
   "leaves the current rooom"
@@ -170,7 +176,8 @@
 (defun floobits-event-get_buf (req)
   (let ((filename (floo-get-item req "full_path" )))
     (if (not (eq filename nil))
-      (find-file filename)
+      (when floobits-follow-mode
+        (find-file filename))
     (message "filename does not exist for buffer %s" (floo-get-item req 'id)))))
 
 (defun floobits-switch (text)
