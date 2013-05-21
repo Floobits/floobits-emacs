@@ -125,7 +125,7 @@ class BaseProtocol(object):
             if text is None:
                 buf_fd = open(path, 'rb')
                 text = buf_fd.read().decode('utf-8')
-                rel_path = utils.to_rel_path(path)
+            rel_path = utils.to_rel_path(path)
             msg.debug('creating buffer ', rel_path)
             event = {
                 'name': 'create_buf',
