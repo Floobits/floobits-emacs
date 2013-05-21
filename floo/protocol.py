@@ -274,12 +274,14 @@ class BaseProtocol(object):
 
     @buf_populated
     def on_patch(self, data):
-        buf_id = data['id']
-        buf = self.FLOO_BUFS[buf_id]
-        view = self.get_view(buf_id)
         if len(data['patch']) == 0:
             msg.error('wtf? no patches to apply. server is being stupid')
             return
+
+        buf_id = data['id']
+        buf = self.FLOO_BUFS[buf_id]
+        view = self.get_view(buf_id)
+
         dmp_patches = DMP.patch_fromText(data['patch'])
         # TODO: run this in a separate thread
         if view:
