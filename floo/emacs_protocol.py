@@ -43,13 +43,17 @@ class View(object):
             'full_path': utils.get_full_path(self.buf['path']),
             'buf': self.emacs_buf,
             })
-        self.buf['buf'] = self.emacs_buf
 
     def apply_patches(self, buf, patches):
         cursor_offset = self.get_cursor_offset()
         msg.debug('cursor offset is %s bytes' % cursor_offset)
 
-        self.set_text(patches[0])
+        self.emacs_buf = patches[0]
+        emacs.put('edit', {
+            'id': self.buf['id'],
+            'full_path': utils.get_full_path(self.buf['path']),
+            'edits': patches[2],
+            })
 
         for patch in patches[2]:
             offset = patch[0]
@@ -60,11 +64,6 @@ class View(object):
                 cursor_offset += new_offset
 
         self.set_cursor_position(cursor_offset)
-        emacs.put('edit', {
-            'id': self.buf['id'],
-            'full_path': utils.get_full_path(self.buf['path']),
-            'edits': patches[2],
-            })
 
     def focus(self):
         pass
