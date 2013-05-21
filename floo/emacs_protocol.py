@@ -110,20 +110,6 @@ class Protocol(protocol.BaseProtocol):
         emacs = G.EMACS
         self.views = {}
 
-    def emacs_handle(self, data):
-        msg.debug(data)
-        name = data.get('name')
-        if not name:
-            return msg.error('no name in data?!?')
-        func = getattr(self, "on_emacs_%s" % (name))
-        if not func:
-            return msg.debug('unknown name', name, 'data:', data)
-        func(data)
-
-    def on_room_info(self, room_info):
-        super(Protocol, self).on_room_info(room_info)
-        emacs.put('room_info', {'project_path': G.PROJECT_PATH})
-
     def get_view(self, buf_id):
         view = self.views.get(buf_id)
         if not view:
@@ -133,6 +119,16 @@ class Protocol(protocol.BaseProtocol):
 
     def update_view(self, data, view):
         view.set_text(data['buf'])
+
+    def emacs_handle(self, data):
+        msg.debug(data)
+        name = data.get('name')
+        if not name:
+            return msg.error('no name in data?!?')
+        func = getattr(self, "on_emacs_%s" % (name))
+        if not func:
+            return msg.debug('unknown name', name, 'data:', data)
+        func(data)
 
     def on_emacs_change(self, req):
         path = req['full_path']
@@ -148,3 +144,7 @@ class Protocol(protocol.BaseProtocol):
         view.emacs_buf = req['after']
 
         self.BUFS_CHANGED.append(buf['id'])
+
+    def on_room_info(self, room_info):
+        super(Protocol, self).on_room_info(room_info)
+        emacs.put('room_info', {'project_path': G.PROJECT_PATH})
