@@ -76,7 +76,8 @@
 (defun floobits-follow-mode-toggle ()
   "Toggles following of recent changes in a room"
   (interactive)
-  (setq floobits-follow-mode (not floobits-follow-mode)))
+  (setq floobits-follow-mode (not floobits-follow-mode))
+  (message "Follow mode %s." (if (eq floobits-follow-mode nil) "disabled" "enabled")))
 
 (defun floobits-leave-room ()
   "leaves the current rooom"
