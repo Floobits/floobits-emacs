@@ -127,7 +127,8 @@ class Protocol(protocol.BaseProtocol):
     def __init__(self, *args, **kwargs):
         global emacs
         super(Protocol, self).__init__(*args, **kwargs)
-        self.follow_mode = True # This is intentional. Emacs stores follow_mode state and discards highlights if it's not following 
+        # This is intentional. Emacs stores follow_mode state and discards highlights if it's not following
+        self.follow_mode = True
         emacs = G.EMACS
         self.views = {}
         self.emacs_bufs = defaultdict(lambda: [""])
