@@ -173,7 +173,7 @@
     (let*
       ((ranges (floo-get-item req 'ranges))
       (ranges-length (- (length ranges) 1)))
-        (goto-char (+ 1 (elt (elt ranges ranges-length) 0)))))
+        (goto-char (+ 1 (elt (elt ranges ranges-length) 0))))))
 
 (defun floobits-apply-edit (edit)
   (let* ((inhibit-modification-hooks t)
