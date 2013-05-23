@@ -80,8 +80,12 @@ class View(object):
 
         self.set_cursor_position(cursor_offset)
 
-    def focus(self):
-        pass
+    def focus(self, offset):
+        emacs.put('focus', {
+            'id': self.buf['id'],
+            'full_path': utils.get_full_path(self.buf['path']),
+            'offset': offset,
+        })
 
     def set_cursor_position(self, offset):
         pass
