@@ -12,7 +12,7 @@
 (setq floobits-current-position '((mark . 1) (point . 1) (name . "")))
 (setq floobits-open-buffers nil)
 (setq floobits-follow-mode nil)
-; ; To set this: M-x customize-variable RET floobits-username
+; To set this: M-x customize-variable RET floobits-username
 ; (defcustom floobits-username ""
 ;   "Username for floobits"
 ;   :type 'string)
@@ -76,8 +76,10 @@
 (defun floobits-follow-mode-toggle ()
   "Toggles following of recent changes in a room"
   (interactive)
-  (setq floobits-follow-mode (not floobits-follow-mode))
-  (message "Follow mode %s." (if (eq floobits-follow-mode nil) "disabled" "enabled")))
+  (when floobits-conn
+    (setq floobits-follow-mode (not floobits-follow-mode))
+    (floobits-send-to-agent (list (cons 'follow_mode floobits-follow-mode)) 'set_follow_mode)
+    (message "Follow mode %s." (if (eq floobits-follow-mode nil) "disabled" "enabled"))))
 
 (defun floobits-leave-room ()
   "leaves the current rooom"

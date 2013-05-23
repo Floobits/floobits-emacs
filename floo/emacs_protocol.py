@@ -127,8 +127,6 @@ class Protocol(protocol.BaseProtocol):
     def __init__(self, *args, **kwargs):
         global emacs
         super(Protocol, self).__init__(*args, **kwargs)
-        # This is intentional. Emacs stores follow_mode state and discards highlights if it's not following
-        self.follow_mode = True
         emacs = G.EMACS
         self.views = {}
         self.emacs_bufs = defaultdict(lambda: [""])
@@ -161,6 +159,9 @@ class Protocol(protocol.BaseProtocol):
         if not func:
             return msg.debug('unknown name', name, 'data:', data)
         func(data)
+
+    def on_emacs_set_follow_mode(self, req):
+        self.follow_mode = req['follow_mode']
 
     def on_emacs_change(self, req):
         path = req['full_path']
