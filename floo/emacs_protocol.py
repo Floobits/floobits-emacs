@@ -165,7 +165,7 @@ class Protocol(protocol.BaseProtocol):
         func(data)
 
     def on_emacs_set_follow_mode(self, req):
-        self.follow_mode = req['follow_mode']
+        self.follow(bool(req['follow_mode']))
 
     def on_emacs_change(self, req):
         path = req['full_path']
