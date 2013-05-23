@@ -194,8 +194,11 @@ class Protocol(protocol.BaseProtocol):
                 msg.debug('no buf for path %s' % path)
                 self.create_buf(path, text)
                 continue
-            if self.views.get(buf['id']) is None:
+            view = self.views.get(buf['id'])
+            if view is None:
                 self.get_view(buf['id'])
+            elif view.is_loading():
+                view._emacs_buf = self.emacs_bufs[path]
             else:
                 msg.debug('view for buf %s already exists. this is not good. we got out of sync' % buf['path'])
 
