@@ -159,10 +159,15 @@
 
 (defun floobits-event-create_view (req)
   (message "opening file %s" (floo-get-item req 'full_path))
-  (find-file (floo-get-item req 'full_path)))
+  (find-file (floo-get-item req 'full_path))
+  (floobits-buffer-list-change))
+
+(defun floobits-event-focus (req)
+  (find-file (floo-get-item req 'full_path))
+  (goto-char (floo-get-item req 'offset)))
 
 (defun floobits-event-highlight (req)
-  (when 'floobits-follow-mode
+  (when floobits-follow-mode
     (message "opening file %s" (floo-get-item req 'full_path))
     (find-file (floo-get-item req 'full_path))
     (let*
