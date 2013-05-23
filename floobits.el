@@ -164,7 +164,7 @@
 
 (defun floobits-event-focus (req)
   (find-file (floo-get-item req 'full_path))
-  (goto-char (floo-get-item req 'offset)))
+  (goto-char (+ 1 (floo-get-item req 'offset))))
 
 (defun floobits-event-highlight (req)
   (when floobits-follow-mode
@@ -173,7 +173,7 @@
     (let*
       ((ranges (floo-get-item req 'ranges))
       (ranges-length (- (length ranges) 1)))
-        (goto-char (elt (elt ranges ranges-length) 0)))))
+        (goto-char (+ 1 (elt (elt ranges ranges-length) 0)))))
 
 (defun floobits-apply-edit (edit)
   (let* ((inhibit-modification-hooks t)
