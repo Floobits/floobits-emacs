@@ -12,6 +12,7 @@
 (setq floobits-current-position '((mark . 1) (point . 1) (name . "")))
 (setq floobits-open-buffers nil)
 (setq floobits-follow-mode nil)
+(setq floobits-python-path (concat (file-name-directory load-file-name) "floobits.py"))
 ; To set this: M-x customize-variable RET floobits-username
 ; (defcustom floobits-username ""
 ;   "Username for floobits"
@@ -25,6 +26,21 @@
 ; (defcustom floobits-share-dir "~/share"
 ;   "Room for floobits"
 ;   :type 'string)
+
+(defun floobits-add-hooks ()
+  (add-hook 'after-change-functions 'floobits-after-change nil nil)
+  (add-hook 'post-command-hook 'floobits-buffer-list-change nil nil))
+
+(defun floobits-remove-hooks ()
+  (remove-hook 'after-change-functions 'floobits-after-change)
+  (remove-hook 'post-command-hook 'floobits-buffer-list-change))
+
+ (defun process-live-p (process)
+    "Returns non-nil if PROCESS is alive.
+  A process is considered alive if its status is `run', `open',
+  `listen', `connect' or `stop'."
+    (memq (process-status process)
+          '(run open listen connect stop)))
 
 (defmacro floo-get-item (alist key)
   "just grab an element from an alist"
@@ -66,12 +82,26 @@
   (delq nil
   (mapcar (lambda (x) (and (funcall condp x) x)) lst)))
 
+(defun floobits-agent-listener (proc string)
+  ; todo: check for 'started'
+  ; (when (buffer-live-p (process-buffer proc))
+  (with-current-buffer "*Messages*"
+    (let ((moving (= (point) (process-mark proc))))
+      (save-excursion
+       ;; Insert the text, advancing the process marker.
+       (goto-char (process-mark proc))
+       (insert (concat "floobits agent says: " string))
+       (set-marker (process-mark proc) (point)))
+     (if moving (goto-char (process-mark proc))))))
+
 (defun floobits-launch-agent ()
-  (when (boundp 'floobits-python-agent)
+  (when (and (boundp 'floobits-python-agent) (process-live-p floobits-python-agent))
     (kill-process floobits-python-agent)
     (delete-process floobits-python-agent))
   ; Assumes floobits.el is in the same dir as floobits.py
-  (start-process "floobits-python-agent" "*Messages*" (concat (file-name-directory load-file-name) "floobits.py")))
+  (setq floobits-python-agent (start-process "" "*Messages*" floobits-python-path))
+  ; (set-process-filter floobits-python-agent 'floobits-agent-listener)
+  (accept-process-output floobits-python-agent 2))
 
 (defun floobits-follow-mode-toggle ()
   "Toggles following of recent changes in a room"
@@ -147,6 +177,7 @@
 (defun floobits-event-room_info (req)
   (message "Successfully joined room %s" floobits-room)
   (message "project path is %s" (floo-get-item req 'project_path))
+  (floobits-add-hooks)
   (dired (floo-get-item req "project_path")))
 
 (defun floobits-event-join (req)
@@ -241,20 +272,28 @@
     (floobits-send-to-agent req 'auth)))
 
 (defun floobits-create-connection ()
+  (floobits-launch-agent)
   (setq floobits-conn (open-network-stream "floobits" nil floobits-agent-host floobits-agent-port))
   (set-process-coding-system floobits-conn 'utf-8 'utf-8)
   (set-process-filter floobits-conn 'floobits-listener)
+  (floobits-add-hooks)
   (floobits-auth))
 
 (defun floobits-destroy-connection ()
   (when floobits-conn
+    (floobits-remove-hooks)
     (message "deleting floobits conn")
     (delete-process floobits-conn)))
 
 (defun floobits-send-to-agent (req event)
-  (floo-set-item 'req 'name event)
-  (floo-set-item 'req 'version floobits-agent-version)
-  (process-send-string floobits-conn (concat (json-encode req) "\n")))
+  (if (process-live-p floobits-conn)
+    (progn
+      (floo-set-item 'req 'name event)
+      (floo-set-item 'req 'version floobits-agent-version)
+      (process-send-string floobits-conn (concat (json-encode req) "\n")))
+    (progn
+      (message "connection to floobits died :(")
+      floobits-destroy-connection)))
 
 (defun floobits-get-text (begin end)
   (buffer-substring-no-properties begin end))
@@ -298,8 +337,6 @@
         (floobits-send-to-agent req 'buffer_list_change)))))
 
 ;;(add-hook 'before-change-functions 'before-change nil nil)
-(add-hook 'after-change-functions 'floobits-after-change nil nil)
-(add-hook 'post-command-hook 'floobits-buffer-list-change nil nil)
 ;(add-hook 'kill-buffer-hook 'floobits-buffer-list-change nil nil)
 ;;(add-hook 'post-command-hook 'floobits-post-command-func nil nil)
 ;(floobits-launch-agent)
