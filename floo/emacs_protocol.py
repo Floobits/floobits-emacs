@@ -218,3 +218,21 @@ class Protocol(protocol.BaseProtocol):
     def on_room_info(self, room_info):
         super(Protocol, self).on_room_info(room_info)
         emacs.put('room_info', {'project_path': G.PROJECT_PATH})
+
+    def on_create_buf(self, data):
+        super(Protocol, self).on_create_buf(data)
+        emacs.put('create_buf', {
+            'full_path': utils.get_full_path(data['path']),
+            'path': data['path'],
+            'username': data.get('username', ''),
+        })
+
+    def on_delete_buf(self, data):
+        buf = self.FLOO_BUFS[data['id']]
+        path = buf['path']
+        super(Protocol, self).on_delete_buf(data)
+        emacs.put('delete_buf', {
+            'full_path': utils.get_full_path(path),
+            'path': path,
+            'username': data.get('username', ''),
+        })
