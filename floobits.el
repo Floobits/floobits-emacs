@@ -1,6 +1,7 @@
 (require 'cl)
 (require 'json)
 (require 'url)
+(require 'highlight)
 
 (setq floobits-agent-version "0.01")
 (setq floobits-agent-host "localhost")
@@ -12,6 +13,7 @@
 (setq floobits-current-position '((mark . 1) (point . 1) (name . "")))
 (setq floobits-open-buffers nil)
 (setq floobits-follow-mode nil)
+(setq floobits-user-highlights (make-hash-table))
 (setq floobits-python-path (concat (file-name-directory load-file-name) "floobits.py"))
 ; To set this: M-x customize-variable RET floobits-username
 ; (defcustom floobits-username ""
@@ -35,12 +37,12 @@
   (remove-hook 'after-change-functions 'floobits-after-change)
   (remove-hook 'post-command-hook 'floobits-buffer-list-change))
 
- (defun process-live-p (process)
-    "Returns non-nil if PROCESS is alive.
+(defun process-live-p (process)
+  "Returns non-nil if PROCESS is alive.
   A process is considered alive if its status is `run', `open',
   `listen', `connect' or `stop'."
-    (memq (process-status process)
-          '(run open listen connect stop)))
+  (memq (process-status process)
+    '(run open listen connect stop)))
 
 (defmacro floo-get-item (alist key)
   "just grab an element from an alist"
@@ -77,6 +79,26 @@
           (cons 'ranges (list (list mark mark)))
           (cons 'full-path (buffer-file-name (current-buffer))))))
         (floobits-send-to-agent req 'highlight)))))
+
+(defun floobits-highlight-func (user_id buffer ranges)
+  (let ((existing-ranges (gethash user_id floobits-user-highlights)))
+  (with-current-buffer buffer
+    (save-excursion
+      (when existing-ranges
+        ; convert to list :(
+        (mapcar
+          (lambda(x)
+            (goto-char (- (elt x 0) 0))
+            (push-mark (+ (elt x 1) 1) t t)
+            (hlt-unhighlight-region))
+          existing-ranges))
+      (mapcar
+        (lambda(x)
+            (goto-char (- (elt x 0) 0))
+            (push-mark (+ (elt x 1) 1) t t)
+          (hlt-highlight-region))
+        ranges)
+      (puthash user_id ranges floobits-user-highlights)))))
 
 (defun floobits-filter-func (condp lst)
   (delq nil
@@ -198,13 +220,14 @@
   (goto-char (+ 1 (floo-get-item req 'offset))))
 
 (defun floobits-event-highlight (req)
+  (let* ((ranges (floo-get-item req 'ranges))
+         (ranges-length (- (length ranges) 1))
+         (buffer (get-file-buffer (floo-get-item req 'full_path)))
+         (user_id (floo-get-item req 'user_id)))
+  (floobits-highlight-func user_id buffer ranges)
   (when floobits-follow-mode
-    (message "opening file %s" (floo-get-item req 'full_path))
-    (find-file (floo-get-item req 'full_path))
-    (let*
-      ((ranges (floo-get-item req 'ranges))
-      (ranges-length (- (length ranges) 1)))
-        (goto-char (+ 1 (elt (elt ranges ranges-length) 0))))))
+    (switch-to-buffer buffer)
+    (goto-char (+ 1 (elt (elt ranges ranges-length) 0))))))
 
 (defun floobits-apply-edit (edit)
   (let* ((inhibit-modification-hooks t)
