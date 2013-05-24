@@ -1,6 +1,9 @@
 (require 'cl)
 (require 'json)
 (require 'url)
+
+(setq floobits-plugin-dir (file-name-directory load-file-name))
+(add-to-list 'load-path floobits-plugin-dir)
 (require 'highlight)
 
 (setq floobits-agent-version "0.01")
@@ -14,46 +17,17 @@
 (setq floobits-open-buffers nil)
 (setq floobits-follow-mode nil)
 (setq floobits-user-highlights (make-hash-table :test 'equal))
-(setq floobits-python-path (concat (file-name-directory load-file-name) "floobits.py"))
-
-(add-hook 'kill-emacs-hook 'floobits-kill-emacs-hook nil nil)
-
-(defun floobits-kill-emacs-hook ()
-  (floobits-destroy-connection)
-  (when (and (boundp 'floobits-python-agent) (process-live-p floobits-python-agent))
-    (kill-process floobits-python-agent)))
+(setq floobits-python-path (concat floobits-plugin-dir "floobits.py"))
 
 (defun floobits-add-hooks ()
   (add-hook 'after-change-functions 'floobits-after-change nil nil)
-  (add-hook 'post-command-hook 'floobits-buffer-list-change nil nil))
+  (add-hook 'post-command-hook 'floobits-post-command-func nil nil))
 
 (defun floobits-remove-hooks ()
   (remove-hook 'after-change-functions 'floobits-after-change)
-  (remove-hook 'post-command-hook 'floobits-buffer-list-change))
+  (remove-hook 'post-command-hook 'floobits-post-command-func))
 
-(defun process-live-p (process)
-  "Returns non-nil if PROCESS is alive.
-  A process is considered alive if its status is `run', `open',
-  `listen', `connect' or `stop'."
-  (memq (process-status process)
-    '(run open listen connect stop)))
-
-(add-hook 'kill-emacs-hook 'floobits-kill-emacs-hook nil nil)
-
-(defun floobits-kill-emacs-hook ()
-  (floobits-destroy-connection)
-  (when (and (boundp 'floobits-python-agent) (process-live-p floobits-python-agent))
-    (kill-process floobits-python-agent)))
-
-(defun floobits-add-hooks ()
-  (add-hook 'after-change-functions 'floobits-after-change nil nil)
-  (add-hook 'post-command-hook 'floobits-buffer-list-change nil nil))
-
-(defun floobits-remove-hooks ()
-  (remove-hook 'after-change-functions 'floobits-after-change)
-  (remove-hook 'post-command-hook 'floobits-buffer-list-change))
-
-(defun process-live-p (process)
+(defun floobits-process-live-p (process)
   "Returns non-nil if PROCESS is alive.
   A process is considered alive if its status is `run', `open',
   `listen', `connect' or `stop'."
@@ -83,20 +57,27 @@
 
 (defun floobits-post-command-func ()
   "used for grabbing changes in point for highlighting"
-  (let* ((name (buffer-name (current-buffer)))
-    (current (list
-      (cons 'point (or (point) -1))
-      (cons 'mark (or (mark) -1))
-      (cons 'name (or name "")))))
-    (unless (equal current floobits-current-position)
-      (setq floobits-current-position current)
-      (let* ((mark (floo-get-item current 'mark))
-        (req (list
-          (cons 'ranges (list (list mark mark)))
-          (cons 'full-path (buffer-file-name (current-buffer))))))
-        (floobits-send-to-agent req 'highlight)))))
+  (floobits-buffer-list-change)
+  (floobits-send-highlight))
 
-(defun floobits-highlight-func (user_id buffer ranges)
+(defun floobits-send-highlight (&optional ping)
+  (message "highlighting %s" (buffer-file-name (current-buffer)))
+  (when (eq (_floobits-is-buffer-public (current-buffer)) t)
+    (let* ((name (buffer-file-name (current-buffer)))
+           (mark (or (mark) -1))
+           (current (list
+             (cons 'point (or (point) -1))
+             (cons 'mark mark)
+             (cons 'name (or name "")))))
+      (unless (or ping (equal current floobits-current-position))
+        (setq floobits-current-position current)
+        (let ((req (list
+            (cons 'ranges (vector (vector mark mark)))
+            (cons 'full_path name)
+            (cons 'ping ping))))
+          (floobits-send-to-agent req 'highlight))))))
+
+(defun floobits-apply-highlight (user_id buffer ranges)
   (let* ((key (format "%s-%s" user_id (buffer-file-name buffer)))
          (previous-ranges (gethash key floobits-user-highlights)))
     (message "%s key %s" key previous-ranges)
@@ -135,13 +116,18 @@
      (if moving (goto-char (process-mark proc))))))
 
 (defun floobits-launch-agent ()
-  (when (and (boundp 'floobits-python-agent) (process-live-p floobits-python-agent))
+  (when (and (boundp 'floobits-python-agent) (floobits-process-live-p floobits-python-agent))
     (kill-process floobits-python-agent)
     (delete-process floobits-python-agent))
   ; Assumes floobits.el is in the same dir as floobits.py
   (setq floobits-python-agent (start-process "" "*Messages*" floobits-python-path))
   ; (set-process-filter floobits-python-agent 'floobits-agent-listener)
   (accept-process-output floobits-python-agent 2))
+
+(defun floobits-summon ()
+  "Summons all users to your cursor position."
+  (interactive)
+  (floobits-send-highlight t))
 
 (defun floobits-follow-mode-toggle ()
   "Toggles following of recent changes in a room"
@@ -242,7 +228,7 @@
          (ranges-length (- (length ranges) 1))
          (buffer (get-file-buffer (floo-get-item req 'full_path)))
          (user_id (floo-get-item req 'user_id)))
-  (floobits-highlight-func user_id buffer ranges)
+  (floobits-apply-highlight user_id buffer ranges)
   (when floobits-follow-mode
     (switch-to-buffer buffer)
     (goto-char (+ 1 (elt (elt ranges ranges-length) 0))))))
@@ -317,7 +303,6 @@
   (setq floobits-conn (open-network-stream "floobits" nil floobits-agent-host floobits-agent-port))
   (set-process-coding-system floobits-conn 'utf-8 'utf-8)
   (set-process-filter floobits-conn 'floobits-listener)
-  (floobits-add-hooks)
   (floobits-auth))
 
 (defun floobits-destroy-connection ()
@@ -327,14 +312,14 @@
     (delete-process floobits-conn)))
 
 (defun floobits-send-to-agent (req event)
-  (if (process-live-p floobits-conn)
+  (if (floobits-process-live-p floobits-conn)
     (progn
       (floo-set-item 'req 'name event)
       (floo-set-item 'req 'version floobits-agent-version)
       (process-send-string floobits-conn (concat (json-encode req) "\n")))
     (progn
       (message "connection to floobits died :(")
-      floobits-destroy-connection)))
+      (floobits-destroy-connection))))
 
 (defun floobits-get-text (begin end)
   (buffer-substring-no-properties begin end))
