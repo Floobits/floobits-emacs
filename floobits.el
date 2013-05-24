@@ -15,19 +15,28 @@
 (setq floobits-follow-mode nil)
 (setq floobits-user-highlights (make-hash-table :test 'equal))
 (setq floobits-python-path (concat (file-name-directory load-file-name) "floobits.py"))
-; To set this: M-x customize-variable RET floobits-username
-; (defcustom floobits-username ""
-;   "Username for floobits"
-;   :type 'string)
 
-; ; To set this: M-x customize-variable RET floobits-secret
-; (defcustom floobits-secret ""
-;   "Secret for floobits"
-;   :type 'string)
+(add-hook 'kill-emacs-hook 'floobits-kill-emacs-hook nil nil)
 
-; (defcustom floobits-share-dir "~/share"
-;   "Room for floobits"
-;   :type 'string)
+(defun floobits-kill-emacs-hook ()
+  (floobits-destroy-connection)
+  (when (and (boundp 'floobits-python-agent) (process-live-p floobits-python-agent))
+    (kill-process floobits-python-agent)))
+
+(defun floobits-add-hooks ()
+  (add-hook 'after-change-functions 'floobits-after-change nil nil)
+  (add-hook 'post-command-hook 'floobits-buffer-list-change nil nil))
+
+(defun floobits-remove-hooks ()
+  (remove-hook 'after-change-functions 'floobits-after-change)
+  (remove-hook 'post-command-hook 'floobits-buffer-list-change))
+
+(defun process-live-p (process)
+  "Returns non-nil if PROCESS is alive.
+  A process is considered alive if its status is `run', `open',
+  `listen', `connect' or `stop'."
+  (memq (process-status process)
+    '(run open listen connect stop)))
 
 (add-hook 'kill-emacs-hook 'floobits-kill-emacs-hook nil nil)
 
