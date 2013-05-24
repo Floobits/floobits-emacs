@@ -141,6 +141,8 @@ class Protocol(protocol.BaseProtocol):
         return view
 
     def get_view(self, buf_id):
+        """Warning: side effects!"""
+
         view = self.views.get(buf_id)
         if view:
             return view
@@ -149,6 +151,21 @@ class Protocol(protocol.BaseProtocol):
         emacs_buf = self.emacs_bufs.get(full_path)
         if emacs_buf:
             view = self.create_view(buf, emacs_buf)
+        return view
+
+    def get_view_by_path(self, path):
+        """Warning: side effects!"""
+
+        if not path:
+            return None
+        buf = self.get_buf_by_path(path)
+        if not buf:
+            msg.debug("buf not found for path %s" % path)
+            return None
+        view = self.get_view(buf['id'])
+        if not view:
+            msg.debug("view not found for %s %s" % (buf['id'], buf['path']))
+            return None
         return view
 
     def update_view(self, data, view):
@@ -169,21 +186,13 @@ class Protocol(protocol.BaseProtocol):
 
     def on_emacs_change(self, req):
         path = req['full_path']
-        if not path:
-            return
-
         self.emacs_bufs[path][0] = req['after']
+        view = self.get_view_by_path(path)
+        self.BUFS_CHANGED.append(view.buf['id'])
 
-        buf = self.get_buf_by_path(path)
-        if not buf:
-            msg.debug("buf not found for path %s. not sending patch" % path)
-            return
-
-        view = self.get_view(buf['id'])
-        if not view:
-            msg.debug("view not found for %s %s" % (buf['id'], buf['path']))
-
-        self.BUFS_CHANGED.append(buf['id'])
+    def on_emacs_highlight(self, req):
+        view = self.get_view_by_path(req['full_path'])
+        self.SELECTION_CHANGED.add((view, req.get('ping', False)))
 
     def on_emacs_buffer_list_change(self, req):
         added = req.get('added') or {}
