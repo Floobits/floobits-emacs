@@ -192,7 +192,7 @@ class Protocol(protocol.BaseProtocol):
 
     def on_emacs_highlight(self, req):
         view = self.get_view_by_path(req['full_path'])
-        self.SELECTION_CHANGED.add((view, req.get('ping', False)))
+        self.SELECTION_CHANGED.append((view, req.get('ping', False)))
 
     def on_emacs_buffer_list_change(self, req):
         added = req.get('added') or {}
