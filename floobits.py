@@ -242,6 +242,7 @@ class EmacsConnection(object):
         self.sock.listen(1)
 
     def start(self):
+        print('started')
         self.conn, addr = self.sock.accept()
         self.conn.setblocking(0)
         self.select()
