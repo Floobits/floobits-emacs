@@ -13,7 +13,7 @@
 (setq floobits-current-position '((mark . 1) (point . 1) (name . "")))
 (setq floobits-open-buffers nil)
 (setq floobits-follow-mode nil)
-(setq floobits-user-highlights (make-hash-table))
+(setq floobits-user-highlights (make-hash-table :test 'equal))
 (setq floobits-python-path (concat (file-name-directory load-file-name) "floobits.py"))
 ; To set this: M-x customize-variable RET floobits-username
 ; (defcustom floobits-username ""
@@ -28,6 +28,13 @@
 ; (defcustom floobits-share-dir "~/share"
 ;   "Room for floobits"
 ;   :type 'string)
+
+(add-hook 'kill-emacs-hook 'floobits-kill-emacs-hook nil nil)
+
+(defun floobits-kill-emacs-hook ()
+  (floobits-destroy-connection)
+  (when (and (boundp 'floobits-python-agent) (process-live-p floobits-python-agent))
+    (kill-process floobits-python-agent)))
 
 (defun floobits-add-hooks ()
   (add-hook 'after-change-functions 'floobits-after-change nil nil)
@@ -81,24 +88,26 @@
         (floobits-send-to-agent req 'highlight)))))
 
 (defun floobits-highlight-func (user_id buffer ranges)
-  (let ((existing-ranges (gethash user_id floobits-user-highlights)))
-  (with-current-buffer buffer
-    (save-excursion
-      (when existing-ranges
-        ; convert to list :(
+  (let* ((key (format "%s-%s" user_id (buffer-file-name buffer)))
+         (previous-ranges (gethash key floobits-user-highlights)))
+    (message "%s key %s" key previous-ranges)
+    (with-current-buffer buffer
+      (save-excursion
+        (when previous-ranges
+          ; convert to list :(
+          (mapcar
+            (lambda(x)
+              (goto-char (- (elt x 0) 0))
+              (push-mark (+ (elt x 1) 1) t t)
+              (hlt-unhighlight-region))
+            previous-ranges))
         (mapcar
           (lambda(x)
-            (goto-char (- (elt x 0) 0))
-            (push-mark (+ (elt x 1) 1) t t)
-            (hlt-unhighlight-region))
-          existing-ranges))
-      (mapcar
-        (lambda(x)
-            (goto-char (- (elt x 0) 0))
-            (push-mark (+ (elt x 1) 1) t t)
-          (hlt-highlight-region))
-        ranges)
-      (puthash user_id ranges floobits-user-highlights)))))
+              (goto-char (- (elt x 0) 0))
+              (push-mark (+ (elt x 1) 1) t t)
+            (hlt-highlight-region))
+          ranges)
+        (puthash key ranges floobits-user-highlights)))))
 
 (defun floobits-filter-func (condp lst)
   (delq nil
