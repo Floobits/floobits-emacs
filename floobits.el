@@ -87,15 +87,19 @@
           ; convert to list :(
           (mapcar
             (lambda(x)
-              (goto-char (+ (elt x 0) 1))
-              (push-mark (+ (elt x 1) 2) t t)
-              (hlt-unhighlight-region))
+              (let ((start (min (buffer-size buffer) (+ (elt x 0) 1)))
+                    (end (+ (elt x 1) 2)))
+                (goto-char start)
+                (push-mark end t t))
+                (hlt-unhighlight-region))
             previous-ranges))
         (mapcar
           (lambda(x)
-              (goto-char (+ (elt x 0) 1))
-              (push-mark (+ (elt x 1) 2) t t)
-            (hlt-highlight-region))
+            (let ((start (min (buffer-size buffer) (+ (elt x 0) 1)))
+                  (end (+ (elt x 1) 2)))
+              (goto-char start)
+              (push-mark end t t))
+              (hlt-highlight-region))
           ranges)
         (puthash key ranges floobits-user-highlights)))))
 
