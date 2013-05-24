@@ -87,14 +87,14 @@
           ; convert to list :(
           (mapcar
             (lambda(x)
-              (goto-char (- (elt x 0) 0))
-              (push-mark (+ (elt x 1) 1) t t)
+              (goto-char (+ (elt x 0) 1))
+              (push-mark (+ (elt x 1) 2) t t)
               (hlt-unhighlight-region))
             previous-ranges))
         (mapcar
           (lambda(x)
-              (goto-char (- (elt x 0) 0))
-              (push-mark (+ (elt x 1) 1) t t)
+              (goto-char (+ (elt x 0) 1))
+              (push-mark (+ (elt x 1) 2) t t)
             (hlt-highlight-region))
           ranges)
         (puthash key ranges floobits-user-highlights)))))
