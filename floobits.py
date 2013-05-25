@@ -266,6 +266,7 @@ class EmacsConnection(object):
                 G.USERNAME = data['username']
                 G.SECRET = data['secret']
                 G.PROJECT_PATH = os.path.realpath(os.path.join(G.COLAB_DIR, owner, room))
+                G.PROJECT_PATH += os.sep
                 utils.mkdir(os.path.dirname(G.PROJECT_PATH))
                 self.agent = AgentConnection(Protocol=Protocol, room=room, owner=owner)
                 self.agent.connect()
