@@ -344,11 +344,6 @@
 (defun floobits-get-text (begin end)
   (buffer-substring-no-properties begin end))
 
-(defun floobits-before-change (begin end)
-  (if (eq (_floobits-is-buffer-public (current-buffer)) t)
-    (let ((text (floobits-get-buffer-text (current-buffer))))
-      (floo-set-item 'floobits-change-set 'before text))))
-
 (defun floobits-after-change (begin end old_length)
   (if (eq (_floobits-is-buffer-public (current-buffer)) t)
      (let ((text (floobits-get-buffer-text (current-buffer))))
@@ -356,12 +351,6 @@
       (floo-set-item 'floobits-change-set 'full_path (buffer-file-name (current-buffer)))
       (floobits-send-to-agent floobits-change-set 'change)
     (setq floobits-change-set))))
-
-(defun floobits-after-new-buffer ()
-  (let ((req '("event" "new-buffer")))
-    (floo-set-item 'req 'text (floobits-get-text point-min point-max))
-    (floo-set-item 'req 'path (file-name-directory load-file-name))
-    (floobits-send-to-agent req 'new-buffer)))
 
 (defun floobits-buffer-list-change ()
   (let* ((current-buffers (mapcar 'buffer-file-name (floobits-get-public-buffers)))
