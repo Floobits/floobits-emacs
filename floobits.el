@@ -77,32 +77,6 @@
             (cons 'ping ping))))
           (floobits-send-to-agent req 'highlight))))))
 
-(defun floobits-apply-highlight (user_id buffer ranges)
-  (let* ((key (format "%s-%s" user_id (buffer-file-name buffer)))
-         (previous-ranges (gethash key floobits-user-highlights)))
-    (message "%s key %s" key previous-ranges)
-    (with-current-buffer buffer
-      (save-excursion
-        (when previous-ranges
-          ; convert to list :(
-          (mapcar
-            (lambda(x)
-              (let ((start (min (buffer-size buffer) (+ (elt x 0) 1)))
-                    (end (+ (elt x 1) 2)))
-                (goto-char start)
-                (push-mark end t t))
-                (hlt-unhighlight-region))
-            previous-ranges))
-        (mapcar
-          (lambda(x)
-            (let ((start (min (buffer-size buffer) (+ (elt x 0) 1)))
-                  (end (+ (elt x 1) 2)))
-              (goto-char start)
-              (push-mark end t t))
-              (hlt-highlight-region))
-          ranges)
-        (puthash key ranges floobits-user-highlights)))))
-
 (defun floobits-filter-func (condp lst)
   (delq nil
   (mapcar (lambda (x) (and (funcall condp x) x)) lst)))
@@ -226,6 +200,32 @@
 (defun floobits-event-focus (req)
   (find-file (floo-get-item req 'full_path))
   (goto-char (+ 1 (floo-get-item req 'offset))))
+
+(defun floobits-apply-highlight (user_id buffer ranges)
+  (let* ((key (format "%s-%s" user_id (buffer-file-name buffer)))
+         (previous-ranges (gethash key floobits-user-highlights)))
+    (message "%s key %s" key previous-ranges)
+    (with-current-buffer buffer
+      (save-excursion
+        (when previous-ranges
+          ; convert to list :(
+          (mapcar
+            (lambda(x)
+              (let ((start (min (buffer-size buffer) (+ (elt x 0) 1)))
+                    (end (+ (elt x 1) 2)))
+                (goto-char start)
+                (push-mark end t t))
+                (hlt-unhighlight-region))
+            previous-ranges))
+        (mapcar
+          (lambda(x)
+            (let ((start (min (buffer-size buffer) (+ (elt x 0) 1)))
+                  (end (+ (elt x 1) 2)))
+              (goto-char start)
+              (push-mark end t t))
+              (hlt-highlight-region))
+          ranges)
+        (puthash key ranges floobits-user-highlights)))))
 
 (defun floobits-event-highlight (req)
   (let* ((ranges (floo-get-item req 'ranges))
