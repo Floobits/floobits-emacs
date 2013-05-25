@@ -1,3 +1,4 @@
+import os
 from collections import defaultdict
 
 import msg
@@ -112,14 +113,7 @@ class View(object):
         })
 
     def rename(self, name):
-        text = self.buf['buf']
-        old_name = self.buf['path']
-        with open(name, 'wb') as fd:
-            fd.write(text.encode('utf-8'))
-        try:
-            utils.rm(old_name)
-        except Exception as e:
-            msg.debug("couldn't delete %s... maybe thats OK?" % str(e))
+        pass
 
     def save(self):
         pass
@@ -254,6 +248,18 @@ class Protocol(protocol.BaseProtocol):
             'full_path': utils.get_full_path(path),
             'path': path,
             'username': data.get('username', ''),
+        })
+
+    def on_rename_buf(self, data):
+        new = utils.get_full_path(data['path'])
+        old = utils.get_full_path(data['old_path'])
+        new_dir = os.path.dirname(new)
+        if new_dir:
+            utils.mkdir(new_dir)
+        self.FLOO_BUFS[data['id']]['path'] = data['path']
+        emacs.put('rename_buf', {
+            'path': new,
+            'old_path': old,
         })
 
     def on_highlight(self, data):
