@@ -192,7 +192,8 @@ class Protocol(protocol.BaseProtocol):
 
     def on_emacs_highlight(self, req):
         view = self.get_view_by_path(req['full_path'])
-        self.SELECTION_CHANGED.append((view, req.get('ping', False)))
+        if view:
+            self.SELECTION_CHANGED.append((view, req.get('ping', False)))
 
     def on_emacs_buffer_list_change(self, req):
         added = req.get('added') or {}
@@ -234,7 +235,8 @@ class Protocol(protocol.BaseProtocol):
 
     def on_room_info(self, room_info):
         super(Protocol, self).on_room_info(room_info)
-        emacs.put('room_info', {'project_path': G.PROJECT_PATH})
+        room_info['project_path'] = G.PROJECT_PATH
+        emacs.put('room_info', room_info)
 
     def on_create_buf(self, data):
         super(Protocol, self).on_create_buf(data)
@@ -253,3 +255,7 @@ class Protocol(protocol.BaseProtocol):
             'path': path,
             'username': data.get('username', ''),
         })
+
+    def on_highlight(self, data):
+        super(Protocol, self).on_highlight(data)
+        # TODO: save highlights for when user opens the buffer in emacs
