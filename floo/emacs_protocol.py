@@ -1,4 +1,3 @@
-import os
 from collections import defaultdict
 
 import msg
@@ -189,6 +188,14 @@ class Protocol(protocol.BaseProtocol):
         if view:
             self.SELECTION_CHANGED.append((view, req.get('ping', False)))
 
+    def on_emacs_rename_buf(self, req):
+        buf = self.get_buf_by_path(req['old_path'])
+        if not buf:
+            msg.debug('No buffer for path %s' % req['old_path'])
+            return
+        self.rename_buf(buf['id'], req['path'])
+        self.FLOO_BUFS[buf['id']]['path'] = utils.to_rel_path(req['path'])
+
     def on_emacs_buffer_list_change(self, req):
         added = req.get('added') or {}
         for path, text in added.iteritems():
@@ -251,16 +258,11 @@ class Protocol(protocol.BaseProtocol):
         })
 
     def on_rename_buf(self, data):
-        new = utils.get_full_path(data['path'])
-        old = utils.get_full_path(data['old_path'])
-        new_dir = os.path.dirname(new)
-        if new_dir:
-            utils.mkdir(new_dir)
-        self.FLOO_BUFS[data['id']]['path'] = data['path']
-        emacs.put('rename_buf', {
-            'path': new,
-            'old_path': old,
-        })
+        # This can screw up if someone else renames the buffer around the same time as us. Oh well.
+        buf = self.get_buf_by_path(utils.get_full_path(data['path']))
+        if not buf:
+            return super(Protocol, self).on_rename_buf(data)
+        msg.debug('We already renamed %s. Skipping' % buf['path'])
 
     def on_highlight(self, data):
         super(Protocol, self).on_highlight(data)

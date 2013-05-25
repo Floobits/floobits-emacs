@@ -202,6 +202,14 @@ class BaseProtocol(object):
         else:
             self.save_buf(data)
 
+    def rename_buf(self, buf_id, new_path):
+        new_path = utils.to_rel_path(new_path)
+        self.agent.put({
+            'name': 'rename_buf',
+            'id': buf_id,
+            'path': new_path,
+        })
+
     def on_rename_buf(self, data):
         new = utils.get_full_path(data['path'])
         old = utils.get_full_path(data['old_path'])
