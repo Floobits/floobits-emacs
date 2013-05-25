@@ -376,9 +376,3 @@
         (cons 'added added-text)
         (cons 'deleted deleted))))
         (floobits-send-to-agent req 'buffer_list_change)))))
-
-;;(add-hook 'before-change-functions 'before-change nil nil)
-;(add-hook 'kill-buffer-hook 'floobits-buffer-list-change nil nil)
-;;(add-hook 'post-command-hook 'floobits-post-command-func nil nil)
-;(floobits-launch-agent)
-;deleted (#<killed buffer>)
