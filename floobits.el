@@ -61,7 +61,6 @@
   (floobits-send-highlight))
 
 (defun floobits-send-highlight (&optional ping)
-  (message "highlighting %s" (buffer-file-name (current-buffer)))
   (when (eq (_floobits-is-buffer-public (current-buffer)) t)
     (let* ((name (buffer-file-name (current-buffer)))
            (mark (or (mark) -1))
@@ -201,8 +200,20 @@
   (find-file (floo-get-item req 'full_path))
   (goto-char (+ 1 (floo-get-item req 'offset))))
 
+(defun floobits-clear-highlights ()
+  "Clears all highlights"
+  (interactive)
+  (maphash
+    (lambda (key highlight)
+      (with-current-buffer (get-file-buffer (cadr key))
+        (save-excursion
+          (goto-char 0)
+          (push-mark (buffer-size))
+          (hlt-unhighlight-region))))
+    floobits-user-highlights))
+
 (defun floobits-apply-highlight (user_id buffer ranges)
-  (let* ((key (format "%s-%s" user_id (buffer-file-name buffer)))
+  (let* ((key (list user_id (buffer-file-name buffer)))
          (previous-ranges (gethash key floobits-user-highlights)))
     (message "%s key %s" key previous-ranges)
     (with-current-buffer buffer
