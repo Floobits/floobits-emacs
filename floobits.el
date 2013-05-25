@@ -63,6 +63,18 @@
   (floobits-buffer-list-change)
   (floobits-send-highlight))
 
+(defun floobits-event-rename_buf (req)
+  (let* ((old-path (floo-get-item req 'old_path))
+         (new-path (floo-get-item req 'path))
+         (buf (get-file-buffer old-path)))
+    (message "renaming %s to %s" old-path new-path)
+    (rename-file old-path new-path 1)
+    (when buf
+      (with-current-buffer buf
+        (rename-buffer new-path)
+        (set-visited-file-name new-path)
+        (set-buffer-modified-p nil)))))
+
 (defun floobits-send-highlight (&optional ping)
   (when (eq (_floobits-is-buffer-public (current-buffer)) t)
     (let* ((name (buffer-file-name (current-buffer)))
@@ -184,7 +196,6 @@
   (setq floobits-share-dir (floo-get-item req 'project_path))
   (message "project path is %s" floobits-share-dir)
   (setq floobits-perms (append (floo-get-item req 'perms) nil))
-;  (message "perms are %s" floobits-perms)
   (floobits-add-hooks)
   (dired floobits-share-dir))
 
