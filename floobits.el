@@ -6,29 +6,46 @@
 (add-to-list 'load-path floobits-plugin-dir)
 (require 'highlight)
 
+(setq max-specpdl-size 1500)
+
 (setq floobits-agent-version "0.01")
 (setq floobits-agent-host "localhost")
 (setq floobits-agent-port 4567)
-(setq floobits-change-set ())
-(setq floobits-agent-buffer "")
-(setq floobits-conn nil)
-(setq max-specpdl-size 1500)
-(setq floobits-current-position '((mark . 1) (point . 1) (name . "")))
-(setq floobits-open-buffers nil)
-(setq floobits-follow-mode nil)
-(setq floobits-perms nil)
 (setq floobits-python-path (concat floobits-plugin-dir "floobits.py"))
-(setq floobits-share-dir "")
-(setq floobits-user-highlights (make-hash-table :test 'equal))
 
+(defun floobits-initialize ()
+  (setq floobits-change-set ())
+  (setq floobits-agent-buffer "")
+  (setq floobits-conn nil)
+  (setq floobits-current-position '((mark . 1) (point . 1) (name . "")))
+  (setq floobits-open-buffers nil)
+  (setq floobits-follow-mode nil)
+  (setq floobits-perms nil)
+  (setq floobits-share-dir "")
+  (setq floobits-user-highlights (make-hash-table :test 'equal)))
+
+(floobits-initialize)
 
 (defun floobits-add-hooks ()
   (add-hook 'after-change-functions 'floobits-after-change nil nil)
-  (add-hook 'post-command-hook 'floobits-post-command-func nil nil))
+  (add-hook 'post-command-hook 'floobits-post-command-func nil nil)
+  (ad-enable-advice 'rename-file 'before 'floobits-rename-file)
+  (ad-activate 'rename-file))
 
 (defun floobits-remove-hooks ()
   (remove-hook 'after-change-functions 'floobits-after-change)
-  (remove-hook 'post-command-hook 'floobits-post-command-func))
+  (remove-hook 'post-command-hook 'floobits-post-command-func)
+  (ad-disable-advice 'rename-file 'before 'floobits-rename-file))
+
+(defadvice rename-file (before floobits-rename-file
+    (old-name new-name &optional OK-IF-ALREADY-EXISTS))
+  (when (_floobits-is-path-shared old-name)
+    (if (member "rename_buf" floobits-perms)
+      (let ((req (list
+            (cons 'path new-name)
+            (cons 'old_path old-name))))
+        (floobits-send-to-agent req 'rename_buf))
+      (message "You don't have permission to rename buffers in this room."))))
 
 (defun floobits-process-live-p (process)
   "Returns non-nil if PROCESS is alive.
@@ -169,14 +186,16 @@
       ((_floobits-is-buffer-shared buf) t)
       (t nil))))
 
-(defun _floobits-is-buffer-shared (buf)
-  (let ((path (buffer-file-name buf))
-  (length (length floobits-share-dir)))
+(defun _floobits-is-path-shared (path)
+  (let ((length (length floobits-share-dir)))
     (cond
      ((eq 0 length) nil)
      ((< (length path) length) nil)
      ((string= floobits-share-dir (substring path 0 length)) t)
      (t nil))))
+
+(defun _floobits-is-buffer-shared (buf)
+  (_floobits-is-path-shared (buffer-file-name buf)))
 
 (defun floobits-get-public-buffers ()
   "returns buffers that aren't internal to emacs"
@@ -338,8 +357,9 @@
 
 (defun floobits-destroy-connection ()
   (when floobits-conn
-    (floobits-remove-hooks)
     (message "deleting floobits conn")
+    (floobits-remove-hooks)
+    (floobits-initialize)
     (delete-process floobits-conn)))
 
 (defun floobits-send-to-agent (req event)
