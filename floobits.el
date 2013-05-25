@@ -16,8 +16,11 @@
 (setq floobits-current-position '((mark . 1) (point . 1) (name . "")))
 (setq floobits-open-buffers nil)
 (setq floobits-follow-mode nil)
-(setq floobits-user-highlights (make-hash-table :test 'equal))
+(setq floobits-perms nil)
 (setq floobits-python-path (concat floobits-plugin-dir "floobits.py"))
+(setq floobits-share-dir "")
+(setq floobits-user-highlights (make-hash-table :test 'equal))
+
 
 (defun floobits-add-hooks ()
   (add-hook 'after-change-functions 'floobits-after-change nil nil)
@@ -146,22 +149,21 @@
         (floobits-create-connection))
       (message "Invalid url! I should look like: https://floobits.com/r/owner/room/"))))
 
-(defun _floobits-is-buffer-public(buf)
+(defun _floobits-is-buffer-public (buf)
   (let ((name (buffer-name buf)))
     (cond
       ((string="*" (substring name 0 1)) nil)
       ((string=" " (substring name 0 1)) nil)
-      ((buffer-file-name buf) t)
+      ((_floobits-is-buffer-shared buf) t)
       (t nil))))
 
-; TODO: make this function work, then actually use it
-(defun _floobits-is-buffer-shared(buf)
-  (let ((name (buffer-file-name buf))
+(defun _floobits-is-buffer-shared (buf)
+  (let ((path (buffer-file-name buf))
   (length (length floobits-share-dir)))
     (cond
-     ((not (boundp floobits-share-dir)) nil)
-     ((< (length name) length) nil)
-     (string= floobits-share-dir (substring name 0 length) t)
+     ((eq 0 length) nil)
+     ((< (length path) length) nil)
+     ((string= floobits-share-dir (substring path 0 length)) t)
      (t nil))))
 
 (defun floobits-get-public-buffers ()
@@ -179,9 +181,12 @@
 
 (defun floobits-event-room_info (req)
   (message "Successfully joined room %s" floobits-room)
-  (message "project path is %s" (floo-get-item req 'project_path))
+  (setq floobits-share-dir (floo-get-item req 'project_path))
+  (message "project path is %s" floobits-share-dir)
+  (setq floobits-perms (append (floo-get-item req 'perms) nil))
+;  (message "perms are %s" floobits-perms)
   (floobits-add-hooks)
-  (dired (floo-get-item req "project_path")))
+  (dired floobits-share-dir))
 
 (defun floobits-event-join (req)
   (message "%s" req)
@@ -363,6 +368,12 @@
       (added (set-difference current-buffers floobits-open-buffers))
       (deleted (set-difference floobits-open-buffers current-buffers)))
     (when (or added deleted)
+      (when (and added (not (member "patch" floobits-perms)))
+        (mapcar
+          (lambda (buf-path)
+            (with-current-buffer (find-buffer-visiting buf-path)
+              (setq buffer-read-only t)))
+          added))
       (setq floobits-open-buffers current-buffers)
       (let* (
           (added-text
