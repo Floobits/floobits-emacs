@@ -161,7 +161,7 @@
 
 (defun floobits-share-dir (dir-to-share)
   "Create a room and populate it with a directory"
-  (interactive "P\nGGive me a directory: ")
+  (interactive "GGive me a directory: ")
   (floobits-load-floorc)
   (floobits-create-connection)
   (let ((req (list
@@ -169,6 +169,9 @@
     (cons 'secret floobits-secret)
     (cons 'dir_to_share dir-to-share))))
     (floobits-send-to-agent req 'share_dir)))
+
+(defun floobits-event-error (req)
+  (message-box (floo-get-item req 'msg)))
 
 (defun floobits-join-room (floourl)
   "Join a floobits room"
@@ -189,13 +192,12 @@
       (progn
         (floobits-destroy-connection)
         (setq floobits-room room)
-        (setq floobits-room-owner owner)
         (floobits-create-connection)
         (let ((req (list
           (cons 'username floobits-username)
           (cons 'room floobits-room)
           (cons 'secret floobits-secret)
-          (cons 'room_owner floobits-room-owner))))
+          (cons 'room_owner owner))))
           (floobits-send-to-agent req 'join_room)))
       (message "Invalid url! I should look like: https://floobits.com/r/owner/room/"))))
 
@@ -232,6 +234,7 @@
   (message "Disconnected: %s" (floo-get-item req 'reason)))
 
 (defun floobits-event-room_info (req)
+  (setq floobits-room (floo-get-item req 'name))
   (message "Successfully joined room %s" floobits-room)
   (setq floobits-share-dir (floo-get-item req 'project_path))
   (message "project path is %s" floobits-share-dir)
