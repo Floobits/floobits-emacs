@@ -190,10 +190,11 @@ class EmacsConnection(object):
         self.user_inputs = {}
         self.user_input_count = 0
 
-    def get_input(self, prompt, cb, *args, **kwargs):
+    def get_input(self, prompt, initial, cb, *args, **kwargs):
         self.put('user_input', {
             'id': self.user_input_count,
             'prompt': prompt,
+            'initial': initial,
         })
         self.user_inputs[self.user_input_count] = lambda x: cb(x, *args, **kwargs)
         self.user_input_count += 1
@@ -204,13 +205,103 @@ class EmacsConnection(object):
         self.conn.setblocking(0)
         self.select()
 
-    def remote_connect(self, room, owner):
+    def remote_connect(self, owner, room, on_auth=None):
         G.PROJECT_PATH = os.path.realpath(G.PROJECT_PATH)
         G.PROJECT_PATH += os.sep
-        self.agent = AgentConnection(Protocol=Protocol, room=room, owner=owner)
+        self.agent = AgentConnection(Protocol=Protocol, room=room, owner=owner, on_auth=on_auth)
         self.agent.connect()
 
-    def join_room(self, data, room, owner, dir_to_make=None):
+    def share_dir(self, dir_to_share):
+        dir_to_share = os.path.expanduser(dir_to_share)
+        dir_to_share = utils.unfuck_path(dir_to_share)
+        room_name = os.path.basename(dir_to_share)
+        floo_room_dir = os.path.join(G.COLAB_DIR, G.USERNAME, room_name)
+        msg.debug("%s %s %s %s" % (G.COLAB_DIR, G.USERNAME, room_name, floo_room_dir))
+
+        if os.path.isfile(dir_to_share):
+            return msg.error('%s is a file. Give me a directory please.' % dir_to_share)
+
+        try:
+            utils.mkdir(dir_to_share)
+        except Exception:
+            return msg.error("The directory %s doesn't exist and I can't make it." % dir_to_share)
+
+        floo_file = os.path.join(dir_to_share, '.floo')
+
+        info = {}
+        try:
+            floo_info = open(floo_file, 'rb').read().decode('utf-8')
+            info = json.loads(floo_info)
+        except (IOError, OSError):
+            pass
+        except Exception:
+            msg.debug("Couldn't read the floo_info file: %s" % floo_file)
+
+        room_url = info.get('url')
+        if room_url:
+            try:
+                result = utils.parse_url(room_url)
+            except Exception as e:
+                msg.error(str(e))
+            else:
+                room_name = result['room']
+                floo_room_dir = os.path.join(G.COLAB_DIR, result['owner'], result['room'])
+                if os.path.realpath(floo_room_dir) == os.path.realpath(dir_to_share):
+                    if result['owner'] == G.USERNAME:
+                        try:
+                            api.create_room(room_name)
+                            msg.debug('Created room %s' % room_url)
+                        except Exception as e:
+                            msg.debug('Tried to create room' + str(e))
+                    # they wanted to share teh dir, so always share it
+                    return self.join_room(None, result['owner'], result['room'])
+        # go make sym link
+        try:
+            utils.mkdir(os.path.dirname(floo_room_dir))
+            os.symlink(dir_to_share, floo_room_dir)
+        except OSError as e:
+            if e.errno != 17:
+                raise
+        except Exception as e:
+            return msg.error("Couldn't create symlink from %s to %s: %s" % (dir_to_share, floo_room_dir, str(e)))
+
+        # make & join room
+        self.create_room(None, room_name, floo_room_dir, dir_to_share)
+
+    def create_room(self, data, room_name, ln_path, share_path):
+        prompt = 'Room %s already exists. Choose another name: ' % room_name
+        try:
+            api.create_room(room_name)
+            room_url = 'https://%s/r/%s/%s' % (G.DEFAULT_HOST, G.USERNAME, room_name)
+            msg.debug('Created room %s' % room_url)
+
+            if ln_path:
+                new_path = os.path.join(os.path.dirname(ln_path), room_name)
+                try:
+                    os.rename(ln_path, new_path)
+                except OSError:
+                    initial = room_name + '1'
+                    return self.get_input(prompt, initial, self.create_room, room_name, new_path, share_path)
+
+        except urllib2.HTTPError as e:
+            if e.code != 409:
+                raise
+            if ln_path:
+                initial = room_name + '1'
+                return self.get_input(prompt, initial, self.create_room, room_name, ln_path, share_path)
+
+            return self.create_room(room_name, ln_path, share_path)
+        except Exception as e:
+            msg.error('Unable to create room: %s' % str(e))
+            return
+
+        try:
+            webbrowser.open(room_url + '/settings', new=2, autoraise=True)
+        except Exception:
+            msg.debug("Couldn't open a browser. Thats OK!")
+        self.remote_connect(G.USERNAME, room_name, lambda x: self.agent.protocol.create_buf(share_path))
+
+    def join_room(self, data, owner, room, dir_to_make=None):
         d = data['response']
         if dir_to_make:
             if d.lower() == 'y':
@@ -220,18 +311,18 @@ class EmacsConnection(object):
                 d = ''
         if d == '':
             utils.mkdir(G.PROJECT_PATH)
-            self.remote_connect(room, owner)
+            self.remote_connect(owner, room)
             return
         d = os.path.realpath(os.path.expanduser(d))
         if not os.path.isdir(d):
             if dir_to_make:
                 return msg.error("Couldn't create directory %s" % dir_to_make)
             prompt = '%s is not a directory. Create it? (Y/N)' % d
-            return self.get_input(prompt, self.join_room, room, owner, dir_to_make=d)
+            return self.get_input(prompt, '', self.join_room, owner, room,  dir_to_make=d)
         try:
             G.PROJECT_PATH = os.path.realpath(G.PROJECT_PATH)
             os.symlink(d, G.PROJECT_PATH)
-            self.remote_connect(room, owner)
+            self.remote_connect(owner, room)
         except Exception as e:
             return msg.error("Couldn't create symlink from %s to %s: %s" % (d, G.PROJECT_PATH, str(e)))
 
@@ -247,19 +338,26 @@ class EmacsConnection(object):
                 msg.error('Unable to parse json:', e)
                 msg.error('Data:', before)
                 raise e
-            if data['name'] == 'auth':
+            if data['name'] == 'share_dir':
                 utils.load_settings()
                 room = data['room']
                 owner = data['room_owner']
                 G.USERNAME = data['username']
                 G.SECRET = data['secret']
                 G.PROJECT_PATH = os.path.realpath(os.path.join(G.COLAB_DIR, owner, room))
-                G.PROJECT_PATH += os.sep
+                self.share_dir(data['dir_to_share'])
+            elif data['name'] == 'join_room':
+                utils.load_settings()
+                room = data['room']
+                owner = data['room_owner']
+                G.USERNAME = data['username']
+                G.SECRET = data['secret']
+                G.PROJECT_PATH = os.path.realpath(os.path.join(G.COLAB_DIR, owner, room))
 
                 if os.path.isdir(G.PROJECT_PATH):
-                    self.remote_connect(room, owner)
+                    self.remote_connect(owner, room)
                 else:
-                    self.get_input("Give me a directory to sync data into (or just press enter): ", self.join_room, room, owner)
+                    self.get_input('Give me a directory to sync data into (or just press enter): ', '', self.join_room, owner, room)
             elif data['name'] == 'user_input':
                 cb_id = int(data['id'])
                 cb = self.user_inputs.get(cb_id)
