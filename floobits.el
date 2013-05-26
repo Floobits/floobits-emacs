@@ -114,6 +114,31 @@
     (delete-process floobits-conn)
     (delete-process floobits-python-agent)))
 
+(defun floobits-filter-func (condp lst)
+  (delq nil
+  (mapcar (lambda (x) (and (funcall condp x) x)) lst)))
+
+(defun floobits-agent-listener (proc string)
+  ; todo: check for 'started'
+  ; (when (buffer-live-p (process-buffer proc))
+  (with-current-buffer "*Messages*"
+    (let ((moving (= (point) (process-mark proc))))
+      (save-excursion
+       ;; Insert the text, advancing the process marker.
+       (goto-char (process-mark proc))
+       (insert (concat "floobits agent says: " string))
+       (set-marker (process-mark proc) (point)))
+     (if moving (goto-char (process-mark proc))))))
+
+(defun floobits-launch-agent ()
+  (when (and (boundp 'floobits-python-agent) (floobits-process-live-p floobits-python-agent))
+    (kill-process floobits-python-agent)
+    (delete-process floobits-python-agent))
+  ; Assumes floobits.el is in the same dir as floobits.py
+  (setq floobits-python-agent (start-process "" "*Messages*" floobits-python-path))
+  ; (set-process-filter floobits-python-agent 'floobits-agent-listener)
+  (accept-process-output floobits-python-agent 2))
+
 (defun floobits-send-to-agent (req event)
   (if (floobits-process-live-p floobits-conn)
     (progn
@@ -163,31 +188,6 @@
             (cons 'full_path name)
             (cons 'ping ping))))
           (floobits-send-to-agent req 'highlight))))))
-
-(defun floobits-filter-func (condp lst)
-  (delq nil
-  (mapcar (lambda (x) (and (funcall condp x) x)) lst)))
-
-(defun floobits-agent-listener (proc string)
-  ; todo: check for 'started'
-  ; (when (buffer-live-p (process-buffer proc))
-  (with-current-buffer "*Messages*"
-    (let ((moving (= (point) (process-mark proc))))
-      (save-excursion
-       ;; Insert the text, advancing the process marker.
-       (goto-char (process-mark proc))
-       (insert (concat "floobits agent says: " string))
-       (set-marker (process-mark proc) (point)))
-     (if moving (goto-char (process-mark proc))))))
-
-(defun floobits-launch-agent ()
-  (when (and (boundp 'floobits-python-agent) (floobits-process-live-p floobits-python-agent))
-    (kill-process floobits-python-agent)
-    (delete-process floobits-python-agent))
-  ; Assumes floobits.el is in the same dir as floobits.py
-  (setq floobits-python-agent (start-process "" "*Messages*" floobits-python-path))
-  ; (set-process-filter floobits-python-agent 'floobits-agent-listener)
-  (accept-process-output floobits-python-agent 2))
 
 (defun floobits-summon ()
   "Summons all users to your cursor position."
