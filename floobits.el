@@ -90,6 +90,43 @@
   (if (or (not (boundp 'floobits-secret)) (string= "" floobits-secret))
     (error "Floobits secret not found. Please define a username and secret in ~/.floorc")))
 
+(defun floobits-listener (process response)
+  (setq floobits-agent-buffer (concat floobits-agent-buffer response))
+  (let ((position (search "\n" floobits-agent-buffer)))
+    (when position
+      (floobits-switch (substring floobits-agent-buffer 0 position))
+      (setq floobits-agent-buffer
+      (substring floobits-agent-buffer
+        (if (> (length floobits-agent-buffer) position) (+ 1 position) position)))
+      (floobits-listener process ""))))
+
+(defun floobits-create-connection ()
+  (floobits-launch-agent)
+  (setq floobits-conn (open-network-stream "floobits" nil floobits-agent-host floobits-agent-port))
+  (set-process-coding-system floobits-conn 'utf-8 'utf-8)
+  (set-process-filter floobits-conn 'floobits-listener))
+
+(defun floobits-destroy-connection ()
+  (when floobits-conn
+    (message "deleting floobits conn")
+    (floobits-remove-hooks)
+    (floobits-initialize)
+    (delete-process floobits-conn)
+    (delete-process floobits-python-agent)))
+
+(defun floobits-send-to-agent (req event)
+  (if (floobits-process-live-p floobits-conn)
+    (progn
+      (floo-set-item 'req 'name event)
+      (floo-set-item 'req 'version floobits-agent-version)
+      (process-send-string floobits-conn (concat (json-encode req) "\n")))
+    (progn
+      (message "connection to floobits died :(")
+      (floobits-destroy-connection))))
+
+(defun floobits-get-text (begin end)
+  (buffer-substring-no-properties begin end))
+
 (defun floobits-post-command-func ()
   "used for grabbing changes in point for highlighting"
   (floobits-buffer-list-change)
@@ -363,42 +400,6 @@
     (if (fboundp (intern-soft func))
       (funcall (read func) req)
       (message "func %s doesn't exist" func))))
-
-(defun floobits-listener (process response)
-  (setq floobits-agent-buffer (concat floobits-agent-buffer response))
-  (let ((position (search "\n" floobits-agent-buffer)))
-    (when position
-      (floobits-switch (substring floobits-agent-buffer 0 position))
-      (setq floobits-agent-buffer
-      (substring floobits-agent-buffer
-        (if (> (length floobits-agent-buffer) position) (+ 1 position) position)))
-      (floobits-listener process ""))))
-
-(defun floobits-create-connection ()
-  (floobits-launch-agent)
-  (setq floobits-conn (open-network-stream "floobits" nil floobits-agent-host floobits-agent-port))
-  (set-process-coding-system floobits-conn 'utf-8 'utf-8)
-  (set-process-filter floobits-conn 'floobits-listener))
-
-(defun floobits-destroy-connection ()
-  (when floobits-conn
-    (message "deleting floobits conn")
-    (floobits-remove-hooks)
-    (floobits-initialize)
-    (delete-process floobits-conn)))
-
-(defun floobits-send-to-agent (req event)
-  (if (floobits-process-live-p floobits-conn)
-    (progn
-      (floo-set-item 'req 'name event)
-      (floo-set-item 'req 'version floobits-agent-version)
-      (process-send-string floobits-conn (concat (json-encode req) "\n")))
-    (progn
-      (message "connection to floobits died :(")
-      (floobits-destroy-connection))))
-
-(defun floobits-get-text (begin end)
-  (buffer-substring-no-properties begin end))
 
 (defun floobits-after-change (begin end old_length)
   (if (eq (_floobits-is-buffer-public (current-buffer)) t)
