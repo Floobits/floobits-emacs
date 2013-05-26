@@ -104,15 +104,18 @@
   (floobits-launch-agent)
   (setq floobits-conn (open-network-stream "floobits" nil floobits-agent-host floobits-agent-port))
   (set-process-coding-system floobits-conn 'utf-8 'utf-8)
+  (process-kill-without-query floobits-conn)
   (set-process-filter floobits-conn 'floobits-listener))
 
 (defun floobits-destroy-connection ()
   (when floobits-conn
-    (message "deleting floobits conn")
+    (message "Destroying Floobits conn")
     (floobits-remove-hooks)
-    (floobits-initialize)
     (delete-process floobits-conn)
-    (delete-process floobits-python-agent)))
+    (delete-process floobits-python-agent)
+    (floobits-initialize)
+    (setq floobits-python-agent nil)
+    (message "")))
 
 (defun floobits-filter-func (condp lst)
   (delq nil
@@ -131,13 +134,15 @@
      (if moving (goto-char (process-mark proc))))))
 
 (defun floobits-launch-agent ()
-  (when (and (boundp 'floobits-python-agent) (floobits-process-live-p floobits-python-agent))
-    (kill-process floobits-python-agent)
-    (delete-process floobits-python-agent))
-  ; Assumes floobits.el is in the same dir as floobits.py
+  (condition-case nil
+    (progn
+      (delete-process floobits-python-agent))
+    (error nil))
+  (message "Launching Floobits python agent...")
   (setq floobits-python-agent (start-process "" "*Messages*" floobits-python-path))
   ; (set-process-filter floobits-python-agent 'floobits-agent-listener)
-  (accept-process-output floobits-python-agent 2))
+  (accept-process-output floobits-python-agent 2)
+  (process-kill-without-query floobits-python-agent))
 
 (defun floobits-send-to-agent (req event)
   (if (floobits-process-live-p floobits-conn)
@@ -211,6 +216,7 @@
   "Create a room and populate it with a directory"
   (interactive "GGive me a directory: ")
   (floobits-load-floorc)
+  (floobits-destroy-connection)
   (floobits-create-connection)
   (let ((req (list
     (cons 'username floobits-username)
@@ -282,7 +288,7 @@
   (message "Disconnected: %s" (floo-get-item req 'reason)))
 
 (defun floobits-event-room_info (req)
-  (setq floobits-room (floo-get-item req 'name))
+  (setq floobits-room (floo-get-item req 'room_name))
   (message "Successfully joined room %s" floobits-room)
   (setq floobits-share-dir (floo-get-item req 'project_path))
   (message "project path is %s" floobits-share-dir)
