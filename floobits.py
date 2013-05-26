@@ -172,7 +172,7 @@ class EmacsConnection(object):
             if dir_to_make:
                 return msg.error("Couldn't create directory %s" % dir_to_make)
             prompt = '%s is not a directory. Create it? (Y/N)' % d
-            return self.get_input(prompt, '', self.join_room, owner, room,  dir_to_make=d)
+            return self.get_input(prompt, '', self.join_room, owner, room, dir_to_make=d)
         try:
             G.PROJECT_PATH = os.path.realpath(G.PROJECT_PATH)
             os.symlink(d, G.PROJECT_PATH)
