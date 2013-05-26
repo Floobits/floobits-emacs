@@ -29,13 +29,24 @@
 (defun floobits-add-hooks ()
   (add-hook 'after-change-functions 'floobits-after-change nil nil)
   (add-hook 'post-command-hook 'floobits-post-command-func nil nil)
+  (ad-enable-advice 'delete-file 'before 'floobits-delete-file)
   (ad-enable-advice 'rename-file 'before 'floobits-rename-file)
+  (ad-activate 'delete-file)
   (ad-activate 'rename-file))
 
 (defun floobits-remove-hooks ()
   (remove-hook 'after-change-functions 'floobits-after-change)
   (remove-hook 'post-command-hook 'floobits-post-command-func)
+  (ad-disable-advice 'delete-file 'before 'floobits-delete-file)
   (ad-disable-advice 'rename-file 'before 'floobits-rename-file))
+
+(defadvice delete-file (before floobits-delete-file (name))
+  (when (_floobits-is-path-shared name)
+    (if (member "delete_buf" floobits-perms)
+      (let ((req (list
+            (cons 'path name))))
+        (floobits-send-to-agent req 'delete_buf))
+      (message "You don't have permission to delete buffers in this room."))))
 
 (defadvice rename-file (before floobits-rename-file
     (old-name new-name &optional OK-IF-ALREADY-EXISTS))

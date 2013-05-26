@@ -188,6 +188,18 @@ class Protocol(protocol.BaseProtocol):
         if view:
             self.SELECTION_CHANGED.append((view, req.get('ping', False)))
 
+    def on_emacs_delete_buf(self, req):
+        buf = self.get_buf_by_path(req['path'])
+        if not buf:
+            msg.debug('No buffer for path %s' % req['path'])
+            return
+        msg.log('deleting buffer ', buf['path'])
+        event = {
+            'name': 'delete_buf',
+            'id': buf['id'],
+        }
+        self.agent.put(event)
+
     def on_emacs_rename_buf(self, req):
         buf = self.get_buf_by_path(req['old_path'])
         if not buf:
@@ -251,12 +263,16 @@ class Protocol(protocol.BaseProtocol):
         buf_id = int(data['id'])
         buf = self.FLOO_BUFS[buf_id]
         path = buf['path']
-        super(Protocol, self).on_delete_buf(data)
-        emacs.put('delete_buf', {
-            'full_path': utils.get_full_path(path),
-            'path': path,
-            'username': data.get('username', ''),
-        })
+        try:
+            super(Protocol, self).on_delete_buf(data)
+        except Exception as e:
+            msg.debug('Unable to delete buf %s: %s' % (path, str(e)))
+        else:
+            emacs.put('delete_buf', {
+                'full_path': utils.get_full_path(path),
+                'path': path,
+                'username': data.get('username', ''),
+            })
 
     def on_rename_buf(self, data):
         buf = self.FLOO_BUFS[int(data['id'])]
