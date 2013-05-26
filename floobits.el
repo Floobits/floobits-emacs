@@ -73,7 +73,11 @@
           (loop for s in strings do
             (let ((substrings (split-string s " " t)))
               (set (intern (concat "floobits-" (car substrings))) (cadr substrings)))))))
-  (error nil)))
+  (error nil))
+  (if (or (not (boundp 'floobits-username)) (string= "" floobits-username))
+    (error "Floobits username not found. Please define a username and secret in ~/.floorc"))
+  (if (or (not (boundp 'floobits-secret)) (string= "" floobits-secret))
+    (error "Floobits secret not found. Please define a username and secret in ~/.floorc")))
 
 (defun floobits-post-command-func ()
   "used for grabbing changes in point for highlighting"
@@ -81,7 +85,7 @@
   (floobits-send-highlight))
 
 (defun floobits-event-user_input (req)
-  (floo-set-item 'req 'response (read-from-minibuffer (floo-get-item req 'prompt)))
+  (floo-set-item 'req 'response (read-from-minibuffer (floo-get-item req 'prompt) (floo-get-item req 'initial)))
   (floobits-send-to-agent req 'user_input))
 
 (defun floobits-event-rename_buf (req)
@@ -155,14 +159,21 @@
   (interactive)
   (floobits-destroy-connection))
 
+(defun floobits-share-dir (dir-to-share)
+  "Create a room and populate it with a directory"
+  (interactive "P\nGGive me a directory: ")
+  (floobits-load-floorc)
+  (floobits-create-connection)
+  (let ((req (list
+    (cons 'username floobits-username)
+    (cons 'secret floobits-secret)
+    (cons 'dir_to_share dir-to-share))))
+    (floobits-send-to-agent req 'share_dir)))
+
 (defun floobits-join-room (floourl)
   "Join a floobits room"
   (interactive (list (read-from-minibuffer "Floobits room URL (owner/room): " "https://floobits.com/r/")))
   (floobits-load-floorc)
-  (if (or (not (boundp 'floobits-username)) (string= "" floobits-username))
-    (error "Floobits username not found. Please define a username and secret in ~/.floorc"))
-  (if (or (not (boundp 'floobits-secret)) (string= "" floobits-secret))
-    (error "Floobits secret not found. Please define a username and secret in ~/.floorc"))
   (let* ((url-struct (url-generic-parse-url floourl))
     (domain (url-host url-struct))
     (port (url-port url-struct))
@@ -180,7 +191,12 @@
         (setq floobits-room room)
         (setq floobits-room-owner owner)
         (floobits-create-connection)
-        (floobits-auth))
+        (let ((req (list
+          (cons 'username floobits-username)
+          (cons 'room floobits-room)
+          (cons 'secret floobits-secret)
+          (cons 'room_owner floobits-room-owner))))
+          (floobits-send-to-agent req 'join_room)))
       (message "Invalid url! I should look like: https://floobits.com/r/owner/room/"))))
 
 (defun _floobits-is-buffer-public (buf)
@@ -344,14 +360,6 @@
       (substring floobits-agent-buffer
         (if (> (length floobits-agent-buffer) position) (+ 1 position) position)))
       (floobits-listener process ""))))
-
-(defun floobits-auth ()
-  (let ((req (list
-    (cons 'username floobits-username)
-    (cons 'room floobits-room)
-    (cons 'secret floobits-secret)
-    (cons 'room_owner floobits-room-owner))))
-    (floobits-send-to-agent req 'auth)))
 
 (defun floobits-create-connection ()
   (floobits-launch-agent)
