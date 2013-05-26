@@ -267,3 +267,7 @@ class Protocol(protocol.BaseProtocol):
     def on_highlight(self, data):
         super(Protocol, self).on_highlight(data)
         # TODO: save highlights for when user opens the buffer in emacs
+
+    def on_msg(self, data):
+        # TODO
+        msg.log('msg')

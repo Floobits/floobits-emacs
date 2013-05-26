@@ -80,6 +80,10 @@
   (floobits-buffer-list-change)
   (floobits-send-highlight))
 
+(defun floobits-event-user_input (req)
+  (floo-set-item 'req 'response (read-from-minibuffer (floo-get-item req 'prompt)))
+  (floobits-send-to-agent req 'user_input))
+
 (defun floobits-event-rename_buf (req)
   (let* ((old-path (floo-get-item req 'old_path))
          (new-path (floo-get-item req 'path))
@@ -175,7 +179,8 @@
         (floobits-destroy-connection)
         (setq floobits-room room)
         (setq floobits-room-owner owner)
-        (floobits-create-connection))
+        (floobits-create-connection)
+        (floobits-auth))
       (message "Invalid url! I should look like: https://floobits.com/r/owner/room/"))))
 
 (defun _floobits-is-buffer-public (buf)
@@ -352,8 +357,7 @@
   (floobits-launch-agent)
   (setq floobits-conn (open-network-stream "floobits" nil floobits-agent-host floobits-agent-port))
   (set-process-coding-system floobits-conn 'utf-8 'utf-8)
-  (set-process-filter floobits-conn 'floobits-listener)
-  (floobits-auth))
+  (set-process-filter floobits-conn 'floobits-listener))
 
 (defun floobits-destroy-connection ()
   (when floobits-conn

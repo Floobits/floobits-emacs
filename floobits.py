@@ -240,6 +240,16 @@ class EmacsConnection(object):
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.bind(('localhost', 4567))
         self.sock.listen(1)
+        self.user_inputs = {}
+        self.user_input_count = 0
+
+    def get_input(self, prompt, cb, *args, **kwargs):
+        self.put('user_input', {
+            'id': self.user_input_count,
+            'prompt': prompt,
+        })
+        self.user_inputs[self.user_input_count] = lambda x: cb(x, *args, **kwargs)
+        self.user_input_count += 1
 
     def start(self):
         print('started')
@@ -267,9 +277,52 @@ class EmacsConnection(object):
                 G.SECRET = data['secret']
                 G.PROJECT_PATH = os.path.realpath(os.path.join(G.COLAB_DIR, owner, room))
                 G.PROJECT_PATH += os.sep
-                utils.mkdir(os.path.dirname(G.PROJECT_PATH))
-                self.agent = AgentConnection(Protocol=Protocol, room=room, owner=owner)
-                self.agent.connect()
+
+                # TODO: MEGA CLEANUP
+                def handle_input(data, dir_to_make=None):
+                    d = data['response']
+                    if dir_to_make:
+                        if d.lower() == 'y':
+                            d = dir_to_make
+                            utils.mkdir(d)
+                        else:
+                            d = ''
+                    if d == '':
+                        utils.mkdir(G.PROJECT_PATH)
+                        G.PROJECT_PATH = os.path.realpath(G.PROJECT_PATH)
+                        G.PROJECT_PATH += os.sep
+                        self.agent = AgentConnection(Protocol=Protocol, room=room, owner=owner)
+                        self.agent.connect()
+                        return
+                    d = os.path.realpath(os.path.expanduser(d))
+                    if not os.path.isdir(d):
+                        if dir_to_make:
+                            return msg.error("Couldn't create directory %s" % dir_to_make)
+                        prompt = '%s is not a directory. Create it? (Y/N)' % d
+                        return self.get_input(prompt, handle_input, dir_to_make=d)
+                    try:
+                        G.PROJECT_PATH = os.path.realpath(G.PROJECT_PATH)
+                        os.symlink(d, G.PROJECT_PATH)
+                        G.PROJECT_PATH += os.sep
+                        self.agent = AgentConnection(Protocol=Protocol, room=room, owner=owner)
+                        self.agent.connect()
+                    except Exception as e:
+                        return msg.error("Couldn't create symlink from %s to %s: %s" % (d, G.PROJECT_PATH, str(e)))
+                if os.path.isdir(G.PROJECT_PATH):
+                    G.PROJECT_PATH = os.path.realpath(G.PROJECT_PATH)
+                    G.PROJECT_PATH += os.sep
+                    self.agent = AgentConnection(Protocol=Protocol, room=room, owner=owner)
+                    self.agent.connect()
+                else:
+                    self.get_input("Give me a directory to sync data into (or just press enter): ", handle_input)
+            elif data['name'] == 'user_input':
+                cb_id = int(data['id'])
+                cb = self.user_inputs.get(cb_id)
+                if cb is None:
+                    msg.error('cb for input %s is none' % cb_id)
+                    continue
+                cb(data)
+                del self.user_inputs[cb_id]
             else:
                 self.agent.protocol.emacs_handle(data)
             self.net_buf = after

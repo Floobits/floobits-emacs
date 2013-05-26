@@ -60,7 +60,7 @@ class MSG(object):
             msg = '[{time}] <{user}> {msg}\n'
         else:
             msg = '[{time}] {msg}\n'
-        return unicode(msg).format(user=self.username, time=time.ctime(self.timestamp), msg=self.msg)
+        return unicode(msg).format(user=self.username, time=time.ctime(self.timestamp), msg=self.msg.decode('utf-8'))
 
 
 def msg_format(message, *args, **kwargs):
