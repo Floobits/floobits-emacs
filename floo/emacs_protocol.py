@@ -249,7 +249,11 @@ class Protocol(protocol.BaseProtocol):
     def on_room_info(self, room_info):
         super(Protocol, self).on_room_info(room_info)
         room_info['project_path'] = G.PROJECT_PATH
-        emacs.put('room_info', room_info)
+        emacs.put('room_info', {
+            'perms': self.room_info['perms'],
+            'project_path': G.PROJECT_PATH,
+            'room_name': self.room_info['room_name'],
+        })
 
     def on_create_buf(self, data):
         super(Protocol, self).on_create_buf(data)
