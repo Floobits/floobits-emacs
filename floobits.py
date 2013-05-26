@@ -29,60 +29,6 @@ msg.LOG_LEVEL = msg.LOG_LEVELS.get(floo_log_level.upper(), msg.LOG_LEVELS['MSG']
 agent = None
 
 
-# def agent_and_protocol(func):
-#     def wrapped(*args, **kwargs):
-#         if agent and agent.protocol:
-#             return func(*args, **kwargs)
-#         msg.debug('ignoring request becuase there is no agent: %s' % func.__name__)
-#     return wrapped
-
-
-# @agent_and_protocol
-# def maybe_selection_changed(ping=False):
-#     agent.protocol.maybe_selection_changed(vim.current.buffer, ping)
-
-
-# @agent_and_protocol
-# def maybe_buffer_changed():
-#     agent.protocol.maybe_buffer_changed(vim.current.buffer)
-
-
-# @agent_and_protocol
-# def follow(follow_mode=None):
-#     agent.protocol.follow(follow_mode)
-
-
-# def is_modifiable(name_to_check=None):
-#     if not agent or not agent.protocol:
-#         return
-#     vim_buf = vim.current.buffer
-#     name = vim_buf.name
-#     if not name:
-#         return
-#     if name_to_check and name_to_check != name:
-#         msg.warn('Can not call readonly on file: %s' % name)
-#     if not agent.protocol.is_shared(name):
-#         return
-#     if 'patch' not in agent.protocol.perms:
-#         vim.command("call g:FlooSetReadOnly()")
-#         sublime.set_timeout(is_modifiable, 0, name)
-
-
-# @agent_and_protocol
-# def maybe_new_file():
-#     vim_buf = vim.current.buffer
-#     buf = agent.protocol.get_buf(vim_buf)
-#     if buf is False:
-#         agent.protocol.create_buf(vim_buf.name)
-
-
-# def part_room():
-#     if not agent:
-#         return msg.warn('Unable to part room: You are not joined to a room.')
-#     stop_everything()
-#     msg.log('You left the room.')
-
-
 class EmacsConnection(object):
     def __init__(self):
         self.to_emacs_q = []
