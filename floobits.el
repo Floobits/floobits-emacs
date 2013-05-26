@@ -334,8 +334,7 @@
 
 (defun floobits-event-delete_buf (req)
   (let ((filename (floo-get-item req "path" ))
-        (username (floo-get-item req "username")))
-    (message "User %s deleted buffer %s" username filename)))
+        (username (floo-get-item req "username")))))
 
 (defun floobits-event-get_buf (req)
   (let ((filename (floo-get-item req "full_path" )))
