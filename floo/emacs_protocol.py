@@ -248,7 +248,8 @@ class Protocol(protocol.BaseProtocol):
         })
 
     def on_delete_buf(self, data):
-        buf = self.FLOO_BUFS[data['id']]
+        buf_id = int(data['id'])
+        buf = self.FLOO_BUFS[buf_id]
         path = buf['path']
         super(Protocol, self).on_delete_buf(data)
         emacs.put('delete_buf', {
@@ -258,6 +259,7 @@ class Protocol(protocol.BaseProtocol):
         })
 
     def on_rename_buf(self, data):
+        buf = self.FLOO_BUFS[int(data['id'])]
         # This can screw up if someone else renames the buffer around the same time as us. Oh well.
         buf = self.get_buf_by_path(utils.get_full_path(data['path']))
         if not buf:
@@ -269,5 +271,4 @@ class Protocol(protocol.BaseProtocol):
         # TODO: save highlights for when user opens the buffer in emacs
 
     def on_msg(self, data):
-        # TODO
         msg.log('msg')

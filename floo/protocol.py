@@ -212,13 +212,14 @@ class BaseProtocol(object):
         })
 
     def on_rename_buf(self, data):
+        buf_id = int(data['id'])
         new = utils.get_full_path(data['path'])
         old = utils.get_full_path(data['old_path'])
         new_dir = os.path.dirname(new)
         if new_dir:
             utils.mkdir(new_dir)
-        view = self.get_view(data['id'])
-        self.FLOO_BUFS[data['id']]['path'] = data['path']
+        view = self.get_view(buf_id)
+        self.FLOO_BUFS[buf_id]['path'] = data['path']
         if view:
             view.rename(new)
         else:
@@ -387,7 +388,7 @@ class BaseProtocol(object):
     @buf_populated
     def on_delete_buf(self, data):
         # TODO: somehow tell the user about this. maybe delete on disk too?
-        del self.FLOO_BUFS[data['id']]
+        del self.FLOO_BUFS[int(data['id'])]
         path = utils.get_full_path(data['path'])
         utils.rm(path)
         msg.warn('deleted %s because %s told me too.' % (path, data.get('username', 'the internet')))
