@@ -102,14 +102,8 @@ class View(object):
     def clear_selections(self):
         msg.debug('clearing selections for view %s' % self.buf['path'])
 
-    def highlight(self, ranges, user_id):
+    def highlight(self, ranges, user_id, username):
         msg.debug('highlighting ranges %s' % (ranges))
-        emacs.put('highlight', {
-            'id': self.buf['id'],
-            'full_path': utils.get_full_path(self.buf['path']),
-            'ranges': ranges,
-            'user_id': user_id,
-        })
 
     def rename(self, name):
         pass
@@ -288,7 +282,15 @@ class Protocol(protocol.BaseProtocol):
 
     def on_highlight(self, data):
         super(Protocol, self).on_highlight(data)
+        buf = self.FLOO_BUFS[data['id']]
         # TODO: save highlights for when user opens the buffer in emacs
+        emacs.put('highlight', {
+            'id': buf['id'],
+            'full_path': utils.get_full_path(buf['path']),
+            'ranges': data['ranges'],
+            'user_id': data['user_id'],
+            'username': data.get('username', 'unknown user'),
+        })
 
     def on_msg(self, data):
         msg.log('msg')

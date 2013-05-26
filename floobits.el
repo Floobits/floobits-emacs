@@ -356,11 +356,20 @@
   (let* ((ranges (floo-get-item req 'ranges))
          (ranges-length (- (length ranges) 1))
          (buffer (get-file-buffer (floo-get-item req 'full_path)))
-         (user_id (floo-get-item req 'user_id)))
-  (floobits-apply-highlight user_id buffer ranges)
+         (user_id (floo-get-item req 'user_id))
+         (username (floo-get-item req 'username))
+         (pos (+ 1 (elt (elt ranges ranges-length) 0)))
+         (buffer (or buffer (and floobits-follow-mode (find-file (floo-get-item req 'full_path))))))
+
+  (when buffer
+    (floobits-apply-highlight user_id buffer ranges)
+    (with-current-buffer buffer
+      (goto-char pos)
+      (bookmark-set (format "floobits-%s-%s" username user_id))))
+
   (when floobits-follow-mode
     (switch-to-buffer buffer)
-    (goto-char (+ 1 (elt (elt ranges ranges-length) 0))))))
+    (goto-char pos))))
 
 (defun floobits-apply-edit (edit)
   (let* ((inhibit-modification-hooks t)

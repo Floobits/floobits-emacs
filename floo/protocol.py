@@ -416,7 +416,7 @@ class BaseProtocol(object):
             else:
                 msg.log('You have been summoned by %s' % (data.get('username', 'an unknown user')))
                 view.focus(offset)
-        view.highlight(data['ranges'], data['user_id'])
+        view.highlight(data['ranges'], data['user_id'], data.get('username', 'unknown user'))
 
     def on_error(self, data):
         message = 'Floobits: Error! Message: %s' % str(data.get('msg'))
