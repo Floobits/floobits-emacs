@@ -164,7 +164,7 @@ class EmacsConnection(object):
                         except Exception as e:
                             msg.debug('Tried to create room' + str(e))
                     # they wanted to share teh dir, so always share it
-                    return self.join_room(None, result['owner'], result['room'])
+                    return self.remote_connect(result['owner'], result['room'])
         # go make sym link
         try:
             utils.mkdir(os.path.dirname(floo_room_dir))
