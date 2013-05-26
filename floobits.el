@@ -124,7 +124,7 @@
 (defun floobits-agent-listener (proc string)
   ; todo: check for 'started'
   ; (when (buffer-live-p (process-buffer proc))
-  (with-current-buffer "*Messages*"
+  (with-current-buffer "*Floobits*"
     (let ((moving (= (point) (process-mark proc))))
       (save-excursion
        ;; Insert the text, advancing the process marker.
@@ -139,8 +139,9 @@
       (delete-process floobits-python-agent))
     (error nil))
   (message "Launching Floobits python agent...")
-  (setq floobits-python-agent (start-process "" "*Messages*" floobits-python-path))
-  ; (set-process-filter floobits-python-agent 'floobits-agent-listener)
+  (setq floobits-python-agent (start-process "" "*Floobits*" floobits-python-path))
+  (switch-to-buffer-here "*Floobits*")
+  (set-process-filter floobits-python-agent 'floobits-agent-listener)
   (accept-process-output floobits-python-agent 2)
   (process-kill-without-query floobits-python-agent))
 
