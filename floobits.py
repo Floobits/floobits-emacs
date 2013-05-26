@@ -3,19 +3,15 @@
 # coding: utf-8
 import os
 import json
-import traceback
 import urllib2
-import atexit
 import webbrowser
 import select
 import socket
-import subprocess
 import sys
 
 from floo import dmp_monkey
 dmp_monkey.monkey_patch()
 
-from floo import sublime
 from floo import AgentConnection
 from floo import msg
 from floo import shared as G
@@ -126,6 +122,7 @@ class EmacsConnection(object):
         dir_to_share = utils.unfuck_path(dir_to_share)
         room_name = os.path.basename(dir_to_share)
         floo_room_dir = os.path.join(G.COLAB_DIR, G.USERNAME, room_name)
+        G.PROJECT_PATH = os.path.realpath(floo_room_dir)
         msg.debug("%s %s %s %s" % (G.COLAB_DIR, G.USERNAME, room_name, floo_room_dir))
 
         if os.path.isfile(dir_to_share):
@@ -164,6 +161,7 @@ class EmacsConnection(object):
                         except Exception as e:
                             msg.debug('Tried to create room' + str(e))
                     # they wanted to share teh dir, so always share it
+                    G.PROJECT_PATH = os.path.realpath(floo_room_dir)
                     return self.remote_connect(result['owner'], result['room'])
         # go make sym link
         try:
@@ -176,16 +174,19 @@ class EmacsConnection(object):
             return msg.error("Couldn't create symlink from %s to %s: %s" % (dir_to_share, floo_room_dir, str(e)))
 
         # make & join room
-        self.create_room(None, room_name, floo_room_dir, dir_to_share)
+        self.create_room({}, room_name, floo_room_dir, dir_to_share)
 
     def create_room(self, data, room_name, ln_path, share_path):
+        new_room_name = data.get('response')
+        if new_room_name:
+            room_name = new_room_name
         prompt = 'Room %s already exists. Choose another name: ' % room_name
         try:
             api.create_room(room_name)
             room_url = 'https://%s/r/%s/%s' % (G.DEFAULT_HOST, G.USERNAME, room_name)
             msg.debug('Created room %s' % room_url)
 
-            if ln_path:
+            if new_room_name:
                 new_path = os.path.join(os.path.dirname(ln_path), room_name)
                 try:
                     os.rename(ln_path, new_path)
@@ -196,20 +197,17 @@ class EmacsConnection(object):
         except urllib2.HTTPError as e:
             if e.code != 409:
                 raise
-            if ln_path:
-                initial = room_name + '1'
-                return self.get_input(prompt, initial, self.create_room, room_name, ln_path, share_path)
-
-            return self.create_room(room_name, ln_path, share_path)
+            initial = room_name + '1'
+            return self.get_input(prompt, initial, self.create_room, room_name, ln_path, share_path)
         except Exception as e:
-            msg.error('Unable to create room: %s' % str(e))
-            return
+            return msg.error('Unable to create room: %s' % str(e))
 
         try:
             webbrowser.open(room_url + '/settings', new=2, autoraise=True)
         except Exception:
             msg.debug("Couldn't open a browser. Thats OK!")
-        self.remote_connect(G.USERNAME, room_name, lambda x: self.agent.protocol.create_buf(share_path))
+        G.PROJECT_PATH = share_path
+        self.remote_connect(G.USERNAME, room_name, lambda this: this.protocol.create_buf(share_path))
 
     def join_room(self, data, owner, room, dir_to_make=None):
         d = data['response']
@@ -250,11 +248,8 @@ class EmacsConnection(object):
                 raise e
             if data['name'] == 'share_dir':
                 utils.load_settings()
-                room = data['room']
-                owner = data['room_owner']
                 G.USERNAME = data['username']
                 G.SECRET = data['secret']
-                G.PROJECT_PATH = os.path.realpath(os.path.join(G.COLAB_DIR, owner, room))
                 self.share_dir(data['dir_to_share'])
             elif data['name'] == 'join_room':
                 utils.load_settings()
