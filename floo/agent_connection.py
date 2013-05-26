@@ -42,6 +42,7 @@ class AgentConnection(object):
     def tick(self):
         self.protocol.push()
         self.select()
+        sublime.call_timeouts()
 
     def send_get_buf(self, buf_id):
         req = {
