@@ -257,6 +257,37 @@ class EmacsConnection(object):
         self.conn.setblocking(0)
         self.select()
 
+    def remote_connect(self, room, owner):
+        G.PROJECT_PATH = os.path.realpath(G.PROJECT_PATH)
+        G.PROJECT_PATH += os.sep
+        self.agent = AgentConnection(Protocol=Protocol, room=room, owner=owner)
+        self.agent.connect()
+
+    def join_room(self, data, room, owner, dir_to_make=None):
+        d = data['response']
+        if dir_to_make:
+            if d.lower() == 'y':
+                d = dir_to_make
+                utils.mkdir(d)
+            else:
+                d = ''
+        if d == '':
+            utils.mkdir(G.PROJECT_PATH)
+            self.remote_connect(room, owner)
+            return
+        d = os.path.realpath(os.path.expanduser(d))
+        if not os.path.isdir(d):
+            if dir_to_make:
+                return msg.error("Couldn't create directory %s" % dir_to_make)
+            prompt = '%s is not a directory. Create it? (Y/N)' % d
+            return self.get_input(prompt, self.join_room, room, owner, dir_to_make=d)
+        try:
+            G.PROJECT_PATH = os.path.realpath(G.PROJECT_PATH)
+            os.symlink(d, G.PROJECT_PATH)
+            self.remote_connect(room, owner)
+        except Exception as e:
+            return msg.error("Couldn't create symlink from %s to %s: %s" % (d, G.PROJECT_PATH, str(e)))
+
     def handle(self, req):
         self.net_buf += req
         while True:
@@ -278,43 +309,10 @@ class EmacsConnection(object):
                 G.PROJECT_PATH = os.path.realpath(os.path.join(G.COLAB_DIR, owner, room))
                 G.PROJECT_PATH += os.sep
 
-                # TODO: MEGA CLEANUP
-                def handle_input(data, dir_to_make=None):
-                    d = data['response']
-                    if dir_to_make:
-                        if d.lower() == 'y':
-                            d = dir_to_make
-                            utils.mkdir(d)
-                        else:
-                            d = ''
-                    if d == '':
-                        utils.mkdir(G.PROJECT_PATH)
-                        G.PROJECT_PATH = os.path.realpath(G.PROJECT_PATH)
-                        G.PROJECT_PATH += os.sep
-                        self.agent = AgentConnection(Protocol=Protocol, room=room, owner=owner)
-                        self.agent.connect()
-                        return
-                    d = os.path.realpath(os.path.expanduser(d))
-                    if not os.path.isdir(d):
-                        if dir_to_make:
-                            return msg.error("Couldn't create directory %s" % dir_to_make)
-                        prompt = '%s is not a directory. Create it? (Y/N)' % d
-                        return self.get_input(prompt, handle_input, dir_to_make=d)
-                    try:
-                        G.PROJECT_PATH = os.path.realpath(G.PROJECT_PATH)
-                        os.symlink(d, G.PROJECT_PATH)
-                        G.PROJECT_PATH += os.sep
-                        self.agent = AgentConnection(Protocol=Protocol, room=room, owner=owner)
-                        self.agent.connect()
-                    except Exception as e:
-                        return msg.error("Couldn't create symlink from %s to %s: %s" % (d, G.PROJECT_PATH, str(e)))
                 if os.path.isdir(G.PROJECT_PATH):
-                    G.PROJECT_PATH = os.path.realpath(G.PROJECT_PATH)
-                    G.PROJECT_PATH += os.sep
-                    self.agent = AgentConnection(Protocol=Protocol, room=room, owner=owner)
-                    self.agent.connect()
+                    self.remote_connect(room, owner)
                 else:
-                    self.get_input("Give me a directory to sync data into (or just press enter): ", handle_input)
+                    self.get_input("Give me a directory to sync data into (or just press enter): ", self.join_room, room, owner)
             elif data['name'] == 'user_input':
                 cb_id = int(data['id'])
                 cb = self.user_inputs.get(cb_id)
