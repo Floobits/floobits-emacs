@@ -90,3 +90,7 @@ def warn(message, *args, **kwargs):
 
 def error(message, *args, **kwargs):
     _log(message, LOG_LEVELS['ERROR'], *args, **kwargs)
+    try:
+        G.EMACS.put('error', {'msg': msg_format(message, *args, **kwargs)})
+    except:
+        pass
