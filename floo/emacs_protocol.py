@@ -129,7 +129,6 @@ class Protocol(protocol.BaseProtocol):
 
     def get_view(self, buf_id):
         """Warning: side effects!"""
-
         view = self.views.get(buf_id)
         if view:
             return view
@@ -173,7 +172,11 @@ class Protocol(protocol.BaseProtocol):
 
     def on_emacs_change(self, req):
         path = req['full_path']
-        self.emacs_bufs[path][0] = req['after']
+        changed = req['changed']
+        begin = req['begin']
+        old_length = req['old_length']
+        text = self.emacs_bufs[path][0]
+        self.emacs_bufs[path][0] = text[:begin - 1] + changed + text[begin - 1 + old_length:]
         view = self.get_view_by_path(path)
         self.BUFS_CHANGED.append(view.buf['id'])
 
