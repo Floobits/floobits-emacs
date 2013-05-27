@@ -175,8 +175,7 @@ class Protocol(protocol.BaseProtocol):
         changed = req['changed']
         begin = req['begin']
         old_length = req['old_length']
-        text = self.emacs_bufs[path][0]
-        self.emacs_bufs[path][0] = text[:begin - 1] + changed + text[begin - 1 + old_length:]
+        self.emacs_bufs[path][0] = self.emacs_bufs[path][0][:begin - 1] + changed + self.emacs_bufs[path][0][begin - 1 + old_length:]
         view = self.get_view_by_path(path)
         self.BUFS_CHANGED.append(view.buf['id'])
 
