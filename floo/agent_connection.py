@@ -170,13 +170,13 @@ class AgentConnection(object):
 
     def select(self):
         if not self.sock:
-            msg.error('select(): No socket.')
+            msg.log('select(): No socket.')
             return self.reconnect()
 
         try:
             _in, _out, _except = select.select([self.sock], [self.sock], [self.sock], 0)
         except (select.error, socket.error, Exception) as e:
-            msg.error('Error in select(): %s' % str(e))
+            msg.log('Error in select(): %s' % str(e))
             return self.reconnect()
 
         if _except:
@@ -198,8 +198,8 @@ class AgentConnection(object):
                 self.handle(buf)
             else:
                 self.empty_selects += 1
-                if self.empty_selects > 10:
-                    msg.error('No data from sock.recv() {0} times.'.format(self.empty_selects))
+                if self.empty_selects > 50:
+                    msg.log('No data from sock.recv() {0} times.'.format(self.empty_selects))
                     return self.reconnect()
 
         if _out:
