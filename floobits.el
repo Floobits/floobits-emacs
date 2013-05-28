@@ -357,8 +357,9 @@
   (when buffer
     (floobits-apply-highlight user_id buffer ranges)
     (with-current-buffer buffer
-      (goto-char pos)
-      (bookmark-set (format "floobits-%s-%s" username user_id))))
+      (save-excursion
+        (goto-char pos)
+        (bookmark-set (format "floobits-%s-%s" username user_id)))))
 
   (when floobits-follow-mode
     (switch-to-buffer buffer)
