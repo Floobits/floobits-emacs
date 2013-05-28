@@ -2,7 +2,7 @@
 
 Real-time collaborative editing. Think Etherpad, but with native editors. This is the plugin for Emacs. We also have plugins for [Sublime Text](https://github.com/Floobits/sublime-text-2-plugin) and [Vim](https://github.com/Floobits/vim-plugin).
 
-### Development status: new, but reasonably stable. We've tested it on Emacs 23, but earlier versions might work. The plugin requires Python 2.7.
+### Development status: new, but reasonably stable. We've tested it on Emacs 23, but earlier or later versions might work. The plugin requires Python 2.7.
 
 
 ## Initial set-up
