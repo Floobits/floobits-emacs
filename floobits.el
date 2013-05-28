@@ -126,12 +126,11 @@
   ; (when (buffer-live-p (process-buffer proc))
   (with-current-buffer "*Floobits*"
     (let ((moving (= (point) (process-mark proc))))
-      (save-excursion
        ;; Insert the text, advancing the process marker.
        (goto-char (process-mark proc))
        (insert (concat "floobits agent says: " string))
        (set-marker (process-mark proc) (point)))
-     (if moving (goto-char (process-mark proc))))))
+     (if moving (goto-char (process-mark proc)))))
 
 (defun floobits-launch-agent ()
   (condition-case nil
