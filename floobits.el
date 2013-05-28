@@ -126,11 +126,11 @@
   ; (when (buffer-live-p (process-buffer proc))
   (with-current-buffer "*Floobits*"
     (let ((moving (= (point) (process-mark proc))))
-       ;; Insert the text, advancing the process marker.
-       (goto-char (process-mark proc))
-       (insert (concat "floobits agent says: " string))
-       (set-marker (process-mark proc) (point)))
-     (if moving (goto-char (process-mark proc)))))
+      ;; Insert the text, advancing the process marker.
+      (goto-char (process-mark proc))
+      (insert (concat "floobits agent says: " string))
+      (set-marker (process-mark proc) (point))
+      (if moving (goto-char (process-mark proc))))))
 
 (defun floobits-launch-agent ()
   (condition-case nil
@@ -320,9 +320,7 @@
     (lambda (key highlight)
       (with-current-buffer (get-file-buffer (cadr key))
         (save-excursion
-          (goto-char 0)
-          (push-mark (buffer-size))
-          (hlt-unhighlight-region))))
+          (hlt-unhighlight-region 0 (buffer-size)))))
     floobits-user-highlights))
 
 (defun floobits-apply-highlight (user_id buffer ranges)
@@ -337,17 +335,13 @@
             (lambda(x)
               (let ((start (min (buffer-size buffer) (+ (elt x 0) 1)))
                     (end (+ (elt x 1) 2)))
-                (goto-char start)
-                (push-mark end t t))
-                (hlt-unhighlight-region))
+                (hlt-unhighlight-region start end)))
             previous-ranges))
         (mapcar
           (lambda(x)
             (let ((start (min (buffer-size buffer) (+ (elt x 0) 1)))
                   (end (+ (elt x 1) 2)))
-              (goto-char start)
-              (push-mark end t t))
-              (hlt-highlight-region))
+              (hlt-highlight-region start end)))
           ranges)
         (puthash key ranges floobits-user-highlights)))))
 
