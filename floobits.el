@@ -213,7 +213,9 @@
   (floobits-destroy-connection))
 
 (defun floobits-share-dir (dir-to-share)
-  "Create a room and populate it with a directory"
+  "Create a room and populate it with the contents of the directory, dir-to-share, or make it.
+If the directory corresponds to an existing floobits room, you will instead join the room.
+"
   (interactive "GGive me a directory: ")
   (floobits-load-floorc)
   (floobits-destroy-connection)
@@ -228,7 +230,8 @@
   (message-box (floo-get-item req 'msg)))
 
 (defun floobits-join-room (floourl)
-  "Join a floobits room"
+  "Join an existing floobits room.
+See floobits-share-dir to create one or visit floobits.com."
   (interactive (list (read-from-minibuffer "Floobits room URL (owner/room): " "https://floobits.com/r/")))
   (floobits-load-floorc)
   (let* ((url-struct (url-generic-parse-url floourl))
