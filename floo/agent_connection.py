@@ -25,6 +25,7 @@ class AgentConnection(object):
         self.sock = None
         self.net_buf = ''
         self.reconnect_delay = G.INITIAL_RECONNECT_DELAY
+        self.reconnect_timeout = None
         self.username = G.USERNAME
         self.secret = G.SECRET
         self.authed = False
@@ -76,15 +77,19 @@ class AgentConnection(object):
             self._on_auth(self)
             self._on_auth = None
 
-    def stop(self):
-        msg.log('Disconnecting from room %s/%s' % (self.owner, self.room))
+    def stop(self, log=True):
+        if log:
+            msg.log('Disconnecting from room %s/%s' % (self.owner, self.room))
+        sublime.cancel_timeout(self.reconnect_timeout)
+        self.reconnect_timeout = None
         try:
             self.retries = -1
             self.sock.shutdown(2)
             self.sock.close()
         except Exception:
             return False
-        msg.log('Disconnected.')
+        if log:
+            msg.log('Disconnected.')
         return True
 
     def is_ready(self):
@@ -112,12 +117,13 @@ class AgentConnection(object):
             self.reconnect_delay = 10000
         if self.retries > 0:
             msg.log('Floobits: Reconnecting in %sms' % self.reconnect_delay)
-            sublime.set_timeout(self.connect, int(self.reconnect_delay))
+            self.reconnect_timeout = sublime.set_timeout(self.connect, int(self.reconnect_delay))
         elif self.retries == 0:
             msg.error('Floobits Error! Too many reconnect failures. Giving up.')
         self.retries -= 1
 
     def connect(self, cb=None):
+        self.stop(False)
         self.empty_selects = 0
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         if self.secure:
