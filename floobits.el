@@ -139,7 +139,7 @@
     (error nil))
   (message "Launching Floobits python agent...")
   (setq floobits-python-agent (start-process "" "*Floobits*" floobits-python-path))
-  (switch-to-buffer-here "*Floobits*")
+  (switch-to-buffer "*Floobits*")
   (set-process-filter floobits-python-agent 'floobits-agent-listener)
   (accept-process-output floobits-python-agent 2)
   (process-kill-without-query floobits-python-agent))
