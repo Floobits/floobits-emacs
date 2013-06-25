@@ -420,7 +420,10 @@ class BaseProtocol(object):
 
     def on_error(self, data):
         message = 'Floobits: Error! Message: %s' % str(data.get('msg'))
-        msg.error(message)
+        if data.get('flash'):
+            msg.error(message)
+        else:
+            msg.log(message)
 
     def on_disconnect(self, data):
         message = 'Floobits: Disconnected! Reason: %s' % str(data.get('reason'))
