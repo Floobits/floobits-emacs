@@ -175,6 +175,7 @@ class EmacsConnection(object):
             return self.get_input(prompt, '', self.join_room, owner, room, dir_to_make=d)
         try:
             G.PROJECT_PATH = os.path.realpath(G.PROJECT_PATH)
+            utils.mkdir(os.path.dirname(G.PROJECT_PATH))
             os.symlink(d, G.PROJECT_PATH)
             self.remote_connect(owner, room)
         except Exception as e:
