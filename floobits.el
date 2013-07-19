@@ -451,3 +451,5 @@ See floobits-share-dir to create one or visit floobits.com."
         (cons 'added added-text)
         (cons 'deleted deleted))))
         (floobits-send-to-agent req 'buffer_list_change)))))
+
+(provide 'floobits)
