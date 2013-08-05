@@ -290,7 +290,7 @@ See floobits-share-dir to create one or visit floobits.com."
 (defun floobits-event-disconnect (req)
   (message "Disconnected: %s" (floo-get-item req 'reason)))
 
-(defun floobits-event-workspace_info (req)
+(defun floobits-event-room_info (req)
   (setq floobits-workspace (floo-get-item req 'workspace_name))
   (message "Successfully joined workspace %s" floobits-workspace)
   (setq floobits-share-dir (floo-get-item req 'project_path))

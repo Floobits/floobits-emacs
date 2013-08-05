@@ -121,6 +121,7 @@ class AgentConnection(object):
             self.reconnect_timeout = sublime.set_timeout(self.connect, int(self.reconnect_delay))
         elif self.retries == 0:
             msg.error('Floobits Error! Too many reconnect failures. Giving up.')
+            sys.exit(0)
         self.retries -= 1
 
     def connect(self, cb=None):
@@ -177,7 +178,7 @@ class AgentConnection(object):
 
     def select(self):
         if not self.sock:
-            msg.log('select(): No socket.')
+            msg.debug('select(): No socket.')
             return self.reconnect()
 
         try:
