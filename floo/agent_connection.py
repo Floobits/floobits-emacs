@@ -12,19 +12,20 @@ try:
 except ImportError:
     pass
 
-import cert
-import msg
+from common import cert, msg, shared as G
 import sublime
-import shared as G
 
 
 class AgentConnection(object):
+    INITIAL_RECONNECT_DELAY = 500
+    MAX_RETRIES = 20
+
     ''' Simple chat server using select '''
     def __init__(self, owner, room, host=None, port=None, secure=True, on_auth=None, Protocol=None):
         self.sock_q = Queue.Queue()
         self.sock = None
         self.net_buf = ''
-        self.reconnect_delay = G.INITIAL_RECONNECT_DELAY
+        self.reconnect_delay = self.INITIAL_RECONNECT_DELAY
         self.reconnect_timeout = None
         self.username = G.USERNAME
         self.secret = G.SECRET
@@ -34,7 +35,7 @@ class AgentConnection(object):
         self.secure = secure
         self.owner = owner
         self.room = room
-        self.retries = G.MAX_RETRIES
+        self.retries = self.MAX_RETRIES
         self._on_auth = on_auth
         self.empty_selects = 0
         self.room_info = {}
@@ -71,7 +72,7 @@ class AgentConnection(object):
 
     def on_auth(self):
         self.authed = True
-        self.retries = G.MAX_RETRIES
+        self.retries = self.MAX_RETRIES
         msg.log('Successfully joined room %s/%s' % (self.owner, self.room))
         if self._on_auth:
             self._on_auth(self)
@@ -147,7 +148,7 @@ class AgentConnection(object):
             return
         self.sock.setblocking(0)
         msg.debug('Connected!')
-        self.reconnect_delay = G.INITIAL_RECONNECT_DELAY
+        self.reconnect_delay = self.INITIAL_RECONNECT_DELAY
         self.send_auth()
         if cb:
             cb()

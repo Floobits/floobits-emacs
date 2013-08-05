@@ -6,11 +6,9 @@ import hashlib
 import collections
 import Queue
 
-from lib import diff_match_patch as dmp
+from common import msg, shared as G, utils
+from common.lib import diff_match_patch as dmp
 
-import msg
-import shared as G
-import utils
 import sublime
 
 

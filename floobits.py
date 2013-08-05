@@ -9,18 +9,15 @@ import select
 import socket
 import sys
 
-from floo import dmp_monkey
-dmp_monkey.monkey_patch()
-
 from floo import AgentConnection
-from floo import msg
-from floo import shared as G
-from floo import utils
-from floo import api
+from floo.common import api
+from floo.common import msg
+from floo.common import shared as G
+from floo.common import utils
 from floo.emacs_protocol import Protocol
 
 
-utils.load_settings()
+utils.reload_settings()
 
 # enable debug with let floo_log_level = 'debug'
 floo_log_level = 'debug'
@@ -194,12 +191,12 @@ class EmacsConnection(object):
                 msg.error('Data:', before)
                 raise e
             if data['name'] == 'share_dir':
-                utils.load_settings()
+                utils.reload_settings()
                 G.USERNAME = data['username']
                 G.SECRET = data['secret']
                 self.share_dir(data['dir_to_share'])
             elif data['name'] == 'join_room':
-                utils.load_settings()
+                utils.reload_settings()
                 room = data['room']
                 owner = data['room_owner']
                 G.USERNAME = data['username']

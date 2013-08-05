@@ -1,16 +1,10 @@
 from collections import defaultdict
 
-import msg
+from common import msg
+from common import shared as G
+from common import utils
+
 import protocol
-import shared as G
-import utils
-
-from lib import diff_match_patch as dmp
-import dmp_monkey
-
-
-dmp_monkey.monkey_patch()
-DMP = dmp.diff_match_patch()
 
 emacs = None
 
