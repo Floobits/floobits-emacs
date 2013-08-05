@@ -1,4 +1,4 @@
-;;; Floobits.el --- Floobits Plugin
+;;; Floobits.el --- Floobits plugin for real-time collaborative editing
 
 ;; Copyright 2013 Floobits, Inc.
 
