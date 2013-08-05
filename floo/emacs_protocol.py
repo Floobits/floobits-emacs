@@ -236,13 +236,13 @@ class Protocol(protocol.BaseProtocol):
             if utils.get_full_path(view.buf['path']) not in seen:
                 msg.debug('We should not have buffer %s in our views but we do.' % view.buf['path'])
 
-    def on_room_info(self, room_info):
-        super(Protocol, self).on_room_info(room_info)
-        room_info['project_path'] = G.PROJECT_PATH
-        emacs.put('room_info', {
-            'perms': self.room_info['perms'],
+    def on_workspace_info(self, workspace_info):
+        super(Protocol, self).on_workspace_info(workspace_info)
+        workspace_info['project_path'] = G.PROJECT_PATH
+        emacs.put('workspace_info', {
+            'perms': self.workspace_info['perms'],
             'project_path': G.PROJECT_PATH,
-            'room_name': self.room_info['room_name'],
+            'workspace_name': self.workspace_info['workspace_name'],
         })
 
     def on_create_buf(self, data):
