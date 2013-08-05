@@ -101,13 +101,15 @@ class EmacsConnection(object):
                 if os.path.realpath(floo_workspace_dir) == os.path.realpath(dir_to_share):
                     if result['owner'] == G.USERNAME:
                         try:
-                            api.create_workspace(workspace_name)
+                            api.create_workspace({
+                                'name': workspace_name,
+                            })
                             msg.debug('Created workspace %s' % workspace_url)
                         except Exception as e:
                             msg.debug('Tried to create workspace' + str(e))
                     # they wanted to share teh dir, so always share it
                     G.PROJECT_PATH = os.path.realpath(floo_workspace_dir)
-                    return self.remote_connect(result['owner'], result['workspace'])
+                    return self.remote_connect(result['owner'], result['workspace'], lambda this: this.protocol.create_buf(dir_to_share))
         # go make sym link
         try:
             utils.mkdir(os.path.dirname(floo_workspace_dir))
@@ -127,7 +129,9 @@ class EmacsConnection(object):
             workspace_name = new_workspace_name
         prompt = 'workspace %s already exists. Choose another name: ' % workspace_name
         try:
-            api.create_workspace(workspace_name)
+            api.create_workspace({
+                'name': workspace_name,
+            })
             workspace_url = 'https://%s/r/%s/%s' % (G.DEFAULT_HOST, G.USERNAME, workspace_name)
             msg.debug('Created workspace %s' % workspace_url)
 
