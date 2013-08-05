@@ -433,13 +433,6 @@ See floobits-share-dir to create one or visit floobits.com."
   (when (_floobits-is-buffer-shared (current-buffer))
     (floobits-send-to-agent (list (cons 'path (buffer-file-name))) 'saved)))
 
-; (let ((req (list
-;     (cons 'ranges (vector (vector mark mark)))
-;     (cons 'full_path name)
-;     (cons 'ping ping))))
-;   (floobits-send-to-agent req 'highlight))))))
-
-
 (defun floobits-buffer-list-change ()
   (let* ((current-buffers (mapcar 'buffer-file-name (floobits-get-public-buffers)))
       (added (set-difference current-buffers floobits-open-buffers))
