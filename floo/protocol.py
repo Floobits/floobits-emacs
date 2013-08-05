@@ -1,16 +1,15 @@
 """Understands the floobits protocol"""
 
 import os
+import sys
 import json
 import hashlib
 import collections
 import Queue
 
-from lib import diff_match_patch as dmp
+from common import msg, shared as G, utils
+from common.lib import diff_match_patch as dmp
 
-import msg
-import shared as G
-import utils
 import sublime
 
 
@@ -97,7 +96,7 @@ class BaseProtocol(object):
 
     def create_buf(self, path, text=None):
         if 'create_buf' not in self.perms:
-            msg.error("Skipping %s. You don't have permission to create buffers in this room." % path)
+            msg.error("Skipping %s. You don't have permission to create buffers in this workspace." % path)
             return
         if not self.is_shared(path):
             msg.error('Skipping adding %s because it is not in shared path %s.' % (path, G.PROJECT_PATH))
@@ -119,7 +118,7 @@ class BaseProtocol(object):
             return
 
         if self.get_buf_by_path(path):
-            msg.debug('Buf %s already exists in room. Skipping adding.' % path)
+            msg.debug('Buf %s already exists in workspace. Skipping adding.' % path)
             return
 
         try:
@@ -167,7 +166,7 @@ class BaseProtocol(object):
                 continue
 
             reported.add(vb_id)
-            patch = utils.FlooPatch(view)
+            patch = utils.FlooPatch(view.get_text(), view.buf)
             # Update the current copy of the buffer
             buf['buf'] = patch.current
             buf['md5'] = hashlib.md5(patch.current.encode('utf-8')).hexdigest()
@@ -227,7 +226,7 @@ class BaseProtocol(object):
 
     def on_room_info(self, data):
         # Success! Reset counter
-        self.room_info = data
+        self.workspace_info = data
         self.perms = data['perms']
 
         if 'patch' not in data['perms']:
@@ -236,11 +235,11 @@ class BaseProtocol(object):
         utils.mkdir(G.PROJECT_PATH)
 
         floo_json = {
-            'url': utils.to_room_url({
+            'url': utils.to_workspace_url({
                 'host': self.agent.host,
                 'owner': self.agent.owner,
                 'port': self.agent.port,
-                'room': self.agent.room,
+                'workspace': self.agent.workspace,
                 'secure': self.agent.secure,
             })
         }
@@ -274,10 +273,10 @@ class BaseProtocol(object):
         self.agent.on_auth()
 
     def on_join(self, data):
-        msg.log('%s joined the room' % data['username'])
+        msg.log('%s joined the workspace' % data['username'])
 
     def on_part(self, data):
-        msg.log('%s left the room' % data['username'])
+        msg.log('%s left the workspace' % data['username'])
         region_key = 'floobits-highlight-%s' % (data['user_id'])
         for window in sublime.windows():
             for view in window.views():
@@ -376,7 +375,7 @@ class BaseProtocol(object):
                 buf_to_delete = buf
                 break
         if buf_to_delete is None:
-            msg.error('%s is not in this room' % path)
+            msg.error('%s is not in this workspace' % path)
             return
         msg.log('deleting buffer ', rel_path)
         event = {
@@ -428,4 +427,8 @@ class BaseProtocol(object):
     def on_disconnect(self, data):
         message = 'Floobits: Disconnected! Reason: %s' % str(data.get('reason'))
         msg.error(message)
-        self.agent.stop()
+        try:
+            self.agent.stop()
+        except Exception:
+            pass
+        sys.exit(0)
