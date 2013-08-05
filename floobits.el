@@ -1,3 +1,12 @@
+;;; Floobits.el --- Floobits Plugin
+
+;; Copyright 2013 Floobits, Inc.
+
+;; Author: Matt Kaniaris & Geoff Greer
+;; URL: http://github.com/Floobits/floobits-emacs
+;; Version: 0.1
+
+
 (require 'cl)
 (require 'json)
 (require 'url)
@@ -458,4 +467,4 @@ See floobits-share-dir to create one or visit floobits.com."
         (cons 'deleted deleted))))
         (floobits-send-to-agent req 'buffer_list_change)))))
 
-(provide 'floobits)
+(provide 'floobits) ;;; floobits.el ends here
