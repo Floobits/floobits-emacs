@@ -1,3 +1,12 @@
+;;; Floobits.el --- Floobits plugin for real-time collaborative editing
+
+;; Copyright 2013 Floobits, Inc.
+
+;; Author: Matt Kaniaris & Geoff Greer
+;; URL: http://github.com/Floobits/floobits-emacs
+;; Version: 0.1
+
+
 (require 'cl)
 (require 'json)
 (require 'url)
@@ -29,6 +38,7 @@
 (defun floobits-add-hooks ()
   (add-hook 'after-change-functions 'floobits-after-change nil nil)
   (add-hook 'post-command-hook 'floobits-post-command-func nil nil)
+  (add-hook 'after-save-hook 'floobits-after-save nil nil)
   (ad-enable-advice 'delete-file 'before 'floobits-delete-file)
   (ad-enable-advice 'rename-file 'before 'floobits-rename-file)
   (ad-activate 'delete-file)
@@ -37,6 +47,7 @@
 (defun floobits-remove-hooks ()
   (remove-hook 'after-change-functions 'floobits-after-change)
   (remove-hook 'post-command-hook 'floobits-post-command-func)
+  (remove-hook 'after-save-hook 'floobits-after-save)
   (ad-disable-advice 'delete-file 'before 'floobits-delete-file)
   (ad-disable-advice 'rename-file 'before 'floobits-rename-file))
 
@@ -46,7 +57,7 @@
       (let ((req (list
             (cons 'path name))))
         (floobits-send-to-agent req 'delete_buf))
-      (message "You don't have permission to delete buffers in this room."))))
+      (message "You don't have permission to delete buffers in this workspace."))))
 
 (defadvice rename-file (before floobits-rename-file
     (old-name new-name &optional OK-IF-ALREADY-EXISTS))
@@ -56,7 +67,7 @@
             (cons 'path new-name)
             (cons 'old_path old-name))))
         (floobits-send-to-agent req 'rename_buf))
-      (message "You don't have permission to rename buffers in this room."))))
+      (message "You don't have permission to rename buffers in this workspace."))))
 
 (defun floobits-process-live-p (process)
   "Returns non-nil if PROCESS is alive.
@@ -151,7 +162,7 @@
       (floo-set-item 'req 'version floobits-agent-version)
       (process-send-string floobits-conn (concat (json-encode req) "\n")))
     (progn
-      (message "connection to floobits died :(")
+      (message "Connection to floobits died :(")
       (floobits-destroy-connection))))
 
 (defun floobits-get-text (begin end)
@@ -200,23 +211,23 @@
   (floobits-send-highlight t))
 
 (defun floobits-follow-mode-toggle ()
-  "Toggles following of recent changes in a room"
+  "Toggles following of recent changes in a workspace"
   (interactive)
   (when floobits-conn
     (setq floobits-follow-mode (not floobits-follow-mode))
     (floobits-send-to-agent (list (cons 'follow_mode floobits-follow-mode)) 'set_follow_mode)
     (message "Follow mode %s." (if (eq floobits-follow-mode nil) "disabled" "enabled"))))
 
-(defun floobits-leave-room ()
-  "leaves the current rooom"
+(defun floobits-leave-workspace ()
+  "leaves the current workspace"
   (interactive)
   (floobits-destroy-connection))
 
 (defun floobits-share-dir (dir-to-share)
-  "Create a room and populate it with the contents of the directory, dir-to-share, or make it.
-If the directory corresponds to an existing floobits room, you will instead join the room.
+  "Create a workspace and populate it with the contents of the directory, dir-to-share, or make it.
+If the directory corresponds to an existing floobits workspace, you will instead join the workspace.
 "
-  (interactive "GGive me a directory: ")
+  (interactive "Give me a directory: ")
   (floobits-load-floorc)
   (floobits-destroy-connection)
   (floobits-create-connection)
@@ -229,10 +240,10 @@ If the directory corresponds to an existing floobits room, you will instead join
 (defun floobits-event-error (req)
   (message-box (floo-get-item req 'msg)))
 
-(defun floobits-join-room (floourl)
-  "Join an existing floobits room.
+(defun floobits-join-workspace (floourl)
+  "Join an existing floobits workspace.
 See floobits-share-dir to create one or visit floobits.com."
-  (interactive (list (read-from-minibuffer "Floobits room URL (owner/room): " "https://floobits.com/r/")))
+  (interactive (list (read-from-minibuffer "Floobits workspace URL (owner/workspace): " "https://floobits.com/r/")))
   (floobits-load-floorc)
   (let* ((url-struct (url-generic-parse-url floourl))
     (domain (url-host url-struct))
@@ -244,19 +255,19 @@ See floobits-share-dir to create one or visit floobits.com."
         (concat path "/")))
     (_ (string-match "^/r/\\(.*\\)/\\(.*\\)/" path))
     (owner (match-string 1 path))
-    (room (match-string 2 path)))
-    (if (and path room owner)
+    (workspace (match-string 2 path)))
+    (if (and path workspace owner)
       (progn
         (floobits-destroy-connection)
-        (setq floobits-room room)
+        (setq floobits-workspace workspace)
         (floobits-create-connection)
         (let ((req (list
           (cons 'username floobits-username)
-          (cons 'room floobits-room)
+          (cons 'workspace floobits-workspace)
           (cons 'secret floobits-secret)
-          (cons 'room_owner owner))))
-          (floobits-send-to-agent req 'join_room)))
-      (message "Invalid url! I should look like: https://floobits.com/r/owner/room/"))))
+          (cons 'workspace_owner owner))))
+          (floobits-send-to-agent req 'join_workspace)))
+      (message "Invalid url! I should look like: https://floobits.com/r/owner/workspace/"))))
 
 (defun _floobits-is-buffer-public (buf)
   (let ((name (buffer-name buf)))
@@ -291,8 +302,8 @@ See floobits-share-dir to create one or visit floobits.com."
   (message "Disconnected: %s" (floo-get-item req 'reason)))
 
 (defun floobits-event-room_info (req)
-  (setq floobits-room (floo-get-item req 'room_name))
-  (message "Successfully joined room %s" floobits-room)
+  (setq floobits-workspace (floo-get-item req 'workspace_name))
+  (message "Successfully joined workspace %s" floobits-workspace)
   (setq floobits-share-dir (floo-get-item req 'project_path))
   (message "project path is %s" floobits-share-dir)
   (setq floobits-perms (append (floo-get-item req 'perms) nil))
@@ -301,11 +312,11 @@ See floobits-share-dir to create one or visit floobits.com."
 
 (defun floobits-event-join (req)
   (message "%s" req)
-  (message "%s joined the room"  (floo-get-item req 'username)))
+  (message "%s joined the workspace"  (floo-get-item req 'username)))
 
 (defun floobits-event-part (req)
   (message "%s" req)
-  (message "%s left the room" (floo-get-item req 'username)))
+  (message "%s left the workspace" (floo-get-item req 'username)))
 
 (defun floobits-event-create_view (req)
   (message "opening file %s" (floo-get-item req 'full_path))
@@ -427,6 +438,10 @@ See floobits-share-dir to create one or visit floobits.com."
       (floobits-send-to-agent floobits-change-set 'change)
     (setq floobits-change-set))))
 
+(defun floobits-after-save ()
+  (when (_floobits-is-buffer-shared (current-buffer))
+    (floobits-send-to-agent (list (cons 'path (buffer-file-name))) 'saved)))
+
 (defun floobits-buffer-list-change ()
   (let* ((current-buffers (mapcar 'buffer-file-name (floobits-get-public-buffers)))
       (added (set-difference current-buffers floobits-open-buffers))
@@ -452,4 +467,4 @@ See floobits-share-dir to create one or visit floobits.com."
         (cons 'deleted deleted))))
         (floobits-send-to-agent req 'buffer_list_change)))))
 
-(provide 'floobits)
+(provide 'floobits) ;;; floobits.el ends here

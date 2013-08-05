@@ -1,16 +1,10 @@
 from collections import defaultdict
 
-import msg
+from common import msg
+from common import shared as G
+from common import utils
+
 import protocol
-import shared as G
-import utils
-
-from lib import diff_match_patch as dmp
-import dmp_monkey
-
-
-dmp_monkey.monkey_patch()
-DMP = dmp.diff_match_patch()
 
 emacs = None
 
@@ -158,7 +152,6 @@ class Protocol(protocol.BaseProtocol):
         view.set_text(data['buf'])
 
     def emacs_handle(self, data):
-        msg.debug(data)
         name = data.get('name')
         if not name:
             return msg.error('no name in data?!?')
@@ -242,13 +235,24 @@ class Protocol(protocol.BaseProtocol):
             if utils.get_full_path(view.buf['path']) not in seen:
                 msg.debug('We should not have buffer %s in our views but we do.' % view.buf['path'])
 
-    def on_room_info(self, room_info):
-        super(Protocol, self).on_room_info(room_info)
-        room_info['project_path'] = G.PROJECT_PATH
+    def on_emacs_saved(self, req):
+        buf = self.get_buf_by_path(req['path'])
+        if not buf:
+            msg.debug('No buffer for path %s' % req['path'])
+            return
+        event = {
+            'name': 'saved',
+            'id': buf['id'],
+        }
+        self.agent.put(event)
+
+    def on_room_info(self, workspace_info):
+        super(Protocol, self).on_room_info(workspace_info)
+        workspace_info['project_path'] = G.PROJECT_PATH
         emacs.put('room_info', {
-            'perms': self.room_info['perms'],
+            'perms': self.workspace_info['perms'],
             'project_path': G.PROJECT_PATH,
-            'room_name': self.room_info['room_name'],
+            'workspace_name': self.workspace_info['room_name'],
         })
 
     def on_create_buf(self, data):
