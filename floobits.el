@@ -1,12 +1,48 @@
 ;;; Floobits.el --- Floobits plugin for real-time collaborative editing
-
+;;
+;; Filename: floobits.el
+;; Description: Real-time collaborative editing.
+;;
 ;; Copyright 2013 Floobits, Inc.
-
-;; Author: Matt Kaniaris & Geoff Greer
+;;
+;; Author: Matt Kaniaris
+;;      Geoff Greer
+;; Keywords: comm, tools
+;; Package-Requires: ((json "1.2") (highlight "0"))
+;; Package-Version: 0.1
 ;; URL: http://github.com/Floobits/floobits-emacs
-;; Version: 0.1
+;; Version: 23.0
+;;
+;;; Commentary:
+;;
+;;    Real-time collaborative editing.
+;;
+;;  This plugin requires Python 2.6 or 2.7 and a Floobits account.
+;;
+;;  Usage
+;;  -----
+;;  All commands are documented in `apropos-command <RET> floobits'
+;;
+;;  `floobits-join-workspace <RET> https://floobits.com/r/owner/workspace/ <RET>'
+;;  Join an existing floobits workspace.
+;;
+;;  `floobits-share-dir <RET> DIR <RET>'
+;;  Create a workspace and populate it with the contents of the directory, DIR (or make it).
+;;
+;;  `floobits-leave-workspace <RET>'
+;;  Leave the current workspace.
+;;
+;;  `floobits-summon <RET>'
+;;  Summon everyone in the workspace to your cursor position.
+;;
+;;  `floobits-follow-mode-toggle <RET>'
+;;  Toggle following of recent changes.
+;;
+;;  `floobits-clear-highlights <RET>'
+;;  Clears all mirrored highlights.
+;;
 
-
+;;; Code:
 (require 'cl)
 (require 'json)
 (require 'url)
@@ -205,11 +241,13 @@
             (cons 'ping ping))))
           (floobits-send-to-agent req 'highlight))))))
 
+;;;###autoload
 (defun floobits-summon ()
   "Summons all users to your cursor position."
   (interactive)
   (floobits-send-highlight t))
 
+;;;###autoload
 (defun floobits-follow-mode-toggle ()
   "Toggles following of recent changes in a workspace"
   (interactive)
@@ -218,11 +256,13 @@
     (floobits-send-to-agent (list (cons 'follow_mode floobits-follow-mode)) 'set_follow_mode)
     (message "Follow mode %s." (if (eq floobits-follow-mode nil) "disabled" "enabled"))))
 
+;;;###autoload
 (defun floobits-leave-workspace ()
   "leaves the current workspace"
   (interactive)
   (floobits-destroy-connection))
 
+;;;###autoload
 (defun floobits-share-dir (dir-to-share)
   "Create a workspace and populate it with the contents of the directory, dir-to-share, or make it.
 If the directory corresponds to an existing floobits workspace, you will instead join the workspace.
@@ -240,6 +280,7 @@ If the directory corresponds to an existing floobits workspace, you will instead
 (defun floobits-event-error (req)
   (message-box (floo-get-item req 'msg)))
 
+;;;###autoload
 (defun floobits-join-workspace (floourl)
   "Join an existing floobits workspace.
 See floobits-share-dir to create one or visit floobits.com."
@@ -327,6 +368,7 @@ See floobits-share-dir to create one or visit floobits.com."
   (find-file (floo-get-item req 'full_path))
   (goto-char (+ 1 (floo-get-item req 'offset))))
 
+;;;###autoload
 (defun floobits-clear-highlights ()
   "Clears all highlights"
   (interactive)
@@ -467,4 +509,5 @@ See floobits-share-dir to create one or visit floobits.com."
         (cons 'deleted deleted))))
         (floobits-send-to-agent req 'buffer_list_change)))))
 
-(provide 'floobits) ;;; floobits.el ends here
+(provide 'floobits)
+;;; floobits.el ends here
