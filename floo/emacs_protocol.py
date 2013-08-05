@@ -235,6 +235,17 @@ class Protocol(protocol.BaseProtocol):
             if utils.get_full_path(view.buf['path']) not in seen:
                 msg.debug('We should not have buffer %s in our views but we do.' % view.buf['path'])
 
+    def on_emacs_saved(self, req):
+        buf = self.get_buf_by_path(req['path'])
+        if not buf:
+            msg.debug('No buffer for path %s' % req['path'])
+            return
+        event = {
+            'name': 'saved',
+            'id': buf['id'],
+        }
+        self.agent.put(event)
+
     def on_room_info(self, workspace_info):
         super(Protocol, self).on_room_info(workspace_info)
         workspace_info['project_path'] = G.PROJECT_PATH

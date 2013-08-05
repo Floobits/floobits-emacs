@@ -29,6 +29,7 @@
 (defun floobits-add-hooks ()
   (add-hook 'after-change-functions 'floobits-after-change nil nil)
   (add-hook 'post-command-hook 'floobits-post-command-func nil nil)
+  (add-hook 'after-save-hook 'floobits-after-save nil nil)
   (ad-enable-advice 'delete-file 'before 'floobits-delete-file)
   (ad-enable-advice 'rename-file 'before 'floobits-rename-file)
   (ad-activate 'delete-file)
@@ -37,6 +38,7 @@
 (defun floobits-remove-hooks ()
   (remove-hook 'after-change-functions 'floobits-after-change)
   (remove-hook 'post-command-hook 'floobits-post-command-func)
+  (remove-hook 'after-save-hook 'floobits-after-save)
   (ad-disable-advice 'delete-file 'before 'floobits-delete-file)
   (ad-disable-advice 'rename-file 'before 'floobits-rename-file))
 
@@ -151,7 +153,7 @@
       (floo-set-item 'req 'version floobits-agent-version)
       (process-send-string floobits-conn (concat (json-encode req) "\n")))
     (progn
-      (message "connection to floobits died :(")
+      (message "Connection to floobits died :(")
       (floobits-destroy-connection))))
 
 (defun floobits-get-text (begin end)
@@ -426,6 +428,17 @@ See floobits-share-dir to create one or visit floobits.com."
       (floo-set-item 'floobits-change-set 'full_path (buffer-file-name (current-buffer)))
       (floobits-send-to-agent floobits-change-set 'change)
     (setq floobits-change-set))))
+
+(defun floobits-after-save ()
+  (when (_floobits-is-buffer-shared (current-buffer))
+    (floobits-send-to-agent (list (cons 'path (buffer-file-name))) 'saved)))
+
+; (let ((req (list
+;     (cons 'ranges (vector (vector mark mark)))
+;     (cons 'full_path name)
+;     (cons 'ping ping))))
+;   (floobits-send-to-agent req 'highlight))))))
+
 
 (defun floobits-buffer-list-change ()
   (let* ((current-buffers (mapcar 'buffer-file-name (floobits-get-public-buffers)))
