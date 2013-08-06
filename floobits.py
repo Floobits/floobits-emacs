@@ -148,16 +148,16 @@ class EmacsConnection(object):
                     pass
                 return sublime.error_message('%s' % err_body)
             else:
-                prompt = 'Workspace %s/%s already exists. Choose another name:' % (self.owner, workspace_name)
+                prompt = 'Workspace %s/%s already exists. Choose another name:' % (G.USERNAME, workspace_name)
 
             return self.get_input(prompt, workspace_name, self.create_workspace, workspace_name, dir_to_share)
         except Exception as e:
             return msg.error('Unable to create workspace: %s' % str(e))
 
-        try:
-            webbrowser.open(workspace_url + '/settings', new=2, autoraise=True)
-        except Exception:
-            msg.debug("Couldn't open a browser. Thats OK!")
+        # try:
+        #     webbrowser.open(workspace_url + '/settings', new=2, autoraise=True)
+        # except Exception:
+        #     msg.debug("Couldn't open a browser. Thats OK!")
         G.PROJECT_PATH = dir_to_share
         self.remote_connect(workspace_url, lambda this: this.protocol.create_buf(dir_to_share))
 

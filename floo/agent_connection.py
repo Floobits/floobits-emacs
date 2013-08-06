@@ -30,6 +30,7 @@ class AgentConnection(object):
         self.username = G.USERNAME
         self.secret = G.SECRET
         self.authed = False
+        G.JOINED_WORKSPACE = False
         self.retries = self.MAX_RETRIES
         self._on_auth = on_auth
         self.empty_selects = 0
@@ -76,6 +77,7 @@ class AgentConnection(object):
 
     def on_auth(self):
         self.authed = True
+        G.JOINED_WORKSPACE = True
         self.retries = self.MAX_RETRIES
         msg.log('Successfully joined workspace %s/%s' % (self.owner, self.workspace))
         if self._on_auth:
@@ -87,6 +89,7 @@ class AgentConnection(object):
             msg.log('Disconnecting from workspace %s/%s' % (self.owner, self.workspace))
         sublime.cancel_timeout(self.reconnect_timeout)
         self.reconnect_timeout = None
+        G.JOINED_WORKSPACE = False
         try:
             self.retries = -1
             self.sock.shutdown(2)
@@ -117,6 +120,7 @@ class AgentConnection(object):
         self.net_buf = ''
         self.sock = None
         self.authed = False
+        G.JOINED_WORKSPACE = False
         self.reconnect_delay *= 1.5
         if self.reconnect_delay > 10000:
             self.reconnect_delay = 10000

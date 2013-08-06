@@ -204,7 +204,7 @@ class Protocol(protocol.BaseProtocol):
             self.emacs_bufs[path][0] = text
             if not buf:
                 msg.debug('no buf for path %s' % path)
-                self.create_buf(path, text)
+                self.create_buf(path, text=text)
                 continue
             view = self.views.get(buf['id'])
             if view is None:
