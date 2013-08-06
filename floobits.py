@@ -3,17 +3,20 @@
 # coding: utf-8
 import os
 import json
-import urllib2
+import re
 import webbrowser
 import select
 import socket
 import sys
+from urllib2 import HTTPError
 
 from floo import AgentConnection
 from floo.common import api
+from floo.common import migrations
 from floo.common import msg
 from floo.common import shared as G
 from floo.common import utils
+from floo import sublime
 from floo.emacs_protocol import Protocol
 
 
@@ -26,6 +29,9 @@ floo_log_level = 'debug'
 msg.LOG_LEVEL = msg.LOG_LEVELS.get(floo_log_level.upper(), msg.LOG_LEVELS['MSG'])
 
 agent = None
+
+migrations.rename_floobits_dir()
+migrations.migrate_symlinks()
 
 
 class EmacsConnection(object):
@@ -56,19 +62,18 @@ class EmacsConnection(object):
         self.conn.setblocking(0)
         self.select()
 
-    def remote_connect(self, owner, workspace, on_auth=None):
+    def remote_connect(self, workspace_url, on_auth=None):
         G.PROJECT_PATH = os.path.realpath(G.PROJECT_PATH)
         G.PROJECT_PATH += os.sep
-        self.agent = AgentConnection(Protocol=Protocol, workspace=workspace, owner=owner, on_auth=on_auth)
+        self.agent = AgentConnection(Protocol=Protocol, workspace_url=workspace_url, on_auth=on_auth)
         self.agent.connect()
 
     def share_dir(self, dir_to_share):
         dir_to_share = os.path.expanduser(dir_to_share)
         dir_to_share = utils.unfuck_path(dir_to_share)
         workspace_name = os.path.basename(dir_to_share)
-        floo_workspace_dir = os.path.join(G.COLAB_DIR, G.USERNAME, workspace_name)
-        G.PROJECT_PATH = os.path.realpath(floo_workspace_dir)
-        msg.debug("%s %s %s %s" % (G.COLAB_DIR, G.USERNAME, workspace_name, floo_workspace_dir))
+        G.PROJECT_PATH = os.path.realpath(dir_to_share)
+        msg.debug("%s %s %s" % (G.USERNAME, workspace_name, G.PROJECT_PATH))
 
         if os.path.isfile(dir_to_share):
             return msg.error('%s is a file. Give me a directory please.' % dir_to_share)
@@ -97,57 +102,55 @@ class EmacsConnection(object):
                 msg.error(str(e))
             else:
                 workspace_name = result['workspace']
-                floo_workspace_dir = os.path.join(G.COLAB_DIR, result['owner'], result['workspace'])
-                if os.path.realpath(floo_workspace_dir) == os.path.realpath(dir_to_share):
-                    if result['owner'] == G.USERNAME:
-                        try:
-                            api.create_workspace({
-                                'name': workspace_name,
-                            })
-                            msg.debug('Created workspace %s' % workspace_url)
-                        except Exception as e:
-                            msg.debug('Tried to create workspace' + str(e))
-                    # they wanted to share teh dir, so always share it
-                    G.PROJECT_PATH = os.path.realpath(floo_workspace_dir)
-                    return self.remote_connect(result['owner'], result['workspace'], lambda this: this.protocol.create_buf(dir_to_share))
-        # go make sym link
-        try:
-            utils.mkdir(os.path.dirname(floo_workspace_dir))
-            os.symlink(dir_to_share, floo_workspace_dir)
-        except OSError as e:
-            if e.errno != 17:
-                raise
-        except Exception as e:
-            return msg.error("Couldn't create symlink from %s to %s: %s" % (dir_to_share, floo_workspace_dir, str(e)))
+                try:
+                    # TODO: blocking. beachballs sublime 2 if API is super slow
+                    api.get_workspace_by_url(workspace_url)
+                except HTTPError:
+                    workspace_url = None
+                    workspace_name = os.path.basename(dir_to_share)
+                else:
+                    utils.add_workspace_to_persistent_json(result['owner'], result['workspace'], workspace_url, dir_to_share)
+
+        workspace_url = utils.get_workspace_by_path(dir_to_share) or workspace_url
+
+        if workspace_url:
+            try:
+                api.get_workspace_by_url(workspace_url)
+            except HTTPError:
+                pass
+            else:
+                return self.remote_connect(workspace_url, lambda this: this.protocol.create_buf(dir_to_share))
 
         # make & join workspace
-        self.create_workspace({}, workspace_name, floo_workspace_dir, dir_to_share)
+        self.create_workspace({}, workspace_name, dir_to_share)
 
-    def create_workspace(self, data, workspace_name, ln_path, share_path):
-        new_workspace_name = data.get('response')
-        if new_workspace_name:
-            workspace_name = new_workspace_name
+    def create_workspace(self, data, workspace_name, dir_to_share):
         prompt = 'workspace %s already exists. Choose another name: ' % workspace_name
         try:
             api.create_workspace({
                 'name': workspace_name,
             })
-            workspace_url = 'https://%s/r/%s/%s' % (G.DEFAULT_HOST, G.USERNAME, workspace_name)
+            workspace_url = utils.to_workspace_url({'secure': True, "owner": G.USERNAME, "workspace": workspace_name})
             msg.debug('Created workspace %s' % workspace_url)
-
-            if new_workspace_name:
-                new_path = os.path.join(os.path.dirname(ln_path), workspace_name)
-                try:
-                    os.rename(ln_path, new_path)
-                except OSError:
-                    initial = workspace_name + '1'
-                    return self.get_input(prompt, initial, self.create_workspace, workspace_name, new_path, share_path)
-
-        except urllib2.HTTPError as e:
-            if e.code != 409:
+        except HTTPError as e:
+            err_body = e.read()
+            msg.error('Unable to create workspace: %s %s' % (unicode(e), err_body))
+            if e.code not in [400, 402, 409]:
                 raise
-            initial = workspace_name + '1'
-            return self.get_input(prompt, initial, self.create_workspace, workspace_name, ln_path, share_path)
+            if e.code == 400:
+                workspace_name = re.sub('[^A-Za-z0-9_\-]', '-', workspace_name)
+                prompt = 'Invalid name. Workspace names must match the regex [A-Za-z0-9_\-]. Choose another name:'
+            elif e.code == 402:
+                try:
+                    err_body = json.loads(err_body)
+                    err_body = err_body['detail']
+                except Exception:
+                    pass
+                return sublime.error_message('%s' % err_body)
+            else:
+                prompt = 'Workspace %s/%s already exists. Choose another name:' % (self.owner, workspace_name)
+
+            return self.get_input(prompt, workspace_name, self.create_workspace, workspace_name, dir_to_share)
         except Exception as e:
             return msg.error('Unable to create workspace: %s' % str(e))
 
@@ -155,11 +158,12 @@ class EmacsConnection(object):
             webbrowser.open(workspace_url + '/settings', new=2, autoraise=True)
         except Exception:
             msg.debug("Couldn't open a browser. Thats OK!")
-        G.PROJECT_PATH = share_path
-        self.remote_connect(G.USERNAME, workspace_name, lambda this: this.protocol.create_buf(share_path))
+        G.PROJECT_PATH = dir_to_share
+        self.remote_connect(workspace_url, lambda this: this.protocol.create_buf(dir_to_share))
 
     def join_workspace(self, data, owner, workspace, dir_to_make=None):
         d = data['response']
+        workspace_url = utils.to_workspace_url({'secure': True, "owner": owner, "workspace": workspace})
         if dir_to_make:
             if d.lower() == 'y':
                 d = dir_to_make
@@ -167,9 +171,7 @@ class EmacsConnection(object):
             else:
                 d = ''
         if d == '':
-            utils.mkdir(G.PROJECT_PATH)
-            self.remote_connect(owner, workspace)
-            return
+            return self.get_input('Give me a directory to sync data to: ', G.PROJECT_PATH, self.join_workspace, owner, workspace)
         d = os.path.realpath(os.path.expanduser(d))
         if not os.path.isdir(d):
             if dir_to_make:
@@ -177,12 +179,11 @@ class EmacsConnection(object):
             prompt = '%s is not a directory. Create it? (Y/N)' % d
             return self.get_input(prompt, '', self.join_workspace, owner, workspace, dir_to_make=d)
         try:
-            G.PROJECT_PATH = os.path.realpath(G.PROJECT_PATH)
+            G.PROJECT_PATH = d
             utils.mkdir(os.path.dirname(G.PROJECT_PATH))
-            os.symlink(d, G.PROJECT_PATH)
-            self.remote_connect(owner, workspace)
+            self.remote_connect(workspace_url)
         except Exception as e:
-            return msg.error("Couldn't create symlink from %s to %s: %s" % (d, G.PROJECT_PATH, str(e)))
+            return msg.error("Couldn't create directory %s: %s" % (G.PROJECT_PATH, str(e)))
 
     def handle(self, req):
         self.net_buf += req
@@ -190,6 +191,7 @@ class EmacsConnection(object):
             before, sep, after = self.net_buf.partition('\n')
             if not sep:
                 break
+            self.net_buf = after
             try:
                 data = json.loads(before)
             except Exception as e:
@@ -207,12 +209,20 @@ class EmacsConnection(object):
                 owner = data['workspace_owner']
                 G.USERNAME = data['username']
                 G.SECRET = data['secret']
-                G.PROJECT_PATH = os.path.realpath(os.path.join(G.COLAB_DIR, owner, workspace))
 
-                if os.path.isdir(G.PROJECT_PATH):
-                    self.remote_connect(owner, workspace)
-                else:
-                    self.get_input('Give me a directory to sync data into (or just press enter): ', '', self.join_workspace, owner, workspace)
+                try:
+                    G.PROJECT_PATH = utils.get_persistent_data()['workspaces'][owner][workspace]['path']
+                except Exception:
+                    G.PROJECT_PATH = ''
+
+                if G.PROJECT_PATH and os.path.isdir(G.PROJECT_PATH):
+                    workspace_url = utils.to_workspace_url({'secure': True, "owner": owner, "workspace": workspace})
+                    self.remote_connect(workspace_url)
+                    continue
+
+                G.PROJECT_PATH = '~/floobits/share/%s/%s' % (owner, workspace)
+                self.get_input('Give me a directory to sync data to: ', G.PROJECT_PATH, self.join_workspace, owner, workspace)
+
             elif data['name'] == 'user_input':
                 cb_id = int(data['id'])
                 cb = self.user_inputs.get(cb_id)
@@ -223,7 +233,6 @@ class EmacsConnection(object):
                 del self.user_inputs[cb_id]
             else:
                 self.agent.protocol.emacs_handle(data)
-            self.net_buf = after
 
     def put(self, name, data):
         data['name'] = name

@@ -12,7 +12,7 @@ try:
 except ImportError:
     pass
 
-from common import cert, msg, shared as G
+from common import cert, msg, utils, shared as G
 import sublime
 
 
@@ -21,7 +21,7 @@ class AgentConnection(object):
     MAX_RETRIES = 20
 
     ''' Simple chat server using select '''
-    def __init__(self, owner, workspace, host=None, port=None, secure=True, on_auth=None, Protocol=None):
+    def __init__(self, workspace_url, on_auth=None, Protocol=None):
         self.sock_q = Queue.Queue()
         self.sock = None
         self.net_buf = ''
@@ -30,15 +30,19 @@ class AgentConnection(object):
         self.username = G.USERNAME
         self.secret = G.SECRET
         self.authed = False
-        self.host = host or G.DEFAULT_HOST
-        self.port = port or G.DEFAULT_PORT
-        self.secure = secure
-        self.owner = owner
-        self.workspace = workspace
         self.retries = self.MAX_RETRIES
         self._on_auth = on_auth
         self.empty_selects = 0
         self.workspace_info = {}
+
+        parsed = utils.parse_url(workspace_url)
+        print(workspace_url, parsed)
+        self.host = parsed['host']
+        self.port = parsed['port']
+        self.secure = parsed['secure']
+        self.owner = parsed['owner']
+        self.workspace = parsed['workspace']
+
         self.protocol = Protocol(self)
 
     def tick(self):
