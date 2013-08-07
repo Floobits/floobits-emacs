@@ -69,8 +69,10 @@
   (setq floobits-user-highlights (make-hash-table :test 'equal)))
 
 (add-hook 'kill-emacs-hook (lambda ()
-  (delete-process floobits-conn)
-  (delete-process floobits-python-agent)))
+  (ignore-errors
+    (delete-process floobits-conn))
+  (ignore-errors
+    (delete-process floobits-python-agent))))
 
 (floobits-initialize)
 
