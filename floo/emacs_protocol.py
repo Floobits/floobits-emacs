@@ -1,3 +1,4 @@
+import webbrowser
 from collections import defaultdict
 
 from common import msg
@@ -245,6 +246,18 @@ class Protocol(protocol.BaseProtocol):
             'id': buf['id'],
         }
         self.agent.put(event)
+
+    def on_emacs_open_workspace(self, req):
+        try:
+            webbrowser.open(self.agent.workspace_url, new=2, autoraise=True)
+        except Exception as e:
+            msg.error("Couldn't open a browser: %s" % (str(e)))
+
+    def on_emacs_open_workspace_settings(self, req):
+        try:
+            webbrowser.open(self.agent.workspace_url + '/settings', new=2, autoraise=True)
+        except Exception as e:
+            msg.error("Couldn't open a browser: %s" % (str(e)))
 
     def on_room_info(self, workspace_info):
         super(Protocol, self).on_room_info(workspace_info)

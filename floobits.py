@@ -4,7 +4,6 @@
 import os
 import json
 import re
-import webbrowser
 import select
 import socket
 import sys
@@ -155,10 +154,6 @@ class EmacsConnection(object):
         except Exception as e:
             return msg.error('Unable to create workspace: %s' % str(e))
 
-        # try:
-        #     webbrowser.open(workspace_url + '/settings', new=2, autoraise=True)
-        # except Exception:
-        #     msg.debug("Couldn't open a browser. Thats OK!")
         G.PROJECT_PATH = dir_to_share
         self.remote_connect(workspace_url, lambda this: this.protocol.create_buf(dir_to_share))
 
