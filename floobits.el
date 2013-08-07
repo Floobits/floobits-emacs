@@ -67,8 +67,11 @@
   (setq floobits-follow-mode nil)
   (setq floobits-perms nil)
   (setq floobits-share-dir "")
-  (setq floobits-user-highlights (make-hash-table :test 'equal))
-  (add-hook 'kill-emacs-hook 'floobits-destroy-connection))
+  (setq floobits-user-highlights (make-hash-table :test 'equal)))
+
+(add-hook 'kill-emacs-hook (lambda ()
+  (delete-process floobits-conn)
+  (delete-process floobits-python-agent)))
 
 (floobits-initialize)
 
