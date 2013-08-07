@@ -1,27 +1,30 @@
 # [Floobits](https://floobits.com/) plugin for Emacs
 
-Real-time collaborative editing. Think Etherpad, but with native editors. This is the plugin for Emacs. We also have plugins for [Sublime Text](https://github.com/Floobits/sublime-text-2-plugin) and [Vim](https://github.com/Floobits/vim-plugin).
+Real-time collaborative editing. Think Etherpad, but with native editors. This is the plugin for Emacs. We also have plugins for [Sublime Text](https://github.com/Floobits/floobits-sublime) and [Vim](https://github.com/Floobits/floobits-vim).
 
-### Development status: new, but reasonably stable. We've tested it on Emacs 23, but earlier or later versions might work. The plugin requires Python 2.7.
+### Development status: new, but reasonably stable. We've tested it on Emacs 23 and later, but earlier or later versions might work. This plugin requires Python 2.7.
+
+## Installation
+### MELPA
+If you have [MELPA](https://github.com/milkypostman/melpa), simply `M-x package-install <RET> floobits <RET>`
+
+### Manual installation
+* `cd ~/.emacs.d/`
+* `git clone https://github.com/Floobits/floobits-emacs.git floobits`
+* Add Floobits to your `~/.emacs`: `(load "~/.emacs.d/floobits/floobits.el")`
 
 
 ## Initial set-up
 
 * [Create a Floobits account](https://floobits.com/signup/) or [sign in with GitHub](https://floobits.com/login/github/?next=/dash/).
-* `cd ~/.emacs.d/`
-* `git clone https://github.com/Floobits/floobits-emacs.git floobits`
-
-* Add Floobits to your `~/.emacs`: `(load "~/.emacs.d/floobits/floobits.el")`
-
-* Add your Floobits username and API secret to `~/.floorc`. You can find your API secret on [your settings page](https://floobits.com/dash/settings/). A typical `~/.floorc` looks like this:
+* Set up your `~/.floorc`. You can find a personalized `~/.floorc` on [your settings page](https://floobits.com/dash/settings/). A typical `~/.floorc` looks like this:
 
 ```
 username myuser
+api_key user_kr30t28e
 secret gii9Ka8aZei3ej1eighu2vi8D
 vim_executable mvim
 ```
-
-You'll need to Restart Emacs once you've installed the plugin.
 
 
 ## Usage
