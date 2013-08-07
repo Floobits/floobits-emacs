@@ -108,6 +108,96 @@
         (floobits-send-to-agent req 'rename_buf))
       (message "You don't have permission to rename buffers in this workspace."))))
 
+;;;###autoload
+(defun floobits-summon ()
+  "Summons all users to your cursor position."
+  (interactive)
+  (floobits-send-highlight t))
+
+;;;###autoload
+(defun floobits-follow-mode-toggle ()
+  "Toggles following of recent changes in a workspace"
+  (interactive)
+  (when floobits-conn
+    (setq floobits-follow-mode (not floobits-follow-mode))
+    (floobits-send-to-agent (list (cons 'follow_mode floobits-follow-mode)) 'set_follow_mode)
+    (message "Follow mode %s." (if (eq floobits-follow-mode nil) "disabled" "enabled"))))
+
+;;;###autoload
+(defun floobits-leave-workspace ()
+  "leaves the current workspace"
+  (interactive)
+  (floobits-destroy-connection))
+
+;;;###autoload
+(defun floobits-share-dir (dir-to-share &optional owner perms)
+  "Create a workspace and populate it with the contents of the directory, dir-to-share, or make it.
+If the directory corresponds to an existing floobits workspace, you will instead join the workspace.
+"
+  (interactive "DDirectory to share: ")
+  (floobits-load-floorc)
+  (floobits-destroy-connection)
+  (floobits-create-connection)
+  (let ((req (list
+    (cons 'username floobits-username)
+    (cons 'secret floobits-secret)
+    (cons 'dir_to_share dir-to-share))))
+    (floobits-send-to-agent req 'share_dir)))
+
+(defun floobits-event-error (req)
+  (message-box (floo-get-item req 'msg)))
+
+;;;###autoload
+(defun floobits-join-workspace (floourl)
+  "Join an existing floobits workspace.
+See floobits-share-dir to create one or visit floobits.com."
+  (interactive (list (read-from-minibuffer "Floobits workspace URL (owner/workspace): " "https://floobits.com/r/")))
+  (floobits-load-floorc)
+  (let* ((url-struct (url-generic-parse-url floourl))
+    (domain (url-host url-struct))
+    (port (url-port url-struct))
+    (path (url-filename url-struct))
+    (path
+      (if (string= "/" (substring path -1))
+        (concat path "")
+        (concat path "/")))
+    (_ (string-match "^/r/\\(.*\\)/\\(.*\\)/" path))
+    (owner (match-string 1 path))
+    (workspace (match-string 2 path)))
+    (if (and path workspace owner)
+      (progn
+        (floobits-destroy-connection)
+        (setq floobits-workspace workspace)
+        (floobits-create-connection)
+        (let ((req (list
+          (cons 'username floobits-username)
+          (cons 'workspace floobits-workspace)
+          (cons 'secret floobits-secret)
+          (cons 'workspace_owner owner))))
+          (floobits-send-to-agent req 'join_workspace)))
+      (message "Invalid url! I should look like: https://floobits.com/r/owner/workspace/"))))
+
+;;;###autoload
+(defun floobits-workspace-settings ()
+  (interactive)
+  (floobits-send-to-agent () 'open_workspace_settings))
+
+;;;###autoload
+(defun floobits-open-workspace-in-browser ()
+  (interactive)
+  (floobits-send-to-agent () 'open_workspace))
+
+;;;###autoload
+(defun floobits-clear-highlights ()
+  "Clears all highlights"
+  (interactive)
+  (maphash
+    (lambda (key highlight)
+      (with-current-buffer (get-file-buffer (cadr key))
+        (save-excursion
+          (hlt-unhighlight-region 0 (buffer-size)))))
+    floobits-user-highlights))
+
 (defun floobits-process-live-p (process)
   "Returns non-nil if PROCESS is alive.
   A process is considered alive if its status is `run', `open',
@@ -243,85 +333,6 @@
             (cons 'ping ping))))
           (floobits-send-to-agent req 'highlight))))))
 
-;;;###autoload
-(defun floobits-summon ()
-  "Summons all users to your cursor position."
-  (interactive)
-  (floobits-send-highlight t))
-
-;;;###autoload
-(defun floobits-follow-mode-toggle ()
-  "Toggles following of recent changes in a workspace"
-  (interactive)
-  (when floobits-conn
-    (setq floobits-follow-mode (not floobits-follow-mode))
-    (floobits-send-to-agent (list (cons 'follow_mode floobits-follow-mode)) 'set_follow_mode)
-    (message "Follow mode %s." (if (eq floobits-follow-mode nil) "disabled" "enabled"))))
-
-;;;###autoload
-(defun floobits-leave-workspace ()
-  "leaves the current workspace"
-  (interactive)
-  (floobits-destroy-connection))
-
-;;;###autoload
-(defun floobits-share-dir (dir-to-share &optional owner perms)
-  "Create a workspace and populate it with the contents of the directory, dir-to-share, or make it.
-If the directory corresponds to an existing floobits workspace, you will instead join the workspace.
-"
-  (interactive "DDirectory to share: ")
-  (floobits-load-floorc)
-  (floobits-destroy-connection)
-  (floobits-create-connection)
-  (let ((req (list
-    (cons 'username floobits-username)
-    (cons 'secret floobits-secret)
-    (cons 'dir_to_share dir-to-share))))
-    (floobits-send-to-agent req 'share_dir)))
-
-(defun floobits-event-error (req)
-  (message-box (floo-get-item req 'msg)))
-
-;;;###autoload
-(defun floobits-join-workspace (floourl)
-  "Join an existing floobits workspace.
-See floobits-share-dir to create one or visit floobits.com."
-  (interactive (list (read-from-minibuffer "Floobits workspace URL (owner/workspace): " "https://floobits.com/r/")))
-  (floobits-load-floorc)
-  (let* ((url-struct (url-generic-parse-url floourl))
-    (domain (url-host url-struct))
-    (port (url-port url-struct))
-    (path (url-filename url-struct))
-    (path
-      (if (string= "/" (substring path -1))
-        (concat path "")
-        (concat path "/")))
-    (_ (string-match "^/r/\\(.*\\)/\\(.*\\)/" path))
-    (owner (match-string 1 path))
-    (workspace (match-string 2 path)))
-    (if (and path workspace owner)
-      (progn
-        (floobits-destroy-connection)
-        (setq floobits-workspace workspace)
-        (floobits-create-connection)
-        (let ((req (list
-          (cons 'username floobits-username)
-          (cons 'workspace floobits-workspace)
-          (cons 'secret floobits-secret)
-          (cons 'workspace_owner owner))))
-          (floobits-send-to-agent req 'join_workspace)))
-      (message "Invalid url! I should look like: https://floobits.com/r/owner/workspace/"))))
-
-;;;###autoload
-(defun floobits-workspace-settings ()
-  (interactive)
-  (floobits-send-to-agent () 'open_workspace_settings))
-
-;;;###autoload
-(defun floobits-open-workspace-in-browser ()
-  (interactive)
-  (floobits-send-to-agent () 'open_workspace))
-
 (defun _floobits-is-buffer-public (buf)
   (let ((name (buffer-name buf)))
     (cond
@@ -379,17 +390,6 @@ See floobits-share-dir to create one or visit floobits.com."
 (defun floobits-event-focus (req)
   (find-file (floo-get-item req 'full_path))
   (goto-char (+ 1 (floo-get-item req 'offset))))
-
-;;;###autoload
-(defun floobits-clear-highlights ()
-  "Clears all highlights"
-  (interactive)
-  (maphash
-    (lambda (key highlight)
-      (with-current-buffer (get-file-buffer (cadr key))
-        (save-excursion
-          (hlt-unhighlight-region 0 (buffer-size)))))
-    floobits-user-highlights))
 
 (defun floobits-apply-highlight (user_id buffer ranges)
   (let* ((key (list user_id (buffer-file-name buffer)))
