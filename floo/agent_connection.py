@@ -73,6 +73,7 @@ class AgentConnection(object):
             'room_owner': self.owner,
             'client': self.protocol.CLIENT,
             'platform': sys.platform,
+            'supported_encodings': ['utf8', 'base64'],
             'version': G.__VERSION__
         })
 

@@ -65,7 +65,10 @@ class BaseProtocol(object):
         path = utils.get_full_path(buf['path'])
         utils.mkdir(os.path.split(path)[0])
         with open(path, 'wb') as fd:
-            fd.write(buf['buf'].encode('utf-8'))
+            if buf['encoding'] == 'utf8':
+                fd.write(buf['buf'].encode('utf-8'))
+            else:
+                fd.write(buf['buf'])
         return path
 
     def chat(self, data):
@@ -228,7 +231,10 @@ class BaseProtocol(object):
 
     def on_get_buf(self, data):
         buf_id = data['id']
+        if data['encoding'] == 'base64':
+            data['buf'] = base64.b64decode(data['buf'])
         self.FLOO_BUFS[buf_id] = data
+
         view = self.get_view(buf_id)
         if view:
             self.update_view(data, view)
@@ -323,6 +329,10 @@ class BaseProtocol(object):
 
         buf_id = data['id']
         buf = self.FLOO_BUFS[buf_id]
+        if buf['encoding'] == 'base64':
+            # TODO apply binary patches
+            return self.agent.send_get_buf(buf_id)
+
         view = self.get_view(buf_id)
 
         dmp_patches = DMP.patch_fromText(data['patch'])
