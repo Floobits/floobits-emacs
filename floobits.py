@@ -125,6 +125,7 @@ class EmacsConnection(object):
         self.create_workspace({}, workspace_name, dir_to_share)
 
     def create_workspace(self, data, workspace_name, dir_to_share):
+        workspace_name = data.get('response', workspace_name)
         prompt = 'workspace %s already exists. Choose another name: ' % workspace_name
         try:
             api.create_workspace({

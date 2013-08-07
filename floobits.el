@@ -67,7 +67,8 @@
   (setq floobits-follow-mode nil)
   (setq floobits-perms nil)
   (setq floobits-share-dir "")
-  (setq floobits-user-highlights (make-hash-table :test 'equal)))
+  (setq floobits-user-highlights (make-hash-table :test 'equal))
+  (add-hook 'kill-emacs-hook 'floobits-destroy-connection))
 
 (floobits-initialize)
 
@@ -185,7 +186,7 @@
       (delete-process floobits-python-agent))
     (error nil))
   (message "Launching Floobits python agent...")
-  (setq floobits-python-agent (start-process "" "*Floobits*" floobits-python-path))
+  (setq floobits-python-agent (start-process "" "*Floobits*" "python" floobits-python-path))
   (switch-to-buffer "*Floobits*")
   (set-process-filter floobits-python-agent 'floobits-agent-listener)
   (accept-process-output floobits-python-agent 2)
@@ -263,11 +264,11 @@
   (floobits-destroy-connection))
 
 ;;;###autoload
-(defun floobits-share-dir (dir-to-share)
+(defun floobits-share-dir (dir-to-share &optional owner perms)
   "Create a workspace and populate it with the contents of the directory, dir-to-share, or make it.
 If the directory corresponds to an existing floobits workspace, you will instead join the workspace.
 "
-  (interactive "Give me a directory: ")
+  (interactive "DDirectory to share: ")
   (floobits-load-floorc)
   (floobits-destroy-connection)
   (floobits-create-connection)
