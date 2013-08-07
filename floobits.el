@@ -53,7 +53,6 @@
 
 (setq max-specpdl-size 1500)
 
-(setq floobits-agent-version "0.01")
 (setq floobits-agent-host "localhost")
 (setq floobits-agent-port 4567)
 (setq floobits-python-path (concat floobits-plugin-dir "floobits.py"))
@@ -199,7 +198,6 @@
   (if (floobits-process-live-p floobits-conn)
     (progn
       (floo-set-item 'req 'name event)
-      (floo-set-item 'req 'version floobits-agent-version)
       (process-send-string floobits-conn (concat (json-encode req) "\n")))
     (progn
       (message "Connection to floobits died :(")
@@ -313,6 +311,16 @@ See floobits-share-dir to create one or visit floobits.com."
           (cons 'workspace_owner owner))))
           (floobits-send-to-agent req 'join_workspace)))
       (message "Invalid url! I should look like: https://floobits.com/r/owner/workspace/"))))
+
+;;;###autoload
+(defun floobits-workspace-settings ()
+  (interactive)
+  (floobits-send-to-agent () 'open_workspace_settings))
+
+;;;###autoload
+(defun floobits-open-workspace-in-browser ()
+  (interactive)
+  (floobits-send-to-agent () 'open_workspace))
 
 (defun _floobits-is-buffer-public (buf)
   (let ((name (buffer-name buf)))
