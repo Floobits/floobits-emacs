@@ -157,8 +157,17 @@ class BaseProtocol(object):
                     encoding = 'base64'
             rel_path = utils.to_rel_path(path)
             existing_buf = self.get_buf_by_path(path)
-            if existing_buf and existing_buf['md5'] == hashlib.md5(text).hexdigest():
-                msg.debug('%s already exists and has the same md5. Skipping creating.' % path)
+            if existing_buf:
+                if existing_buf['md5'] == hashlib.md5(text).hexdigest():
+                    msg.debug('%s already exists and has the same md5. Skipping creating.' % path)
+                    return
+                msg.log('setting buffer ', rel_path)
+                self.agent.put({
+                    'name': 'set_buf',
+                    'id': existing_buf['id'],
+                    'buf': text,
+                    'encoding': encoding,
+                })
                 return
 
             msg.log('creating buffer ', rel_path)

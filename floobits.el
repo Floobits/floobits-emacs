@@ -200,6 +200,12 @@ See floobits-share-dir to create one or visit floobits.com."
           (hlt-unhighlight-region 0 (buffer-size)))))
     floobits-user-highlights))
 
+;;;###autoload
+(defun floobits-add-to-workspace (path)
+  "Adds a file or directory to the workspace"
+  (interactive "fpath: ")
+  (floobits-send-to-agent (list (cons 'full_path path)) 'create_buf))
+
 (defun floobits-process-live-p (process)
   "Returns non-nil if PROCESS is alive.
   A process is considered alive if its status is `run', `open',
@@ -252,9 +258,12 @@ See floobits-share-dir to create one or visit floobits.com."
 (defun floobits-destroy-connection ()
   (when floobits-conn
     (message "Destroying Floobits conn")
-    (floobits-remove-hooks)
-    (delete-process floobits-conn)
-    (delete-process floobits-python-agent)
+    (ignore-errors
+      (floobits-remove-hooks))
+    (ignore-errors
+      (delete-process floobits-conn))
+    (ignore-errors
+      (delete-process floobits-python-agent))
     (floobits-initialize)
     (setq floobits-python-agent nil)
     (message "")))

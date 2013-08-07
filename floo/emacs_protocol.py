@@ -180,6 +180,9 @@ class Protocol(protocol.BaseProtocol):
         if view:
             self.SELECTION_CHANGED.append((view, req.get('ping', False)))
 
+    def on_emacs_create_buf(self, req):
+        self.create_buf(req['full_path'])
+
     def on_emacs_delete_buf(self, req):
         buf = self.get_buf_by_path(req['path'])
         if not buf:
