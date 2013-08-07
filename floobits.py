@@ -136,7 +136,7 @@ class EmacsConnection(object):
             err_body = e.read()
             msg.error('Unable to create workspace: %s %s' % (unicode(e), err_body))
             if e.code not in [400, 402, 409]:
-                raise
+                return msg.error('Unable to create workspace: %s' % str(e))
             if e.code == 400:
                 workspace_name = re.sub('[^A-Za-z0-9_\-]', '-', workspace_name)
                 prompt = 'Invalid name. Workspace names must match the regex [A-Za-z0-9_\-]. Choose another name:'
