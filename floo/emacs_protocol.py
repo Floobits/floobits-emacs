@@ -166,11 +166,13 @@ class Protocol(protocol.BaseProtocol):
 
     def on_emacs_change(self, req):
         path = req['full_path']
+        view = self.get_view_by_path(path)
+        if not view:
+            return
         changed = req['changed']
         begin = req['begin']
         old_length = req['old_length']
         self.emacs_bufs[path][0] = "%s%s%s" % (self.emacs_bufs[path][0][:begin - 1], changed, self.emacs_bufs[path][0][begin - 1 + old_length:])
-        view = self.get_view_by_path(path)
         self.BUFS_CHANGED.append(view.buf['id'])
 
     def on_emacs_highlight(self, req):
