@@ -263,11 +263,11 @@
   (floobits-destroy-connection))
 
 ;;;###autoload
-(defun floobits-share-dir (dir-to-share)
+(defun floobits-share-dir (dir-to-share, owner, perms)
   "Create a workspace and populate it with the contents of the directory, dir-to-share, or make it.
 If the directory corresponds to an existing floobits workspace, you will instead join the workspace.
 "
-  (interactive "Give me a directory: ")
+  (interactive "DDirectory to share: ")
   (floobits-load-floorc)
   (floobits-destroy-connection)
   (floobits-create-connection)
