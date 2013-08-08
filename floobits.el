@@ -532,5 +532,35 @@ See floobits-share-dir to create one or visit floobits.com."
         (cons 'deleted deleted))))
         (floobits-send-to-agent req 'buffer_list_change)))))
 
+(defun is_binary (bytes total)
+  (let ((i 0)
+    (suspicious 0)
+    (c 0))
+      (catch 'break
+        (while (< i total)
+          (catch 'continue
+          (incf i)
+         (setq c (get-byte i bytes))
+          (when (= c 0)
+            (throw 'break t))
+          (when (and (or (< c 7) (> c 14)) (or (< c 32) (> c 127)))
+            (cond 
+              ((and (> c 191) (< c 224) (< (+ i 1) total))
+                (progn
+                  (incf i)
+                  (when (< c 192)
+                    (throw 'continue))))
+              ((and (> c 223) (< c 239) (< (+ i 2) total))
+               (progn
+                 (incf i)
+                 (when (and (< c 192) (get-byte (+ 1 i) bytes))
+                   (incf i)
+                   (throw 'continue)))))
+            (incf suspicious)
+            (when (and (> i 32) (> (/ (* 100 suspicious) total) 10))
+              (throw 'break t)))))
+        (when (> (/ (* 100 suspicious) total) 10)
+          t))))
+
 (provide 'floobits)
 ;;; floobits.el ends here
