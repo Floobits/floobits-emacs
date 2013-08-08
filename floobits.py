@@ -71,7 +71,7 @@ class EmacsConnection(object):
         self.agent = AgentConnection(Protocol=Protocol, workspace_url=workspace_url, on_auth=on_auth)
         self.agent.connect()
 
-    def share_dir(self, dir_to_share):
+    def share_dir(self, dir_to_share, perms=None):
         dir_to_share = os.path.expanduser(dir_to_share)
         dir_to_share = utils.unfuck_path(dir_to_share)
         workspace_name = os.path.basename(dir_to_share)
@@ -125,7 +125,7 @@ class EmacsConnection(object):
                 return self.remote_connect(workspace_url, lambda this: this.protocol.create_buf(dir_to_share))
 
         def on_done(data, choices=None):
-            self.create_workspace({}, workspace_name, dir_to_share, owner=data.get('response'))
+            self.create_workspace({}, workspace_name, dir_to_share, owner=data.get('response'), perms=perms)
 
         orgs = api.get_orgs_can_admin()
         orgs = json.loads(orgs.read().decode('utf-8'))
@@ -140,15 +140,18 @@ class EmacsConnection(object):
 
         self.get_input('Create workspace for [press tab for completion]: ', '', on_done, choices=choices)
 
-    def create_workspace(self, data, workspace_name, dir_to_share, owner=None):
+    def create_workspace(self, data, workspace_name, dir_to_share, owner=None, perms=None):
         owner = owner or G.USERNAME
         workspace_name = data.get('response', workspace_name)
         prompt = 'workspace %s already exists. Choose another name: ' % workspace_name
         try:
-            api.create_workspace({
+            api_args = {
                 'name': workspace_name,
                 'owner': owner,
-            })
+            }
+            if perms:
+                api_args['perms'] = perms
+            api.create_workspace(api_args)
             workspace_url = utils.to_workspace_url({'secure': True, 'owner': owner, 'workspace': workspace_name})
             msg.debug('Created workspace %s' % workspace_url)
         except HTTPError as e:
@@ -169,7 +172,7 @@ class EmacsConnection(object):
             else:
                 prompt = 'Workspace %s/%s already exists. Choose another name:' % (owner, workspace_name)
 
-            return self.get_input(prompt, workspace_name, self.create_workspace, workspace_name, dir_to_share)
+            return self.get_input(prompt, workspace_name, self.create_workspace, workspace_name, dir_to_share, owner, perms)
         except Exception as e:
             return msg.error('Unable to create workspace: %s' % str(e))
 
@@ -217,7 +220,7 @@ class EmacsConnection(object):
                 utils.reload_settings()
                 G.USERNAME = data['username']
                 G.SECRET = data['secret']
-                self.share_dir(data['dir_to_share'])
+                self.share_dir(data['dir_to_share'], data.get('perms'))
             elif data['name'] == 'join_workspace':
                 utils.reload_settings()
                 workspace = data['workspace']

@@ -132,7 +132,7 @@
   (floobits-destroy-connection))
 
 ;;;###autoload
-(defun floobits-share-dir (dir-to-share &optional owner perms)
+(defun floobits-share-dir-public (dir-to-share)
   "Create a workspace and populate it with the contents of the directory, dir-to-share, or make it.
 If the directory corresponds to an existing floobits workspace, you will instead join the workspace.
 "
@@ -143,6 +143,22 @@ If the directory corresponds to an existing floobits workspace, you will instead
   (let ((req (list
     (cons 'username floobits-username)
     (cons 'secret floobits-secret)
+    (cons 'dir_to_share dir-to-share))))
+    (floobits-send-to-agent req 'share_dir)))
+
+;;;###autoload
+(defun floobits-share-dir-private (dir-to-share)
+  "Create a workspace and populate it with the contents of the directory, dir-to-share, or make it.
+If the directory corresponds to an existing floobits workspace, you will instead join the workspace.
+"
+  (interactive "DDirectory to share: ")
+  (floobits-load-floorc)
+  (floobits-destroy-connection)
+  (floobits-create-connection)
+  (let ((req (list
+    (cons 'username floobits-username)
+    (cons 'secret floobits-secret)
+    (cons 'perms '((AnonymousUser . [])))
     (cons 'dir_to_share dir-to-share))))
     (floobits-send-to-agent req 'share_dir)))
 
