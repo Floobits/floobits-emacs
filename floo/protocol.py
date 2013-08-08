@@ -195,7 +195,10 @@ class BaseProtocol(object):
         func = getattr(self, "on_%s" % (name), None)
         if not func:
             return msg.debug('unknown name', name, 'data:', data)
-        func(data)
+        try:
+            func(data)
+        except Exception as e:
+            msg.error(str(e))
 
     def push(self):
         reported = set()
@@ -482,6 +485,9 @@ class BaseProtocol(object):
                 msg.log('You have been summoned by %s' % (data.get('username', 'an unknown user')))
                 view.focus(offset)
         view.highlight(data['ranges'], data['user_id'], data.get('username', 'unknown user'))
+
+    def on_saved(self, data):
+        msg.debug('%s saved %s' % (data.get('username'), data.get('id')))
 
     def on_error(self, data):
         message = 'Floobits: Error! Message: %s' % str(data.get('msg'))

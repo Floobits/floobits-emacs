@@ -158,8 +158,11 @@ class Protocol(protocol.BaseProtocol):
             return msg.error('no name in data?!?')
         func = getattr(self, "on_emacs_%s" % (name))
         if not func:
-            return msg.debug('unknown name', name, 'data:', data)
-        func(data)
+            return msg.debug('unknown name: ', name, 'data: ', data)
+        try:
+            func(data)
+        except Exception as e:
+            msg.error(str(e))
 
     def on_emacs_set_follow_mode(self, req):
         self.follow(bool(req['follow_mode']))
