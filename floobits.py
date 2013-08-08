@@ -47,11 +47,15 @@ class EmacsConnection(object):
         self.user_input_count = 0
 
     def get_input(self, prompt, initial, cb, *args, **kwargs):
-        self.put('user_input', {
+        event = {
             'id': self.user_input_count,
             'prompt': prompt,
             'initial': initial,
-        })
+        }
+        choices = kwargs.get('choices')
+        if choices:
+            event['choices'] = choices
+        self.put('user_input', event)
         self.user_inputs[self.user_input_count] = lambda x: cb(x, *args, **kwargs)
         self.user_input_count += 1
 
@@ -72,7 +76,7 @@ class EmacsConnection(object):
         dir_to_share = utils.unfuck_path(dir_to_share)
         workspace_name = os.path.basename(dir_to_share)
         G.PROJECT_PATH = os.path.realpath(dir_to_share)
-        msg.debug("%s %s %s" % (G.USERNAME, workspace_name, G.PROJECT_PATH))
+        msg.debug('%s %s %s' % (G.USERNAME, workspace_name, G.PROJECT_PATH))
 
         if os.path.isfile(dir_to_share):
             return msg.error('%s is a file. Give me a directory please.' % dir_to_share)
@@ -120,17 +124,32 @@ class EmacsConnection(object):
             else:
                 return self.remote_connect(workspace_url, lambda this: this.protocol.create_buf(dir_to_share))
 
-        # make & join workspace
-        self.create_workspace({}, workspace_name, dir_to_share)
+        def on_done(data, choices=None):
+            self.create_workspace({}, workspace_name, dir_to_share, owner=data.get('response'))
 
-    def create_workspace(self, data, workspace_name, dir_to_share):
+        orgs = api.get_orgs_can_admin()
+        orgs = json.loads(orgs.read().decode('utf-8'))
+        if len(orgs) == 0:
+            return on_done({'response': G.USERNAME})
+        i = 0
+        choices = []
+        choices.append([G.USERNAME, i])
+        for o in orgs:
+            i += 1
+            choices.append([o['name'], i])
+
+        self.get_input('Create workspace for [press tab for completion]: ', '', on_done, choices=choices)
+
+    def create_workspace(self, data, workspace_name, dir_to_share, owner=None):
+        owner = owner or G.USERNAME
         workspace_name = data.get('response', workspace_name)
         prompt = 'workspace %s already exists. Choose another name: ' % workspace_name
         try:
             api.create_workspace({
                 'name': workspace_name,
+                'owner': owner,
             })
-            workspace_url = utils.to_workspace_url({'secure': True, "owner": G.USERNAME, "workspace": workspace_name})
+            workspace_url = utils.to_workspace_url({'secure': True, 'owner': owner, 'workspace': workspace_name})
             msg.debug('Created workspace %s' % workspace_url)
         except HTTPError as e:
             err_body = e.read()
@@ -148,7 +167,7 @@ class EmacsConnection(object):
                     pass
                 return sublime.error_message('%s' % err_body)
             else:
-                prompt = 'Workspace %s/%s already exists. Choose another name:' % (G.USERNAME, workspace_name)
+                prompt = 'Workspace %s/%s already exists. Choose another name:' % (owner, workspace_name)
 
             return self.get_input(prompt, workspace_name, self.create_workspace, workspace_name, dir_to_share)
         except Exception as e:
@@ -159,7 +178,7 @@ class EmacsConnection(object):
 
     def join_workspace(self, data, owner, workspace, dir_to_make=None):
         d = data['response']
-        workspace_url = utils.to_workspace_url({'secure': True, "owner": owner, "workspace": workspace})
+        workspace_url = utils.to_workspace_url({'secure': True, 'owner': owner, 'workspace': workspace})
         if dir_to_make:
             if d.lower() == 'y':
                 d = dir_to_make
@@ -212,7 +231,7 @@ class EmacsConnection(object):
                     G.PROJECT_PATH = ''
 
                 if G.PROJECT_PATH and os.path.isdir(G.PROJECT_PATH):
-                    workspace_url = utils.to_workspace_url({'secure': True, "owner": owner, "workspace": workspace})
+                    workspace_url = utils.to_workspace_url({'secure': True, 'owner': owner, 'workspace': workspace})
                     self.remote_connect(workspace_url)
                     continue
 
@@ -289,7 +308,7 @@ class EmacsConnection(object):
                 while len(self.to_emacs_q) > 0:
                     p = self.to_emacs_q.pop(0)
                     try:
-                        msg.debug("to emacs: %s" % p)
+                        msg.debug('to emacs: %s' % p)
                         self.conn.sendall(p)
                     except Exception as e:
                         msg.error('Couldn\'t write to socket: %s' % str(e))

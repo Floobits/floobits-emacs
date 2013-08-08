@@ -313,8 +313,15 @@ See floobits-share-dir to create one or visit floobits.com."
   (floobits-send-highlight))
 
 (defun floobits-event-user_input (req)
-  (floo-set-item 'req 'response (read-from-minibuffer (floo-get-item req 'prompt) (floo-get-item req 'initial)))
-  (floobits-send-to-agent req 'user_input))
+  (let* ((choices (floo-get-item req 'choices))
+        (choices (and choices (mapcar (lambda (x) (append x nil)) choices)))
+        (prompt (floo-get-item req 'prompt))
+        (initial (floo-get-item req 'initial)))
+    (floo-set-item 'req 'response
+      (if choices
+        (completing-read prompt choices nil t initial)
+        (read-from-minibuffer prompt initial)))
+  (floobits-send-to-agent req 'user_input)))
 
 (defun floobits-event-rename_buf (req)
   (let* ((old-path (floo-get-item req 'old_path))
@@ -532,19 +539,19 @@ See floobits-share-dir to create one or visit floobits.com."
         (cons 'deleted deleted))))
         (floobits-send-to-agent req 'buffer_list_change)))))
 
-(defun is_binary (bytes total)
+(defun _is_binary (bytes total)
   (let ((i 0)
-    (suspicious 0)
-    (c 0))
-      (catch 'break
-        (while (< i total)
-          (catch 'continue
+        (suspicious 0)
+        (c 0))
+    (catch 'break
+      (while (< i total)
+        (catch 'continue
+          (setq c (get-byte i bytes))
           (incf i)
-         (setq c (get-byte i bytes))
           (when (= c 0)
             (throw 'break t))
           (when (and (or (< c 7) (> c 14)) (or (< c 32) (> c 127)))
-            (cond 
+            (cond
               ((and (> c 191) (< c 224) (< (+ i 1) total))
                 (progn
                   (incf i)
@@ -559,8 +566,16 @@ See floobits-share-dir to create one or visit floobits.com."
             (incf suspicious)
             (when (and (> i 32) (> (/ (* 100 suspicious) total) 10))
               (throw 'break t)))))
-        (when (> (/ (* 100 suspicious) total) 10)
-          t))))
+      (when (> (/ (* 100 suspicious) total) 10)
+        t))))
+
+(defun is_binary (bytes)
+  (let* ((size (min (length bytes) 100)))
+    (if (= size 0)
+      nil
+      (if (and (>= size 3) (= (get-byte 0 bytes) 239) (= (get-byte 1 bytes) 187) (= (get-byte 2 bytes) 191))
+        nil
+        (_is_binary bytes total)))))
 
 (provide 'floobits)
 ;;; floobits.el ends here
