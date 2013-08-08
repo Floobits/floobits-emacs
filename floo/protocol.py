@@ -37,6 +37,7 @@ class BaseProtocol(object):
     MODIFIED_EVENTS = Queue.Queue()
     SELECTED_EVENTS = Queue.Queue()
     FLOO_BUFS = {}
+    FLOO_PATHS_TO_BUFS = {}
 
     def __init__(self, agent):
         self.agent = agent
@@ -56,10 +57,9 @@ class BaseProtocol(object):
 
     def get_buf_by_path(self, path):
         rel_path = utils.to_rel_path(path)
-        for buf_id, buf in self.FLOO_BUFS.iteritems():
-            if rel_path == buf['path']:
-                return buf
-        return None
+        buf_id = self.FLOO_PATHS_TO_BUFS.get(rel_path)
+        if buf_id:
+            return self.FLOO_BUFS.get(buf_id)
 
     def save_buf(self, buf):
         path = utils.get_full_path(buf['path'])
@@ -248,7 +248,7 @@ class BaseProtocol(object):
         if data['encoding'] == 'base64':
             data['buf'] = base64.b64decode(data['buf'])
         self.FLOO_BUFS[buf_id] = data
-
+        self.FLOO_PATHS_TO_BUFS[data['path']] = buf_id
         view = self.get_view(buf_id)
         if view:
             self.update_view(data, view)
@@ -257,11 +257,18 @@ class BaseProtocol(object):
 
     def rename_buf(self, buf_id, new_path):
         new_path = utils.to_rel_path(new_path)
+        if not utils.is_shared(new_path):
+            msg.log('New path %s is not shared. Discarding rename event.' % new_path)
+            return
         self.agent.put({
             'name': 'rename_buf',
             'id': buf_id,
             'path': new_path,
         })
+        old_path = self.FLOO_BUFS[buf_id]['path']
+        del self.FLOO_PATHS_TO_BUFS[old_path]
+        self.FLOO_PATHS_TO_BUFS[new_path] = buf_id
+        self.FLOO_BUFS[buf_id]['path'] = new_path
 
     def on_rename_buf(self, data):
         buf_id = int(data['id'])
@@ -270,8 +277,13 @@ class BaseProtocol(object):
         new_dir = os.path.dirname(new)
         if new_dir:
             utils.mkdir(new_dir)
+        buf = self.FLOO_BUFS[buf_id]
+        old_path = buf['path']
+        del self.FLOO_PATHS_TO_BUFS[old_path]
+        self.FLOO_PATHS_TO_BUFS[new] = buf_id
+        self.FLOO_BUFS[buf_id]['path'] = new
+
         view = self.get_view(buf_id)
-        self.FLOO_BUFS[buf_id]['path'] = data['path']
         if view:
             view.rename(new)
         else:
@@ -305,6 +317,7 @@ class BaseProtocol(object):
             new_dir = os.path.dirname(buf_path)
             utils.mkdir(new_dir)
             self.FLOO_BUFS[buf_id] = buf
+            self.FLOO_PATHS_TO_BUFS[buf_path] = buf_id
             try:
                 buf_fd = open(buf_path, 'r')
                 buf_buf = buf_fd.read().decode('utf-8')
@@ -427,10 +440,7 @@ class BaseProtocol(object):
             return
         buf_to_delete = None
         rel_path = utils.to_rel_path(path)
-        for buf_id, buf in self.FLOO_BUFS.items():
-            if rel_path == buf['path']:
-                buf_to_delete = buf
-                break
+        buf_to_delete = self.get_buf_by_path(rel_path)
         if buf_to_delete is None:
             msg.error('%s is not in this workspace' % path)
             return
@@ -443,16 +453,15 @@ class BaseProtocol(object):
 
     @buf_populated
     def on_delete_buf(self, data):
-        # TODO: somehow tell the user about this. maybe delete on disk too?
-        del self.FLOO_BUFS[int(data['id'])]
+        buf_id = int(data['id'])
+        del self.FLOO_BUFS[buf_id]
+        del self.FLOO_PATHS_TO_BUFS[data['path']]
         path = utils.get_full_path(data['path'])
         utils.rm(path)
         msg.warn('deleted %s because %s told me too.' % (path, data.get('username', 'the internet')))
 
     @buf_populated
     def on_highlight(self, data):
-        #     floobits.highlight(data['id'], region_key, data['username'], data['ranges'], data.get('ping', False))
-        #buf_id, region_key, username, ranges, ping=False):
         ping = data.get('ping', False)
         if self.follow_mode:
             ping = True

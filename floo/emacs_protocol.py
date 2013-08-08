@@ -201,7 +201,6 @@ class Protocol(protocol.BaseProtocol):
             msg.debug('No buffer for path %s' % req['old_path'])
             return
         self.rename_buf(buf['id'], req['path'])
-        self.FLOO_BUFS[buf['id']]['path'] = utils.to_rel_path(req['path'])
 
     def on_emacs_buffer_list_change(self, req):
         added = req.get('added') or {}
