@@ -146,10 +146,13 @@ class BaseProtocol(object):
             return
         try:
             encoding = 'utf8'
-            if not text:
+            if text:
+                buf_md5 = hashlib.md5(text).hexdigest()
+            else:
                 buf_fd = open(path, 'rb')
                 text = buf_fd.read()
                 buf_fd.close()
+                buf_md5 = hashlib.md5(text).hexdigest()
                 try:
                     text = text.decode('utf-8')
                 except Exception:
@@ -158,7 +161,7 @@ class BaseProtocol(object):
             rel_path = utils.to_rel_path(path)
             existing_buf = self.get_buf_by_path(path)
             if existing_buf:
-                if existing_buf['md5'] == hashlib.md5(text).hexdigest():
+                if existing_buf['md5'] == buf_md5:
                     msg.debug('%s already exists and has the same md5. Skipping creating.' % path)
                     return
                 msg.log('setting buffer ', rel_path)
@@ -167,6 +170,7 @@ class BaseProtocol(object):
                     'id': existing_buf['id'],
                     'buf': text,
                     'encoding': encoding,
+                    'md5': buf_md5,
                 })
                 return
 
@@ -176,6 +180,7 @@ class BaseProtocol(object):
                 'buf': text,
                 'path': rel_path,
                 'encoding': encoding,
+                'md5': buf_md5,
             }
             self.agent.put(event)
         except (IOError, OSError):
