@@ -52,9 +52,11 @@ class EmacsConnection(object):
             'prompt': prompt,
             'initial': initial,
         }
-        choices = kwargs.get('choices')
-        if choices:
-            event['choices'] = choices
+        if 'choices' in kwargs:
+            event['choices'] = kwargs['choices']
+        elif 'y_or_n' in kwargs:
+            event['y_or_n'] = True
+            del kwargs['y_or_n']
         self.put('user_input', event)
         self.user_inputs[self.user_input_count] = lambda x: cb(x, *args, **kwargs)
         self.user_input_count += 1
@@ -183,7 +185,7 @@ class EmacsConnection(object):
         d = data['response']
         workspace_url = utils.to_workspace_url({'secure': True, 'owner': owner, 'workspace': workspace})
         if dir_to_make:
-            if d.lower() == 'y':
+            if d:
                 d = dir_to_make
                 utils.mkdir(d)
             else:
@@ -194,8 +196,8 @@ class EmacsConnection(object):
         if not os.path.isdir(d):
             if dir_to_make:
                 return msg.error("Couldn't create directory %s" % dir_to_make)
-            prompt = '%s is not a directory. Create it? (Y/N)' % d
-            return self.get_input(prompt, '', self.join_workspace, owner, workspace, dir_to_make=d)
+            prompt = '%s is not a directory. Create it? ' % d
+            return self.get_input(prompt, '', self.join_workspace, owner, workspace, dir_to_make=d, y_or_n=True)
         try:
             G.PROJECT_PATH = d
             utils.mkdir(os.path.dirname(G.PROJECT_PATH))
