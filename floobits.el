@@ -53,6 +53,7 @@
 
 (setq max-specpdl-size 1500)
 
+(setq floobits-debug nil)
 (setq floobits-agent-host "localhost")
 (setq floobits-agent-port 4567)
 (setq floobits-python-path (concat floobits-plugin-dir "floobits.py"))
@@ -75,6 +76,10 @@
     (delete-process floobits-python-agent))))
 
 (floobits-initialize)
+
+(defun floobits-debug-message (text &rest rest)
+  (if (eq floobits-debug t)
+    (apply 'message text rest)))
 
 (defun floobits-add-hooks ()
   (add-hook 'after-change-functions 'floobits-after-change nil nil)
@@ -410,11 +415,11 @@ See floobits-share-dir to create one or visit floobits.com."
   (dired floobits-share-dir))
 
 (defun floobits-event-join (req)
-  (message "%s" req)
+  (floobits-debug-message "%s" req)
   (message "%s joined the workspace"  (floo-get-item req 'username)))
 
 (defun floobits-event-part (req)
-  (message "%s" req)
+  (floobits-debug-message "%s" req)
   (message "%s left the workspace" (floo-get-item req 'username)))
 
 (defun floobits-event-create_view (req)
@@ -429,7 +434,7 @@ See floobits-share-dir to create one or visit floobits.com."
 (defun floobits-apply-highlight (user_id buffer ranges)
   (let* ((key (list user_id (buffer-file-name buffer)))
          (previous-ranges (gethash key floobits-user-highlights)))
-    (message "%s key %s" key previous-ranges)
+    (floobits-debug-message "%s key %s" key previous-ranges)
     (with-current-buffer buffer
       (save-excursion
         (when previous-ranges
@@ -505,7 +510,7 @@ See floobits-share-dir to create one or visit floobits.com."
     (message "filename does not exist for buffer %s" (floo-get-item req 'id)))))
 
 (defun floobits-switch (text)
-  (message "%s" text)
+  (floobits-debug-message "%s" text)
   (let* ((json-key-type 'string)
     (req (json-read-from-string text))
     (event (floo-get-item req "name"))
