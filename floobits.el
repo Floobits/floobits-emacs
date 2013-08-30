@@ -205,11 +205,10 @@ See floobits-share-dir to create one or visit floobits.com."
     (if (and path workspace owner)
       (progn
         (floobits-destroy-connection)
-        (setq floobits-workspace workspace)
         (floobits-create-connection)
         (let ((req (list
           (cons 'username floobits-username)
-          (cons 'workspace floobits-workspace)
+          (cons 'workspace workspace)
           (cons 'secret floobits-secret)
           (cons 'workspace_owner owner))))
           (floobits-send-to-agent req 'join_workspace)))
