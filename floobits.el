@@ -288,7 +288,7 @@ See floobits-share-dir to create one or visit floobits.com."
   (floobits-launch-agent)
   (setq floobits-conn (open-network-stream "floobits" nil floobits-agent-host floobits-agent-port))
   (set-process-coding-system floobits-conn 'utf-8 'utf-8)
-  (process-kill-without-query floobits-conn)
+  (set-process-query-on-exit-flag floobits-conn nil)
   (set-process-filter floobits-conn 'floobits-listener))
 
 (defun floobits-destroy-connection ()
@@ -329,7 +329,7 @@ See floobits-share-dir to create one or visit floobits.com."
   (switch-to-buffer "*Floobits*")
   (set-process-filter floobits-python-agent 'floobits-agent-listener)
   (accept-process-output floobits-python-agent 2)
-  (process-kill-without-query floobits-python-agent))
+  (set-process-query-on-exit-flag floobits-python-agent nil))
 
 (defun floobits-send-to-agent (req event)
   (if (floobits-process-live-p floobits-conn)
