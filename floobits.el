@@ -47,16 +47,31 @@
 (require 'json)
 (require 'url)
 
-(setq floobits-plugin-dir (file-name-directory load-file-name))
+(defvar floobits-plugin-dir (file-name-directory load-file-name))
 (add-to-list 'load-path floobits-plugin-dir)
 (require 'highlight)
 
 (setq max-specpdl-size 1500)
 
-(setq floobits-debug nil)
-(setq floobits-agent-host "localhost")
-(setq floobits-agent-port 4567)
-(setq floobits-python-path (concat floobits-plugin-dir "floobits.py"))
+(defvar floobits-debug nil)
+(defvar floobits-agent-host "localhost")
+(defvar floobits-agent-port 4567)
+(defvar floobits-python-path (concat floobits-plugin-dir "floobits.py"))
+(defvar floobits-python-agent)
+
+(defvar floobits-change-set)
+(defvar floobits-agent-buffer)
+(defvar floobits-conn)
+(defvar floobits-current-position)
+(defvar floobits-open-buffers)
+(defvar floobits-follow-mode)
+(defvar floobits-perms)
+(defvar floobits-share-dir)
+(defvar floobits-user-highlights)
+
+(defvar floobits-username)
+(defvar floobits-secret)
+
 
 (defun floobits-initialize ()
   (setq floobits-change-set ())
