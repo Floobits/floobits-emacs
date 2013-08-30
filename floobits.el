@@ -47,16 +47,31 @@
 (require 'json)
 (require 'url)
 
-(setq floobits-plugin-dir (file-name-directory load-file-name))
+(defvar floobits-plugin-dir (file-name-directory load-file-name))
 (add-to-list 'load-path floobits-plugin-dir)
 (require 'highlight)
 
 (setq max-specpdl-size 1500)
 
-(setq floobits-debug nil)
-(setq floobits-agent-host "localhost")
-(setq floobits-agent-port 4567)
-(setq floobits-python-path (concat floobits-plugin-dir "floobits.py"))
+(defvar floobits-debug nil)
+(defvar floobits-agent-host "localhost")
+(defvar floobits-agent-port 4567)
+(defvar floobits-python-path (concat floobits-plugin-dir "floobits.py"))
+(defvar floobits-python-agent)
+
+(defvar floobits-change-set)
+(defvar floobits-agent-buffer)
+(defvar floobits-conn)
+(defvar floobits-current-position)
+(defvar floobits-open-buffers)
+(defvar floobits-follow-mode)
+(defvar floobits-perms)
+(defvar floobits-share-dir)
+(defvar floobits-user-highlights)
+
+(defvar floobits-username)
+(defvar floobits-secret)
+
 
 (defun floobits-initialize ()
   (setq floobits-change-set ())
@@ -190,11 +205,10 @@ See floobits-share-dir to create one or visit floobits.com."
     (if (and path workspace owner)
       (progn
         (floobits-destroy-connection)
-        (setq floobits-workspace workspace)
         (floobits-create-connection)
         (let ((req (list
           (cons 'username floobits-username)
-          (cons 'workspace floobits-workspace)
+          (cons 'workspace workspace)
           (cons 'secret floobits-secret)
           (cons 'workspace_owner owner))))
           (floobits-send-to-agent req 'join_workspace)))
@@ -273,7 +287,7 @@ See floobits-share-dir to create one or visit floobits.com."
   (floobits-launch-agent)
   (setq floobits-conn (open-network-stream "floobits" nil floobits-agent-host floobits-agent-port))
   (set-process-coding-system floobits-conn 'utf-8 'utf-8)
-  (process-kill-without-query floobits-conn)
+  (set-process-query-on-exit-flag floobits-conn nil)
   (set-process-filter floobits-conn 'floobits-listener))
 
 (defun floobits-destroy-connection ()
@@ -314,7 +328,7 @@ See floobits-share-dir to create one or visit floobits.com."
   (switch-to-buffer "*Floobits*")
   (set-process-filter floobits-python-agent 'floobits-agent-listener)
   (accept-process-output floobits-python-agent 2)
-  (process-kill-without-query floobits-python-agent))
+  (set-process-query-on-exit-flag floobits-python-agent nil))
 
 (defun floobits-send-to-agent (req event)
   (if (floobits-process-live-p floobits-conn)
@@ -406,13 +420,13 @@ See floobits-share-dir to create one or visit floobits.com."
   (message "Disconnected: %s" (floo-get-item req 'reason)))
 
 (defun floobits-event-room_info (req)
-  (setq floobits-workspace (floo-get-item req 'workspace_name))
-  (message "Successfully joined workspace %s" floobits-workspace)
-  (setq floobits-share-dir (floo-get-item req 'project_path))
-  (message "project path is %s" floobits-share-dir)
-  (setq floobits-perms (append (floo-get-item req 'perms) nil))
-  (floobits-add-hooks)
-  (dired floobits-share-dir))
+  (let ((floobits-workspace (floo-get-item req 'workspace_name)))
+    (message "Successfully joined workspace %s" floobits-workspace)
+    (setq floobits-share-dir (floo-get-item req 'project_path))
+    (message "project path is %s" floobits-share-dir)
+    (setq floobits-perms (append (floo-get-item req 'perms) nil))
+    (floobits-add-hooks)
+    (dired floobits-share-dir)))
 
 (defun floobits-event-join (req)
   (floobits-debug-message "%s" req)
@@ -439,13 +453,13 @@ See floobits-share-dir to create one or visit floobits.com."
       (save-excursion
         (when previous-ranges
           ; convert to list :(
-          (mapcar
+          (mapc
             (lambda(x)
               (let ((start (min (buffer-size buffer) (+ (elt x 0) 1)))
                     (end (+ (elt x 1) 2)))
                 (hlt-unhighlight-region start end)))
             previous-ranges))
-        (mapcar
+        (mapc
           (lambda(x)
             (let ((start (min (buffer-size buffer) (+ (elt x 0) 1)))
                   (end (+ (elt x 1) 2)))
@@ -491,16 +505,12 @@ See floobits-share-dir to create one or visit floobits.com."
       (with-current-buffer buf
         (save-excursion
           (atomic-change-group
-            (mapcar 'floobits-apply-edit edits)))))))
+            (mapc 'floobits-apply-edit edits)))))))
 
 (defun floobits-event-create_buf (req)
   (let ((filename (floo-get-item req "path" ))
         (username (floo-get-item req "username")))
     (message "User %s created buffer %s" username filename)))
-
-(defun floobits-event-delete_buf (req)
-  (let ((filename (floo-get-item req "path" ))
-        (username (floo-get-item req "username")))))
 
 (defun floobits-event-get_buf (req)
   (let ((filename (floo-get-item req "full_path" )))
@@ -542,7 +552,7 @@ See floobits-share-dir to create one or visit floobits.com."
       (deleted (set-difference floobits-open-buffers current-buffers)))
     (when (or added deleted)
       (when (and added (not (member "patch" floobits-perms)))
-        (mapcar
+        (mapc
           (lambda (buf-path)
             (with-current-buffer (find-buffer-visiting buf-path)
               (setq buffer-read-only t)))
@@ -560,44 +570,6 @@ See floobits-share-dir to create one or visit floobits.com."
         (cons 'added added-text)
         (cons 'deleted deleted))))
         (floobits-send-to-agent req 'buffer_list_change)))))
-
-(defun _is_binary (bytes total)
-  (let ((i 0)
-        (suspicious 0)
-        (c 0))
-    (catch 'break
-      (while (< i total)
-        (catch 'continue
-          (setq c (get-byte i bytes))
-          (incf i)
-          (when (= c 0)
-            (throw 'break t))
-          (when (and (or (< c 7) (> c 14)) (or (< c 32) (> c 127)))
-            (cond
-              ((and (> c 191) (< c 224) (< (+ i 1) total))
-                (progn
-                  (incf i)
-                  (when (< c 192)
-                    (throw 'continue))))
-              ((and (> c 223) (< c 239) (< (+ i 2) total))
-               (progn
-                 (incf i)
-                 (when (and (< c 192) (get-byte (+ 1 i) bytes))
-                   (incf i)
-                   (throw 'continue)))))
-            (incf suspicious)
-            (when (and (> i 32) (> (/ (* 100 suspicious) total) 10))
-              (throw 'break t)))))
-      (when (> (/ (* 100 suspicious) total) 10)
-        t))))
-
-(defun is_binary (bytes)
-  (let* ((size (min (length bytes) 100)))
-    (if (= size 0)
-      nil
-      (if (and (>= size 3) (= (get-byte 0 bytes) 239) (= (get-byte 1 bytes) 187) (= (get-byte 2 bytes) 191))
-        nil
-        (_is_binary bytes total)))))
 
 (provide 'floobits)
 ;;; floobits.el ends here
