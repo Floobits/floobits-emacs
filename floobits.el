@@ -512,10 +512,6 @@ See floobits-share-dir to create one or visit floobits.com."
         (username (floo-get-item req "username")))
     (message "User %s created buffer %s" username filename)))
 
-(defun floobits-event-delete_buf (req)
-  (let ((filename (floo-get-item req "path" ))
-        (username (floo-get-item req "username")))))
-
 (defun floobits-event-get_buf (req)
   (let ((filename (floo-get-item req "full_path" )))
     (if (not (eq filename nil))
@@ -574,44 +570,6 @@ See floobits-share-dir to create one or visit floobits.com."
         (cons 'added added-text)
         (cons 'deleted deleted))))
         (floobits-send-to-agent req 'buffer_list_change)))))
-
-(defun _is_binary (bytes total)
-  (let ((i 0)
-        (suspicious 0)
-        (c 0))
-    (catch 'break
-      (while (< i total)
-        (catch 'continue
-          (setq c (get-byte i bytes))
-          (incf i)
-          (when (= c 0)
-            (throw 'break t))
-          (when (and (or (< c 7) (> c 14)) (or (< c 32) (> c 127)))
-            (cond
-              ((and (> c 191) (< c 224) (< (+ i 1) total))
-                (progn
-                  (incf i)
-                  (when (< c 192)
-                    (throw 'continue))))
-              ((and (> c 223) (< c 239) (< (+ i 2) total))
-               (progn
-                 (incf i)
-                 (when (and (< c 192) (get-byte (+ 1 i) bytes))
-                   (incf i)
-                   (throw 'continue)))))
-            (incf suspicious)
-            (when (and (> i 32) (> (/ (* 100 suspicious) total) 10))
-              (throw 'break t)))))
-      (when (> (/ (* 100 suspicious) total) 10)
-        t))))
-
-(defun is_binary (bytes)
-  (let* ((size (min (length bytes) 100)))
-    (if (= size 0)
-      nil
-      (if (and (>= size 3) (= (get-byte 0 bytes) 239) (= (get-byte 1 bytes) 187) (= (get-byte 2 bytes) 191))
-        nil
-        (_is_binary bytes total)))))
 
 (provide 'floobits)
 ;;; floobits.el ends here
