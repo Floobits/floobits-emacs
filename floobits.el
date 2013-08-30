@@ -453,13 +453,13 @@ See floobits-share-dir to create one or visit floobits.com."
       (save-excursion
         (when previous-ranges
           ; convert to list :(
-          (mapcar
+          (mapc
             (lambda(x)
               (let ((start (min (buffer-size buffer) (+ (elt x 0) 1)))
                     (end (+ (elt x 1) 2)))
                 (hlt-unhighlight-region start end)))
             previous-ranges))
-        (mapcar
+        (mapc
           (lambda(x)
             (let ((start (min (buffer-size buffer) (+ (elt x 0) 1)))
                   (end (+ (elt x 1) 2)))
@@ -505,7 +505,7 @@ See floobits-share-dir to create one or visit floobits.com."
       (with-current-buffer buf
         (save-excursion
           (atomic-change-group
-            (mapcar 'floobits-apply-edit edits)))))))
+            (mapc 'floobits-apply-edit edits)))))))
 
 (defun floobits-event-create_buf (req)
   (let ((filename (floo-get-item req "path" ))
@@ -556,7 +556,7 @@ See floobits-share-dir to create one or visit floobits.com."
       (deleted (set-difference floobits-open-buffers current-buffers)))
     (when (or added deleted)
       (when (and added (not (member "patch" floobits-perms)))
-        (mapcar
+        (mapc
           (lambda (buf-path)
             (with-current-buffer (find-buffer-visiting buf-path)
               (setq buffer-read-only t)))
