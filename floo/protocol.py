@@ -2,7 +2,6 @@
 
 import os
 import sys
-import json
 import hashlib
 import collections
 import Queue
@@ -311,8 +310,7 @@ class BaseProtocol(object):
                 'secure': self.agent.secure,
             })
         }
-        with open(os.path.join(G.PROJECT_PATH, '.floo'), 'w') as floo_fd:
-            floo_fd.write(json.dumps(floo_json, indent=4, sort_keys=True))
+        utils.update_floo_file(os.path.join(G.PROJECT_PATH, '.floo'), floo_json)
 
         for buf_id, buf in data['bufs'].iteritems():
             buf_id = int(buf_id)  # json keys must be strings
