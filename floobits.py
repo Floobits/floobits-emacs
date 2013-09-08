@@ -20,7 +20,7 @@ from floo.emacs_protocol import Protocol
 
 
 G.__VERSION__ = '0.03'
-G.__PLUGIN_VERSION__ = '0.1'
+G.__PLUGIN_VERSION__ = '0.2'
 utils.reload_settings()
 
 # enable debug with let floo_log_level = 'debug'
