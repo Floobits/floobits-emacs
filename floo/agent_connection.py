@@ -21,7 +21,7 @@ class AgentConnection(object):
     MAX_RETRIES = 20
 
     ''' Simple chat server using select '''
-    def __init__(self, workspace_url, on_auth=None, Protocol=None):
+    def __init__(self, workspace_url, on_auth=None, Protocol=None, get_bufs=True, conn=None):
         self.sock_q = Queue.Queue()
         self.sock = None
         self.net_buf = ''
@@ -33,6 +33,7 @@ class AgentConnection(object):
         G.JOINED_WORKSPACE = False
         self.retries = self.MAX_RETRIES
         self._on_auth = on_auth
+        self.get_bufs = get_bufs
         self.empty_selects = 0
         self.workspace_info = {}
 
@@ -44,6 +45,7 @@ class AgentConnection(object):
         self.owner = parsed['owner']
         self.workspace = parsed['workspace']
 
+        self.conn = conn
         self.protocol = Protocol(self)
 
     @property

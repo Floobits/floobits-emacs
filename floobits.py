@@ -67,10 +67,14 @@ class EmacsConnection(object):
         self.conn.setblocking(0)
         self.select()
 
-    def remote_connect(self, workspace_url, on_auth=None):
+    def remote_connect(self, workspace_url, on_auth=None, get_bufs=True):
         G.PROJECT_PATH = os.path.realpath(G.PROJECT_PATH)
         G.PROJECT_PATH += os.sep
-        self.agent = AgentConnection(Protocol=Protocol, workspace_url=workspace_url, on_auth=on_auth)
+        self.agent = AgentConnection(Protocol=Protocol,
+                                     workspace_url=workspace_url,
+                                     on_auth=on_auth,
+                                     get_bufs=get_bufs,
+                                     conn=self)
         self.agent.connect()
 
     def share_dir(self, dir_to_share, perms=None):
@@ -124,7 +128,7 @@ class EmacsConnection(object):
             except HTTPError:
                 pass
             else:
-                return self.remote_connect(workspace_url, lambda this: this.protocol.create_buf(dir_to_share))
+                return self.remote_connect(workspace_url, on_auth=lambda this: this.protocol.create_buf(dir_to_share), get_bufs=False)
 
         def on_done(data, choices=None):
             self.create_workspace({}, workspace_name, dir_to_share, owner=data.get('response'), perms=perms)
@@ -179,7 +183,7 @@ class EmacsConnection(object):
             return msg.error('Unable to create workspace: %s' % str(e))
 
         G.PROJECT_PATH = dir_to_share
-        self.remote_connect(workspace_url, lambda this: this.protocol.create_buf(dir_to_share))
+        self.remote_connect(workspace_url, on_auth=lambda this: this.protocol.create_buf(dir_to_share), get_bufs=False)
 
     def join_workspace(self, data, owner, workspace, dir_to_make=None):
         d = data['response']

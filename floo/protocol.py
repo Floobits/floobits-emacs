@@ -300,6 +300,7 @@ class BaseProtocol(object):
             msg.log('We don\'t have patch permission. Setting buffers to read-only')
 
         utils.mkdir(G.PROJECT_PATH)
+        msg.debug('mkdir -p for project path %s' % G.PROJECT_PATH)
 
         floo_json = {
             'url': utils.to_workspace_url({
@@ -312,13 +313,15 @@ class BaseProtocol(object):
         }
         utils.update_floo_file(os.path.join(G.PROJECT_PATH, '.floo'), floo_json)
 
-        for buf_id, buf in data['bufs'].iteritems():
+        bufs_to_get = []
+        for buf_id, buf in data['bufs'].items():
             buf_id = int(buf_id)  # json keys must be strings
             buf_path = utils.get_full_path(buf['path'])
             new_dir = os.path.dirname(buf_path)
             utils.mkdir(new_dir)
             self.FLOO_BUFS[buf_id] = buf
-            self.FLOO_PATHS_TO_BUFS[buf_path] = buf_id
+            self.FLOO_PATHS_TO_BUFS[buf['path']] = buf_id
+
             try:
                 buf_fd = open(buf_path, 'r')
                 buf_buf = buf_fd.read().decode('utf-8')
@@ -330,14 +333,37 @@ class BaseProtocol(object):
                     raise Exception('different md5')
             except Exception:
                 try:
-                    open(buf_path, "a").close()
+                    open(buf_path, 'a').close()
                 except Exception as e:
-                    msg.debug("couldn't touch file: %s becuase %s" % (buf_path, e))
-                self.agent.send_get_buf(buf_id)
+                    msg.debug("couldn't touch file: %s because %s" % (buf_path, e))
+                bufs_to_get.append(buf_id)
 
-        msg.debug(G.PROJECT_PATH)
+        def finish_room_info():
+            success_msg = 'Successfully joined workspace %s/%s' % (self.agent.owner, self.agent.workspace)
+            msg.log(success_msg)
+            self.agent.on_auth()
 
-        self.agent.on_auth()
+        if bufs_to_get and self.agent.get_bufs:
+            if len(bufs_to_get) > 4:
+                prompt = '%s local files are different from the workspace. Overwrite your local files?' % len(bufs_to_get)
+            else:
+                prompt = 'Overwrite the following local files?\n'
+                for buf_id in bufs_to_get:
+                    prompt += '\n%s' % self.FLOO_BUFS[buf_id]['path']
+
+            def stomp_local(data):
+                d = data['response']
+                for buf_id in bufs_to_get:
+                    if d:
+                        self.agent.send_get_buf(buf_id)
+                    else:
+                        buf = self.FLOO_BUFS[buf_id]
+                        # TODO: this is inefficient. we just read the file 20 lines ago
+                        self.create_buf(utils.get_full_path(buf['path']))
+                finish_room_info()
+            self.agent.conn.get_input(prompt, '', stomp_local, y_or_n=True)
+        else:
+            finish_room_info()
 
     def on_join(self, data):
         msg.log('%s joined the workspace' % data['username'])
