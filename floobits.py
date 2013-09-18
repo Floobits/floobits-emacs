@@ -62,7 +62,7 @@ class EmacsConnection(object):
         self.user_input_count += 1
 
     def start(self):
-        print('started')
+        print('Now_listening')
         self.conn, addr = self.sock.accept()
         self.conn.setblocking(0)
         self.select()
