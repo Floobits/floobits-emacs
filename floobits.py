@@ -144,7 +144,7 @@ class EmacsConnection(object):
             i += 1
             choices.append([o['name'], i])
 
-        self.get_input('Create workspace for [press tab for completion]: ', '', on_done, choices=choices)
+        self.get_input('Create workspace for (%s) ' % " ".join([x[0] for x in choices]), '', on_done, choices=choices)
 
     def create_workspace(self, data, workspace_name, dir_to_share, owner=None, perms=None):
         owner = owner or G.USERNAME
