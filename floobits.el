@@ -360,7 +360,7 @@ See floobits-share-dir to create one or visit floobits.com."
         (initial (floo-get-item req 'initial)))
     (floo-set-item 'req 'response
       (cond
-        ((when choices) (completing-read prompt choices nil t initial))
+        (choices (completing-read prompt choices nil t initial))
         ((floo-get-item req 'y_or_n) (y-or-n-p prompt))
         (t (read-from-minibuffer prompt initial))))
   (floobits-send-to-agent req 'user_input)))
