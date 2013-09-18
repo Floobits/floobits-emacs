@@ -68,6 +68,7 @@
 (defvar floobits-perms)
 (defvar floobits-share-dir)
 (defvar floobits-user-highlights)
+(defvar floobits-on-connect)
 
 (defvar floobits-username)
 (defvar floobits-secret)
@@ -82,6 +83,7 @@
   (setq floobits-follow-mode nil)
   (setq floobits-perms nil)
   (setq floobits-share-dir "")
+  (setq floobits-on-connect nil)
   (setq floobits-user-highlights (make-hash-table :test 'equal)))
 
 (add-hook 'kill-emacs-hook (lambda ()
@@ -159,12 +161,12 @@ If the directory corresponds to an existing floobits workspace, you will instead
   (interactive "DDirectory to share: ")
   (floobits-load-floorc)
   (floobits-destroy-connection)
-  (floobits-create-connection)
-  (let ((req (list
+  (lexical-let* ((req (list
     (cons 'username floobits-username)
     (cons 'secret floobits-secret)
-    (cons 'dir_to_share dir-to-share))))
-    (floobits-send-to-agent req 'share_dir)))
+    (cons 'dir_to_share dir-to-share)))
+    (func (lambda () (floobits-send-to-agent req 'share_dir))))
+    (floobits-create-connection func)))
 
 ;;;###autoload
 (defun floobits-share-dir-private (dir-to-share)
@@ -174,13 +176,13 @@ If the directory corresponds to an existing floobits workspace, you will instead
   (interactive "DDirectory to share: ")
   (floobits-load-floorc)
   (floobits-destroy-connection)
-  (floobits-create-connection)
-  (let ((req (list
+  (lexical-let* ((req (list
     (cons 'username floobits-username)
     (cons 'secret floobits-secret)
     (cons 'perms '((AnonymousUser . [])))
-    (cons 'dir_to_share dir-to-share))))
-    (floobits-send-to-agent req 'share_dir)))
+    (cons 'dir_to_share dir-to-share)))
+    (func (lambda () (floobits-send-to-agent req 'share_dir))))
+    (floobits-create-connection func)))
 
 (defun floobits-event-error (req)
   (message-box (floo-get-item req 'msg)))
@@ -205,13 +207,13 @@ See floobits-share-dir to create one or visit floobits.com."
     (if (and path workspace owner)
       (progn
         (floobits-destroy-connection)
-        (floobits-create-connection)
-        (let ((req (list
+        (lexical-let* ((req (list
           (cons 'username floobits-username)
           (cons 'workspace workspace)
           (cons 'secret floobits-secret)
-          (cons 'workspace_owner owner))))
-          (floobits-send-to-agent req 'join_workspace)))
+          (cons 'workspace_owner owner)))
+          (func (lambda () (floobits-send-to-agent req 'join_workspace))))
+          (floobits-create-connection func)))
       (message "Invalid url! I should look like: https://floobits.com/r/owner/workspace/"))))
 
 ;;;###autoload
@@ -283,12 +285,9 @@ See floobits-share-dir to create one or visit floobits.com."
         (if (> (length floobits-agent-buffer) position) (+ 1 position) position)))
       (floobits-listener process ""))))
 
-(defun floobits-create-connection ()
-  (floobits-launch-agent)
-  (setq floobits-conn (open-network-stream "floobits" nil floobits-agent-host floobits-agent-port))
-  (set-process-coding-system floobits-conn 'utf-8 'utf-8)
-  (set-process-query-on-exit-flag floobits-conn nil)
-  (set-process-filter floobits-conn 'floobits-listener))
+(defun floobits-create-connection (on_connect)
+  (setq floobits-on-connect on_connect)
+  (floobits-launch-agent))
 
 (defun floobits-destroy-connection ()
   (when floobits-conn
@@ -308,14 +307,21 @@ See floobits-share-dir to create one or visit floobits.com."
   (mapcar (lambda (x) (and (funcall condp x) x)) lst)))
 
 (defun floobits-agent-listener (proc string)
-  ; todo: check for 'started'
-  ; (when (buffer-live-p (process-buffer proc))
   (with-current-buffer "*Floobits*"
-    (let ((moving (= (point) (process-mark proc))))
+    (let ((moving (= (point) (process-mark proc)))
+          (callback floobits-on-connect))
       ;; Insert the text, advancing the process marker.
       (goto-char (process-mark proc))
-      (insert (concat "floobits agent says: " string))
+      (insert string)
       (set-marker (process-mark proc) (point))
+      (beginning-of-buffer)
+      (when (and floobits-on-connect (search-forward "Now_listening" nil t))
+        (setq floobits-on-connect nil)
+        (setq floobits-conn (open-network-stream "floobits" nil floobits-agent-host floobits-agent-port))
+        (set-process-coding-system floobits-conn 'utf-8 'utf-8)
+        (set-process-query-on-exit-flag floobits-conn nil)
+        (set-process-filter floobits-conn 'floobits-listener)
+        (funcall callback))
       (if moving (goto-char (process-mark proc))))))
 
 (defun floobits-launch-agent ()
@@ -327,7 +333,7 @@ See floobits-share-dir to create one or visit floobits.com."
   (setq floobits-python-agent (start-process "" "*Floobits*" "python" floobits-python-path))
   (switch-to-buffer "*Floobits*")
   (set-process-filter floobits-python-agent 'floobits-agent-listener)
-  (accept-process-output floobits-python-agent 2)
+  (accept-process-output floobits-python-agent 5)
   (set-process-query-on-exit-flag floobits-python-agent nil))
 
 (defun floobits-send-to-agent (req event)
@@ -354,7 +360,7 @@ See floobits-share-dir to create one or visit floobits.com."
         (initial (floo-get-item req 'initial)))
     (floo-set-item 'req 'response
       (cond
-        ((when choices) (completing-read prompt choices nil t initial))
+        (choices (completing-read prompt choices nil t initial))
         ((floo-get-item req 'y_or_n) (y-or-n-p prompt))
         (t (read-from-minibuffer prompt initial))))
   (floobits-send-to-agent req 'user_input)))
