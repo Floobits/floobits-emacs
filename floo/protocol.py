@@ -347,9 +347,8 @@ class BaseProtocol(object):
             if len(bufs_to_get) > 4:
                 prompt = '%s local files are different from the workspace. Overwrite your local files?' % len(bufs_to_get)
             else:
-                prompt = 'Overwrite the following local files?\n'
-                for buf_id in bufs_to_get:
-                    prompt += '\n%s' % self.FLOO_BUFS[buf_id]['path']
+                prompt = 'Overwrite the following local files: %s ? ' % " ".join([self.FLOO_BUFS[buf_id]['path']
+                         for buf_id in bufs_to_get])
 
             def stomp_local(data):
                 d = data['response']
