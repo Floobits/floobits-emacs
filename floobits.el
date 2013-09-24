@@ -498,11 +498,23 @@ See floobits-share-dir to create one or visit floobits.com."
   (let* ((inhibit-modification-hooks t)
         (edit-start (+ 1 (elt edit 0)))
         (edit-length (elt edit 1))
-        (edit-end (min (+ 1 (buffer-size)) (+ edit-start edit-length))))
+        (edit-end (min (+ 1 (buffer-size)) (+ edit-start edit-length)))
+        (mark (mark))
+        (point (point)))
     (delete-region edit-start edit-end)
     (when (eq 3 (length edit))
       (goto-char edit-start)
-      (insert (elt edit 2)))))
+      (insert (elt edit 2)))
+    (goto-char
+      (if (> point edit-start)
+        (+ point (- (length (elt edit 2)) edit-length))
+      point))
+    (when mark
+      (pop-mark)
+      (push-mark
+        (if (> mark edit-start)
+          (+ mark (- (length (elt edit 2)) edit-length))
+        mark) t t))))
 
 (defun floobits-event-edit (req)
   (let* ((filename (floo-get-item req "full_path"))
@@ -510,9 +522,8 @@ See floobits-share-dir to create one or visit floobits.com."
         (edits (floo-get-item req "edits")))
     (when buf
       (with-current-buffer buf
-        (save-excursion
-          (atomic-change-group
-            (mapc 'floobits-apply-edit edits)))))))
+        (atomic-change-group
+          (mapc 'floobits-apply-edit edits))))))
 
 (defun floobits-event-create_buf (req)
   (let ((filename (floo-get-item req "path" ))
