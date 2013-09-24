@@ -3,3 +3,4 @@ settings.py
 *.pyc
 .sublime-project
 shared
+*.elc
