@@ -162,10 +162,10 @@ If the directory corresponds to an existing floobits workspace, you will instead
   (floobits-load-floorc)
   (floobits-destroy-connection)
   (lexical-let* ((req (list
-    (cons 'username floobits-username)
-    (cons 'secret floobits-secret)
-    (cons 'dir_to_share dir-to-share)))
-    (func (lambda () (floobits-send-to-agent req 'share_dir))))
+                (cons 'username floobits-username)
+                (cons 'secret floobits-secret)
+                (cons 'dir_to_share dir-to-share)))
+                (func (lambda () (floobits-send-to-agent req 'share_dir))))
     (floobits-create-connection func)))
 
 ;;;###autoload
@@ -177,11 +177,11 @@ If the directory corresponds to an existing floobits workspace, you will instead
   (floobits-load-floorc)
   (floobits-destroy-connection)
   (lexical-let* ((req (list
-    (cons 'username floobits-username)
-    (cons 'secret floobits-secret)
-    (cons 'perms '((AnonymousUser . [])))
-    (cons 'dir_to_share dir-to-share)))
-    (func (lambda () (floobits-send-to-agent req 'share_dir))))
+                (cons 'username floobits-username)
+                (cons 'secret floobits-secret)
+                (cons 'perms '((AnonymousUser . [])))
+                (cons 'dir_to_share dir-to-share)))
+                (func (lambda () (floobits-send-to-agent req 'share_dir))))
     (floobits-create-connection func)))
 
 (defun floobits-event-error (req)
@@ -194,16 +194,16 @@ See floobits-share-dir to create one or visit floobits.com."
   (interactive (list (read-from-minibuffer "Floobits workspace URL (owner/workspace): " "https://floobits.com/r/")))
   (floobits-load-floorc)
   (let* ((url-struct (url-generic-parse-url floourl))
-    (domain (url-host url-struct))
-    (port (url-port url-struct))
-    (path (url-filename url-struct))
-    (path
-      (if (string= "/" (substring path -1))
-        (concat path "")
-        (concat path "/")))
-    (_ (string-match "^/r/\\(.*\\)/\\(.*\\)/" path))
-    (owner (match-string 1 path))
-    (workspace (match-string 2 path)))
+        (domain (url-host url-struct))
+        (port (url-port url-struct))
+        (path (url-filename url-struct))
+        (path
+          (if (string= "/" (substring path -1))
+            (concat path "")
+            (concat path "/")))
+        (_ (string-match "^/r/\\(.*\\)/\\(.*\\)/" path))
+        (owner (match-string 1 path))
+        (workspace (match-string 2 path)))
     (if (and path workspace owner)
       (progn
         (floobits-destroy-connection)
@@ -367,8 +367,8 @@ See floobits-share-dir to create one or visit floobits.com."
 
 (defun floobits-event-rename_buf (req)
   (let* ((old-path (floo-get-item req 'old_path))
-         (new-path (floo-get-item req 'path))
-         (buf (get-file-buffer old-path)))
+        (new-path (floo-get-item req 'path))
+        (buf (get-file-buffer old-path)))
     (message "renaming %s to %s" old-path new-path)
     (rename-file old-path new-path 1)
     (when buf
@@ -378,7 +378,7 @@ See floobits-share-dir to create one or visit floobits.com."
         (set-buffer-modified-p nil)))))
 
 (defun floobits-send-highlight (&optional ping)
-  (when (eq (_floobits-is-buffer-public (current-buffer)) t)
+  (when (_floobits-is-buffer-public (current-buffer))
     (let* ((name (buffer-file-name (current-buffer)))
            (mark (or (mark) -1))
            (current (list
@@ -475,12 +475,12 @@ See floobits-share-dir to create one or visit floobits.com."
 
 (defun floobits-event-highlight (req)
   (let* ((ranges (floo-get-item req 'ranges))
-         (ranges-length (- (length ranges) 1))
-         (buffer (get-file-buffer (floo-get-item req 'full_path)))
-         (user_id (floo-get-item req 'user_id))
-         (username (floo-get-item req 'username))
-         (pos (+ 1 (elt (elt ranges ranges-length) 0)))
-         (buffer (or buffer (and floobits-follow-mode (find-file (floo-get-item req 'full_path))))))
+        (ranges-length (- (length ranges) 1))
+        (user_id (floo-get-item req 'user_id))
+        (username (floo-get-item req 'username))
+        (pos (+ 1 (elt (elt ranges ranges-length) 0)))
+        (buffer (get-file-buffer (floo-get-item req 'full_path)))
+        (buffer (or buffer (and floobits-follow-mode (find-file (floo-get-item req 'full_path))))))
 
   (when buffer
     (floobits-apply-highlight user_id buffer ranges)
@@ -495,9 +495,9 @@ See floobits-share-dir to create one or visit floobits.com."
 
 (defun floobits-apply-edit (edit)
   (let* ((inhibit-modification-hooks t)
-    (edit-start (+ 1 (elt edit 0)))
-    (edit-length (elt edit 1))
-    (edit-end (min (+ 1 (buffer-size)) (+ edit-start edit-length))))
+        (edit-start (+ 1 (elt edit 0)))
+        (edit-length (elt edit 1))
+        (edit-end (min (+ 1 (buffer-size)) (+ edit-start edit-length))))
     (delete-region edit-start edit-end)
     (when (eq 3 (length edit))
       (goto-char edit-start)
@@ -505,9 +505,9 @@ See floobits-share-dir to create one or visit floobits.com."
 
 (defun floobits-event-edit (req)
   (let* ((filename (floo-get-item req "full_path"))
-    (buf (get-file-buffer filename))
-    (edits (floo-get-item req "edits")))
-    (if buf
+        (buf (get-file-buffer filename))
+        (edits (floo-get-item req "edits")))
+    (when buf
       (with-current-buffer buf
         (save-excursion
           (atomic-change-group
@@ -528,9 +528,9 @@ See floobits-share-dir to create one or visit floobits.com."
 (defun floobits-switch (text)
   (floobits-debug-message "%s" text)
   (let* ((json-key-type 'string)
-    (req (json-read-from-string text))
-    (event (floo-get-item req "name"))
-    (func (concat "floobits-event-" event)))
+        (req (json-read-from-string text))
+        (event (floo-get-item req "name"))
+        (func (concat "floobits-event-" event)))
     (if (fboundp (intern-soft func))
       (funcall (read func) req)
       (message "func %s doesn't exist" func))))
@@ -538,7 +538,7 @@ See floobits-share-dir to create one or visit floobits.com."
 (defun floobits-after-change (begin end old_length)
   (if (_floobits-is-buffer-public (current-buffer))
      (let ((text (floobits-get-buffer-text (current-buffer)))
-           (changed (buffer-substring-no-properties begin end)))
+          (changed (buffer-substring-no-properties begin end)))
       ; (floo-set-item 'floobits-change-set 'after text)
       (floo-set-item 'floobits-change-set 'changed changed)
       (floo-set-item 'floobits-change-set 'begin begin)
@@ -564,17 +564,13 @@ See floobits-share-dir to create one or visit floobits.com."
               (setq buffer-read-only t)))
           added))
       (setq floobits-open-buffers current-buffers)
-      (let* (
-          (added-text
-            (mapcar
-              (lambda (buf-path)
-                (cons (intern buf-path)
-                  (floobits-get-buffer-text (find-buffer-visiting buf-path))))
-            added))
-        (req (list
-        (cons 'current current-buffers)
-        (cons 'added added-text)
-        (cons 'deleted deleted))))
+      (let* ((added-text (mapcar 
+                          (lambda (buf-path) 
+                            (cons (intern buf-path)(floobits-get-buffer-text (find-buffer-visiting buf-path)))) added))
+            (req (list
+            (cons 'current current-buffers)
+            (cons 'added added-text)
+            (cons 'deleted deleted))))
         (floobits-send-to-agent req 'buffer_list_change)))))
 
 (provide 'floobits)
