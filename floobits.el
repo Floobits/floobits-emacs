@@ -176,12 +176,13 @@ If the directory corresponds to an existing floobits workspace, you will instead
   (interactive "DDirectory to share: ")
   (floobits-load-floorc)
   (floobits-destroy-connection)
-  (lexical-let* ((req (list
-                (cons 'username floobits-username)
-                (cons 'secret floobits-secret)
-                (cons 'perms '((AnonymousUser . [])))
-                (cons 'dir_to_share dir-to-share)))
-                (func (lambda () (floobits-send-to-agent req 'share_dir))))
+  (lexical-let* (
+      (req (list
+        (cons 'username floobits-username)
+        (cons 'secret floobits-secret)
+        (cons 'perms '((AnonymousUser . [])))
+        (cons 'dir_to_share dir-to-share)))
+      (func (lambda () (floobits-send-to-agent req 'share_dir))))
     (floobits-create-connection func)))
 
 (defun floobits-event-error (req)
@@ -564,8 +565,8 @@ See floobits-share-dir to create one or visit floobits.com."
               (setq buffer-read-only t)))
           added))
       (setq floobits-open-buffers current-buffers)
-      (let* ((added-text (mapcar 
-                          (lambda (buf-path) 
+      (let* ((added-text (mapcar
+                          (lambda (buf-path)
                             (cons (intern buf-path)(floobits-get-buffer-text (find-buffer-visiting buf-path)))) added))
             (req (list
             (cons 'current current-buffers)
