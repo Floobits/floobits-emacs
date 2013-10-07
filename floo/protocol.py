@@ -145,7 +145,7 @@ class BaseProtocol(object):
             return
         try:
             encoding = 'utf8'
-            if text:
+            if text is not None:
                 buf_md5 = hashlib.md5(text).hexdigest()
             else:
                 buf_fd = open(path, 'rb')
@@ -182,10 +182,10 @@ class BaseProtocol(object):
                 'md5': buf_md5,
             }
             self.agent.put(event)
-        except (IOError, OSError):
-            msg.error('Failed to open %s.' % path)
+        except (IOError, OSError) as e:
+            msg.error('Failed to open %s: %s.' % (path, e))
         except Exception as e:
-            msg.error('Failed to create buffer %s: %s' % (path, unicode(e)))
+            msg.error('Failed to create buffer %s: %s.' % (path, unicode(e)))
 
     def handle(self, data):
         name = data.get('name')
