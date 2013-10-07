@@ -314,29 +314,32 @@ class BaseProtocol(object):
         utils.update_floo_file(os.path.join(G.PROJECT_PATH, '.floo'), floo_json)
 
         bufs_to_get = []
+        new_dirs = set()
         for buf_id, buf in data['bufs'].items():
             buf_id = int(buf_id)  # json keys must be strings
             buf_path = utils.get_full_path(buf['path'])
             new_dir = os.path.dirname(buf_path)
-            utils.mkdir(new_dir)
+            if new_dir not in new_dirs:
+                utils.mkdir(new_dir)
+                new_dirs.add(new_dir)
             self.FLOO_BUFS[buf_id] = buf
             self.FLOO_PATHS_TO_BUFS[buf['path']] = buf_id
 
             try:
-                buf_fd = open(buf_path, 'r')
-                buf_buf = buf_fd.read().decode('utf-8')
-                md5 = hashlib.md5(buf_buf.encode('utf-8')).hexdigest()
-                if md5 == buf['md5']:
-                    msg.debug('md5 sums match. not getting buffer')
-                    buf['buf'] = buf_buf
-                else:
-                    raise Exception('different md5')
-            except Exception:
-                try:
-                    open(buf_path, 'a').close()
-                except Exception as e:
-                    msg.debug("couldn't touch file: %s because %s" % (buf_path, e))
+                buf_fd = open(buf_path, 'rb')
+            except Exception as e:
+                msg.debug("Couldn't read %s: %s" % (buf_path, e))
                 bufs_to_get.append(buf_id)
+                continue
+            else:
+                buf_buf = buf_fd.read()
+            md5 = hashlib.md5(buf_buf).hexdigest()
+            if md5 == buf['md5']:
+                msg.debug('md5 sums match- not fetching buffer %s' % buf_path)
+                if buf['encoding'] == 'utf8':
+                    buf['buf'] = buf_buf.decode('utf-8')
+                continue
+            bufs_to_get.append(buf_id)
 
         def finish_room_info():
             success_msg = 'Successfully joined workspace %s/%s' % (self.agent.owner, self.agent.workspace)
