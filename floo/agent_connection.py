@@ -119,6 +119,9 @@ class AgentConnection(object):
         if qsize > 0:
             msg.debug('%s items in q' % qsize)
 
+    def qsize(self):
+        return self.sock_q.qsize()
+
     def reconnect(self):
         try:
             self.sock.close()

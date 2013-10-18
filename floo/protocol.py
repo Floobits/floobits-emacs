@@ -5,7 +5,6 @@ import sys
 import hashlib
 import collections
 import Queue
-import stat
 import base64
 
 from common import msg, ignore, shared as G, utils
@@ -98,94 +97,80 @@ class BaseProtocol(object):
         self.follow_mode = follow_mode
         msg.log('follow mode is %s' % {True: 'enabled', False: 'disabled'}[self.follow_mode])
 
-    def create_buf(self, path, ig=None, text=None):
+    def create_buf(self, path, force=False):
         if not utils.is_shared(path):
-            msg.error('Skipping adding %s because it is not in shared path %s.' % (path, G.PROJECT_PATH))
+            msg.error('Skipping adding %s because it is not in shared path %s' % (path, G.PROJECT_PATH))
             return
-        if os.path.islink(path):
-            msg.error('Skipping adding %s because it is a symlink.' % path)
+        ig = ignore.Ignore(None, path)
+        self._uploader(ig.list_paths())
+
+    def _uploader(self, paths_iter):
+        if not self.agent or not self.agent.sock:
+            msg.error('Can\'t upload! Not connected. :(')
             return
-        ignored = ig and ig.is_ignored(path)
-        if ignored:
-            msg.log('Not creating buf: %s' % (ignored))
-            return
-        msg.debug('create_buf: path is %s' % path)
-        if os.path.isdir(path):
-            if ig is None:
-                try:
-                    ig = ignore.build_ignores(path)
-                except Exception as e:
-                    msg.error('Error adding %s: %s' % (path, unicode(e)))
-                    return
-            try:
-                paths = os.listdir(path)
-            except Exception as e:
-                msg.error('Error listing path %s: %s' % (path, unicode(e)))
-                return
-            for p in paths:
-                p_path = os.path.join(path, p)
-                if p[0] == '.':
-                    if p not in ignore.HIDDEN_WHITELIST:
-                        msg.log('Not creating buf for hidden path %s' % p_path)
-                        continue
-                ignored = ig.is_ignored(p_path)
-                if ignored:
-                    msg.log('Not creating buf: %s' % (ignored))
-                    continue
-                try:
-                    s = os.lstat(p_path)
-                except Exception as e:
-                    msg.error('Error lstat()ing path %s: %s' % (path, unicode(e)))
-                    continue
-                if stat.S_ISDIR(s.st_mode):
-                    child_ig = ignore.Ignore(ig, p_path)
-                    utils.set_timeout(self.create_buf, 0, p_path, child_ig)
-                elif stat.S_ISREG(s.st_mode):
-                    utils.set_timeout(self.create_buf, 0, p_path, ig)
-            return
+
+        self.agent.tick()
+        if self.agent.qsize() > 0:
+            return utils.set_timeout(self._uploader, 10, paths_iter)
         try:
+            p = next(paths_iter)
+            self.upload(p)
+        except StopIteration:
+            msg.log('All done uploading')
+            return
+        return utils.set_timeout(self._uploader, 50, paths_iter)
+
+    def upload(self, path):
+        try:
+            with open(path, 'rb') as buf_fd:
+                buf = buf_fd.read()
             encoding = 'utf8'
-            if text is not None:
-                buf_md5 = hashlib.md5(text).hexdigest()
-            else:
-                buf_fd = open(path, 'rb')
-                text = buf_fd.read()
-                buf_fd.close()
-                buf_md5 = hashlib.md5(text).hexdigest()
-                try:
-                    text = text.decode('utf-8')
-                except Exception:
-                    text = base64.b64encode(text).decode('utf-8')
-                    encoding = 'base64'
             rel_path = utils.to_rel_path(path)
             existing_buf = self.get_buf_by_path(path)
             if existing_buf:
+                buf_md5 = hashlib.md5(buf).hexdigest()
                 if existing_buf['md5'] == buf_md5:
-                    msg.debug('%s already exists and has the same md5. Skipping creating.' % path)
+                    msg.debug('%s already exists and has the same md5. Skipping.' % path)
                     return
                 msg.log('setting buffer ', rel_path)
+
+                try:
+                    buf = buf.decode('utf-8')
+                except Exception:
+                    buf = base64.b64encode(buf).decode('utf-8')
+                    encoding = 'base64'
+
+                existing_buf['buf'] = buf
+                existing_buf['encoding'] = encoding
+                existing_buf['md5'] = buf_md5
+
                 self.agent.put({
                     'name': 'set_buf',
                     'id': existing_buf['id'],
-                    'buf': text,
-                    'encoding': encoding,
+                    'buf': buf,
                     'md5': buf_md5,
+                    'encoding': encoding,
                 })
                 return
+
+            try:
+                buf = buf.decode('utf-8')
+            except Exception:
+                buf = base64.b64encode(buf).decode('utf-8')
+                encoding = 'base64'
 
             msg.log('creating buffer ', rel_path)
             event = {
                 'name': 'create_buf',
-                'buf': text,
+                'buf': buf,
                 'path': rel_path,
                 'encoding': encoding,
-                'md5': buf_md5,
             }
             self.agent.put(event)
-        except (IOError, OSError) as e:
-            msg.error('Failed to open %s: %s.' % (path, e))
+        except (IOError, OSError):
+            msg.error('Failed to open %s.' % path)
         except Exception as e:
-            msg.error('Failed to create buffer %s: %s.' % (path, unicode(e)))
+            msg.error('Failed to create buffer %s: %s' % (path, unicode(e)))
 
     def handle(self, data):
         name = data.get('name')
@@ -312,6 +297,8 @@ class BaseProtocol(object):
             })
         }
         utils.update_floo_file(os.path.join(G.PROJECT_PATH, '.floo'), floo_json)
+
+        G.JOINED_WORKSPACE = True
 
         bufs_to_get = []
         new_dirs = set()

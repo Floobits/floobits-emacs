@@ -6,6 +6,7 @@ import time
 timeouts = defaultdict(list)
 top_timeout_id = 0
 cancelled_timeouts = set()
+calling_timeouts = False
 
 
 def windows(*args, **kwargs):
@@ -36,6 +37,10 @@ def cancel_timeout(timeout_id):
 
 
 def call_timeouts():
+    global calling_timeouts
+    if calling_timeouts:
+        return
+    calling_timeouts = True
     now = time.time()
     to_remove = []
     for t, tos in timeouts.items():
@@ -45,6 +50,7 @@ def call_timeouts():
             to_remove.append(t)
     for k in to_remove:
         del timeouts[k]
+    calling_timeouts = False
 
 
 def error_message(*args, **kwargs):
