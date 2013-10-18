@@ -99,7 +99,7 @@ class BaseProtocol(object):
 
     def create_buf(self, path, force=False):
         if not utils.is_shared(path):
-            msg.error('Skipping adding %s because it is not in shared path %s.' % (path, G.PROJECT_PATH))
+            msg.error('Skipping adding %s because it is not in shared path %s' % (path, G.PROJECT_PATH))
             return
         ig = ignore.Ignore(None, path)
         self._uploader(ig.list_paths())
@@ -109,7 +109,7 @@ class BaseProtocol(object):
             msg.error('Can\'t upload! Not connected. :(')
             return
 
-        self.agent.select()
+        self.agent.tick()
         if self.agent.qsize() > 0:
             return utils.set_timeout(self._uploader, 10, paths_iter)
         try:
@@ -297,6 +297,8 @@ class BaseProtocol(object):
             })
         }
         utils.update_floo_file(os.path.join(G.PROJECT_PATH, '.floo'), floo_json)
+
+        G.JOINED_WORKSPACE = True
 
         bufs_to_get = []
         new_dirs = set()
