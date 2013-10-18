@@ -45,6 +45,11 @@ class EmacsConnection(object):
         self.sock.listen(1)
         self.user_inputs = {}
         self.user_input_count = 0
+        if sys.version_info[0] == 2 and sys.version_info[1] == 6:
+            # Work around http://bugs.python.org/issue11326
+            msg.warn('Disabling SSL to work around a bug in Python 2.6. See http://bugs.python.org/issue11326')
+            G.SECURE = False
+            G.DEFAULT_PORT = 3148
 
     def get_input(self, prompt, initial, cb, *args, **kwargs):
         event = {
@@ -62,6 +67,7 @@ class EmacsConnection(object):
         self.user_input_count += 1
 
     def start(self):
+        # Emacs watches for this line before connecting.
         print('Now_listening')
         self.conn, addr = self.sock.accept()
         self.conn.setblocking(0)
