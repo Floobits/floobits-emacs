@@ -25,4 +25,8 @@ if __name__ == '__main__':
     r = reactor.install(20)
     r.listen(emacs, 'localhost', 4567)
     G.EMACS = emacs
+
+    def cb():
+        print("Now_listening")
+    utils.set_timeout(cb, 50)
     r.block()
