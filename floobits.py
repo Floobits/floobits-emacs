@@ -25,3 +25,4 @@ if __name__ == '__main__':
     r = reactor.install(20)
     r.listen(emacs, 'localhost', 4567)
     G.EMACS = emacs
+    r.block()
