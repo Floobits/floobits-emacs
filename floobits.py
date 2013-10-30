@@ -22,5 +22,6 @@ migrations.migrate_symlinks()
 if __name__ == '__main__':
     emacs = base.BaseHandler()
     emacs.PROTOCOL = emacs_proto.EmacsProtocol
-    reactor.reactor.listen(emacs, 'localhost', 4567)
+    r = reactor.install(20)
+    r.listen(emacs, 'localhost', 4567)
     G.EMACS = emacs
