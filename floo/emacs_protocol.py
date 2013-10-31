@@ -14,14 +14,10 @@ class EmacsProtocol(floo_proto.FlooProtocol):
         super(EmacsProtocol, self).__init__(host, port, secure)
         self._needs_handshake = False
 
-    def fd_set(self, readable, writeable, errorable):
-        if not self._sock:
-            return
-        fileno = self.fileno()
-        errorable.append(fileno)
-        readable.append(fileno)
-        if len(self) > 0:
-            writeable.append(fileno)
+    def connect(self, sock=None):
+        self.emit('connected')
+        self._sock = sock
+        self.connected = True
 
     def reconnect(self):
         msg.error("emacs connection died")
@@ -29,8 +25,3 @@ class EmacsProtocol(floo_proto.FlooProtocol):
 
     def stop(self):
         self.cleanup()
-
-    def connect(self, sock=None):
-        self.emit('connected')
-        self._sock = sock
-        self.connected = True
