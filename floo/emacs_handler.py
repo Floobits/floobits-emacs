@@ -269,7 +269,7 @@ class EmacsHandler(base.BaseHandler):
                 pass
             else:
                 agent = self.remote_connect(result['owner'], result['workspace'], False)
-                agent.once("connect", lambda: agent.upload(dir_to_share))
+                agent.once("room_info", lambda: agent.upload(dir_to_share))
                 return
 
         def on_done(data, choices=None):
@@ -326,7 +326,7 @@ class EmacsHandler(base.BaseHandler):
 
         G.PROJECT_PATH = dir_to_share
         agent = self.remote_connect(workspace_name, owner, False)
-        agent.once("connect", lambda: agent.upload(dir_to_share))
+        agent.once("room_info", lambda: agent.upload(dir_to_share))
 
     def _on_join_workspace(self, data, owner, workspace, dir_to_make=None):
         d = data['response']
