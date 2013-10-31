@@ -410,8 +410,11 @@ class EmacsHandler(base.BaseHandler):
         agent = self.remote_connect(workspace_name, owner, False)
         agent.once("room_info", lambda: agent.upload(dir_to_share))
 
-    def _on_join_workspace(self, data, owner, workspace, dir_to_make=None):
-        d = data['response']
+    def _on_join_workspace(self, data):
+        dir_to_make = data.get("dir_to_make")
+        owner = data['owner']
+        workspace = data['workspace']
+        d = data.get('response')
         if dir_to_make:
             if d:
                 d = dir_to_make
