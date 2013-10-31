@@ -319,6 +319,7 @@ See floobits-share-dir to create one or visit floobits.com."
       (when (and floobits-on-connect (search-forward "Now_listening" nil t))
         (setq floobits-on-connect nil)
         (setq floobits-conn (open-network-stream "floobits" nil floobits-agent-host floobits-agent-port))
+        (message "listeneing")
         (set-process-coding-system floobits-conn 'utf-8 'utf-8)
         (set-process-query-on-exit-flag floobits-conn nil)
         (set-process-filter floobits-conn 'floobits-listener)

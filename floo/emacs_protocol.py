@@ -10,8 +10,8 @@ class EmacsProtocol(floo_proto.FlooProtocol):
     INITIAL_RECONNECT_DELAY = 0
     CLIENT = 'Emacs'
 
-    def __init__(self, *args, **kwargs):
-        super(EmacsProtocol, self).__init__(*args, **kwargs)
+    def __init__(self, host, port, secure):
+        super(EmacsProtocol, self).__init__(host, port, secure)
         self._needs_handshake = False
 
     def fd_set(self, readable, writeable, errorable):

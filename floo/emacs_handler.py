@@ -27,7 +27,6 @@ from floo.common.handlers import base
 from emacs_protocol import EmacsProtocol
 
 
-# class Protocol(protocol.BaseProtocol):
 class EmacsHandler(base.BaseHandler):
     CLIENT = 'Emacs'
     PROTOCOL = EmacsProtocol
@@ -41,6 +40,8 @@ class EmacsHandler(base.BaseHandler):
         self.user_inputs = {}
         self.user_input_count = 0
         self.emacs_bufs = defaultdict(lambda: [""])
+        self.bufs_changed = []
+        self.selection_changed = []
 
     def send_to_floobits(self, data):
         self.agent.put(data)
@@ -51,8 +52,8 @@ class EmacsHandler(base.BaseHandler):
 
     def tick(self):
         reported = set()
-        while self.BUFS_CHANGED:
-            buf_id = self.BUFS_CHANGED.pop()
+        while self.bufs_changed:
+            buf_id = self.bufs_changed.pop()
             v = self.get_view(buf_id)
             buf = v.buf
             if v.is_loading():
@@ -74,8 +75,8 @@ class EmacsHandler(base.BaseHandler):
             buf['md5'] = hashlib.md5(patch.current.encode('utf-8')).hexdigest()
             self.send_to_floobits(patch.to_json())
 
-        while self.SELECTION_CHANGED:
-            v, ping = self.SELECTION_CHANGED.pop()
+        while self.selection_changed:
+            v, ping = self.selection_changed.pop()
             # consume highlight events to avoid leak
             if 'highlight' not in self.perms:
                 continue
@@ -107,10 +108,14 @@ class EmacsHandler(base.BaseHandler):
         self.user_inputs[self.user_input_count] = lambda x: cb(x, *args, **kwargs)
         self.user_input_count += 1
 
+    def on_connect(self):
+        msg.log("have an emacs!")
+
     def remote_connect(self, owner, workspace, get_bufs=True):
         G.PROJECT_PATH = os.path.realpath(G.PROJECT_PATH)
         G.PROJECT_PATH += os.sep
         agent = agent_connection.AgentConnection(owner, workspace, self, get_bufs)
+        print(agent)
         reactor.connect(agent, G.HOST, G.PORT, True)
         self.agent = agent
         return agent
@@ -186,12 +191,12 @@ class EmacsHandler(base.BaseHandler):
         begin = req['begin']
         old_length = req['old_length']
         self.emacs_bufs[path][0] = "%s%s%s" % (self.emacs_bufs[path][0][:begin - 1], changed, self.emacs_bufs[path][0][begin - 1 + old_length:])
-        self.BUFS_CHANGED.append(view.buf['id'])
+        self.bufs_changed.append(view.buf['id'])
 
     def _on_highlight(self, req):
         view = self.get_view_by_path(req['full_path'])
         if view:
-            self.SELECTION_CHANGED.append((view, req.get('ping', False)))
+            self.selection_changed.append((view, req.get('ping', False)))
 
     def _on_create_buf(self, req):
         self.create_buf(req['full_path'])
