@@ -21,6 +21,7 @@ from common import api
 from common import msg
 from common import shared as G
 from common import utils
+from common import reactor
 from floo.common.handlers import base
 from emacs_protocol import EmacsProtocol
 
@@ -33,8 +34,12 @@ class EmacsHandler(base.BaseHandler):
     def __init__(self, *args, **kwargs):
         global emacs
         super(EmacsHandler, self).__init__(*args, **kwargs)
+        self.agent = None
         self.views = {}
         self.emacs_bufs = defaultdict(lambda: [""])
+
+    def send_to_floobits(self, data):
+        self.agent.put(data)
 
     @property
     def client(self):
@@ -55,19 +60,13 @@ class EmacsHandler(base.BaseHandler):
         self.user_inputs[self.user_input_count] = lambda x: cb(x, *args, **kwargs)
         self.user_input_count += 1
 
-    def on_connect(self):
-        #make outgoing connection
-        pass
-
-    def remote_connect(self, workspace_url, on_auth=None, get_bufs=True):
+    def remote_connect(self, owner, workspace, get_bufs=True):
         G.PROJECT_PATH = os.path.realpath(G.PROJECT_PATH)
         G.PROJECT_PATH += os.sep
-        self.agent = agent_connection.AgentConnection(
-                     workspace_url=workspace_url,
-                     on_auth=on_auth,
-                     get_bufs=get_bufs,
-                     conn=self)
-        self.agent.connect()
+        agent = agent_connection.AgentConnection(owner, workspace, self, get_bufs)
+        reactor.connect(agent, G.HOST, G.PORT, True)
+        self.agent = agent
+        return agent
 
     def create_view(self, buf, emacs_buf=None):
         v = view.View(buf, emacs_buf)
@@ -257,7 +256,9 @@ class EmacsHandler(base.BaseHandler):
             except HTTPError:
                 pass
             else:
-                return self.remote_connect(workspace_url, on_auth=lambda this: this.protocol.create_buf(dir_to_share), get_bufs=False)
+                agent = self.remote_connect(result['owner'], result['workspace'], False)
+                agent.once("connect", lambda: agent.upload(dir_to_share))
+                return
 
         def on_done(data, choices=None):
             self.create_workspace({}, workspace_name, dir_to_share, owner=data.get('response'), perms=perms)
@@ -312,11 +313,11 @@ class EmacsHandler(base.BaseHandler):
             return msg.error('Unable to create workspace: %s' % str(e))
 
         G.PROJECT_PATH = dir_to_share
-        self.remote_connect(workspace_url, on_auth=lambda this: this.protocol.create_buf(dir_to_share), get_bufs=False)
+        agent = self.remote_connect(workspace_name, owner, False)
+        agent.once("connect", lambda: agent.upload(dir_to_share))
 
     def _on_join_workspace(self, data, owner, workspace, dir_to_make=None):
         d = data['response']
-        workspace_url = utils.to_workspace_url({'secure': True, 'owner': owner, 'workspace': workspace})
         if dir_to_make:
             if d:
                 d = dir_to_make
@@ -334,6 +335,6 @@ class EmacsHandler(base.BaseHandler):
         try:
             G.PROJECT_PATH = d
             utils.mkdir(os.path.dirname(G.PROJECT_PATH))
-            self.remote_connect(workspace_url)
+            self.remote_connect(workspace, owner, True)
         except Exception as e:
             return msg.error("Couldn't create directory %s: %s" % (G.PROJECT_PATH, str(e)))

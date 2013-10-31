@@ -29,7 +29,7 @@ class AgentConnection(floo_handler.FlooHandler):
     def _on_room_info(self, data):
         super(AgentConnection, self)._on_room_info(data)
         # data['project_path'] = G.PROJECT_PATH
-        self.put('room_info', {
+        self.to_emacs('room_info', {
             'perms': data['perms'],
             'project_path': G.PROJECT_PATH,
             'workspace_name': data['room_name'],
@@ -37,7 +37,7 @@ class AgentConnection(floo_handler.FlooHandler):
 
     def _on_create_buf(self, data):
         super(AgentConnection, self)._on_create_buf(data)
-        self.put('create_buf', {
+        self.to_emacs('create_buf', {
             'full_path': utils.get_full_path(data['path']),
             'path': data['path'],
             'username': data.get('username', ''),
@@ -52,7 +52,7 @@ class AgentConnection(floo_handler.FlooHandler):
         except Exception as e:
             msg.debug('Unable to delete buf %s: %s' % (path, str(e)))
         else:
-            self.put('delete_buf', {
+            self.to_emacs('delete_buf', {
                 'full_path': utils.get_full_path(path),
                 'path': path,
                 'username': data.get('username', ''),
@@ -70,7 +70,7 @@ class AgentConnection(floo_handler.FlooHandler):
         super(AgentConnection, self)._on_highlight(data)
         buf = self.FLOO_BUFS[data['id']]
         # TODO: save highlights for when user opens the buffer in emacs
-        self.put('highlight', {
+        self.to_emacs('highlight', {
             'id': buf['id'],
             'full_path': utils.get_full_path(buf['path']),
             'ranges': data['ranges'],
@@ -93,19 +93,19 @@ class AgentConnection(floo_handler.FlooHandler):
         }
         self.put(req)
 
-    def send_auth(self):
-        # TODO: we shouldn't throw away all of this
-        self.sock_q = Queue.Queue()
-        self.put({
-            'username': self.username,
-            'secret': self.secret,
-            'room': self.workspace,
-            'room_owner': self.owner,
-            'client': self.protocol.CLIENT,
-            'platform': sys.platform,
-            'supported_encodings': ['utf8', 'base64'],
-            'version': G.__VERSION__
-        })
+    # def send_auth(self):
+    #     # TODO: we shouldn't throw away all of this
+    #     self.sock_q = Queue.Queue()
+    #     self.put({
+    #         'username': self.username,
+    #         'secret': self.secret,
+    #         'room': self.workspace,
+    #         'room_owner': self.owner,
+    #         'client': self.protocol.CLIENT,
+    #         'platform': sys.platform,
+    #         'supported_encodings': ['utf8', 'base64'],
+    #         'version': G.__VERSION__
+    #     })
 
     def send_msg(self, msg):
         self.put({'name': 'msg', 'data': msg})
