@@ -3,60 +3,88 @@ import json
 import socket
 import Queue
 import sys
-import select
 import time
 
-ssl = False
-try:
-    import ssl
-except ImportError:
-    pass
-
-from common import cert, msg, utils, shared as G
-import sublime
+import editor
+from floo.common.handlers import floo_handler
+from floo.common import cert, msg, utils, shared as G
 
 
-class AgentConnection(object):
-    INITIAL_RECONNECT_DELAY = 500
-    MAX_RETRIES = 20
+class AgentConnection(floo_handler.FlooHandler):
 
-    ''' Simple chat server using select '''
-    def __init__(self, workspace_url, on_auth=None, Protocol=None, get_bufs=True, conn=None):
-        self.sock_q = Queue.Queue()
-        self.sock = None
-        self.net_buf = ''
-        self.reconnect_delay = self.INITIAL_RECONNECT_DELAY
-        self.reconnect_timeout = None
-        self.username = G.USERNAME
-        self.secret = G.SECRET
-        self.authed = False
-        G.JOINED_WORKSPACE = False
-        self.retries = self.MAX_RETRIES
-        self._on_auth = on_auth
-        self.get_bufs = get_bufs
-        self.empty_selects = 0
-        self.workspace_info = {}
+    def __init__(self, owner, workspace, emacs_handler, get_bufs=True):
+        super(AgentConnection, self).__init__(owner, workspace, get_bufs)
+        self.emacs_handler = emacs_handler
+        self.user_inputs = {}
+        self.user_input_count = 0
+        if sys.version_info[0] == 2 and sys.version_info[1] == 6:
+            # Work around http://bugs.python.org/issue11326
+            msg.error('Disabling SSL to work around a bug in Python 2.6. Please upgrade your Python to get SSL. See http://bugs.python.org/issue11326')
+            G.SECURE = False
+            G.DEFAULT_PORT = 3148
 
-        parsed = utils.parse_url(workspace_url)
-        print(workspace_url, parsed)
-        self.host = parsed['host']
-        self.port = parsed['port']
-        self.secure = parsed['secure']
-        self.owner = parsed['owner']
-        self.workspace = parsed['workspace']
+    def to_emacs(self, data):
+        self.emacs_handler.put(data)
 
-        self.conn = conn
-        self.protocol = Protocol(self)
+    def _on_room_info(self, data):
+        super(AgentConnection, self)._on_room_info(data)
+        # data['project_path'] = G.PROJECT_PATH
+        self.put('room_info', {
+            'perms': data['perms'],
+            'project_path': G.PROJECT_PATH,
+            'workspace_name': data['room_name'],
+        })
 
-    @property
-    def workspace_url(self):
-        protocol = self.secure and 'https' or 'http'
-        return '{protocol}://{host}/r/{owner}/{name}'.format(protocol=protocol, host=self.host, owner=self.owner, name=self.workspace)
+    def _on_create_buf(self, data):
+        super(AgentConnection, self)._on_create_buf(data)
+        self.put('create_buf', {
+            'full_path': utils.get_full_path(data['path']),
+            'path': data['path'],
+            'username': data.get('username', ''),
+        })
+
+    def _on_delete_buf(self, data):
+        buf_id = int(data['id'])
+        buf = self.FLOO_BUFS[buf_id]
+        path = buf['path']
+        try:
+            super(AgentConnection, self)._on_delete_buf(data)
+        except Exception as e:
+            msg.debug('Unable to delete buf %s: %s' % (path, str(e)))
+        else:
+            self.put('delete_buf', {
+                'full_path': utils.get_full_path(path),
+                'path': path,
+                'username': data.get('username', ''),
+            })
+
+    def _on_rename_buf(self, data):
+        buf = self.FLOO_BUFS[int(data['id'])]
+        # This can screw up if someone else renames the buffer around the same time as us. Oh well.
+        buf = self.get_buf_by_path(utils.get_full_path(data['path']))
+        if not buf:
+            return super(AgentConnection, self)._on_rename_buf(data)
+        msg.debug('We already renamed %s. Skipping' % buf['path'])
+
+    def _on_highlight(self, data):
+        super(AgentConnection, self)._on_highlight(data)
+        buf = self.FLOO_BUFS[data['id']]
+        # TODO: save highlights for when user opens the buffer in emacs
+        self.put('highlight', {
+            'id': buf['id'],
+            'full_path': utils.get_full_path(buf['path']),
+            'ranges': data['ranges'],
+            'user_id': data['user_id'],
+            'username': data.get('username', 'unknown user'),
+        })
+
+    def _on_msg(self, data):
+        msg.log('msg')
 
     def tick(self):
         self.protocol.push()
         self.select()
-        sublime.call_timeouts()
+        editor.call_timeouts()
 
     def send_get_buf(self, buf_id):
         req = {
@@ -83,19 +111,19 @@ class AgentConnection(object):
         self.put({'name': 'msg', 'data': msg})
         self.protocol.chat(self.username, time.time(), msg, True)
 
-    def on_auth(self):
+    def _on_auth(self):
         self.authed = True
         G.JOINED_WORKSPACE = True
         self.retries = self.MAX_RETRIES
         msg.log('Successfully joined workspace %s/%s' % (self.owner, self.workspace))
-        if self._on_auth:
-            self._on_auth(self)
-            self._on_auth = None
+        if self.__on_auth:
+            self.__on_auth(self)
+            self.__on_auth = None
 
     def stop(self, log=True):
         if log:
             msg.log('Disconnecting from workspace %s/%s' % (self.owner, self.workspace))
-        sublime.cancel_timeout(self.reconnect_timeout)
+        editor.cancel_timeout(self.reconnect_timeout)
         self.reconnect_timeout = None
         G.JOINED_WORKSPACE = False
         try:
@@ -137,7 +165,7 @@ class AgentConnection(object):
             self.reconnect_delay = 10000
         if self.retries > 0:
             msg.log('Floobits: Reconnecting in %sms' % self.reconnect_delay)
-            self.reconnect_timeout = sublime.set_timeout(self.connect, int(self.reconnect_delay))
+            self.reconnect_timeout = editor.set_timeout(self.connect, int(self.reconnect_delay))
         elif self.retries == 0:
             msg.error('Floobits Error! Too many reconnect failures. Giving up.')
             sys.exit(0)
@@ -195,48 +223,3 @@ class AgentConnection(object):
             self.protocol.handle(data)
             self.net_buf = after
 
-    def select(self):
-        if not self.sock:
-            msg.debug('select(): No socket.')
-            return self.reconnect()
-
-        try:
-            _in, _out, _except = select.select([self.sock], [self.sock], [self.sock], 0)
-        except (select.error, socket.error, Exception) as e:
-            msg.log('Error in select(): %s' % str(e))
-            return self.reconnect()
-
-        if _except:
-            msg.error('Socket error')
-            return self.reconnect()
-
-        if _in:
-            buf = ''
-            while True:
-                try:
-                    d = self.sock.recv(4096)
-                    if not d:
-                        break
-                    buf += d
-                except (socket.error, TypeError):
-                    break
-            if buf:
-                self.empty_selects = 0
-                self.handle(buf)
-            else:
-                self.empty_selects += 1
-                if self.empty_selects > 50:
-                    msg.log('No data from sock.recv() {0} times.'.format(self.empty_selects))
-                    return self.reconnect()
-
-        if _out:
-            for p in self._get_from_queue():
-                if p is None:
-                    self.sock_q.task_done()
-                    continue
-                try:
-                    self.sock.sendall(p)
-                    self.sock_q.task_done()
-                except Exception as e:
-                    msg.error('Couldn\'t write to socket: %s' % str(e))
-                    return self.reconnect()

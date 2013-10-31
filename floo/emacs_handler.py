@@ -1,42 +1,44 @@
 #!/usr/bin/env python
-
 # coding: utf-8
+
+try:
+    unicode()
+except NameError:
+    unicode = str
+
 import os
 import json
 import re
-import select
-import socket
-import sys
+import webbrowser
+from collections import defaultdict
 from urllib2 import HTTPError
 
-import AgentConnection
+import agent_connection
 import editor
 
+import view
 from common import api
 from common import msg
 from common import shared as G
 from common import utils
+from floo.common.handlers import base
+from emacs_protocol import EmacsProtocol
 
-from emacs_protocol import Protocol
 
+# class Protocol(protocol.BaseProtocol):
+class EmacsHandler(base.BaseHandler):
+    CLIENT = 'Emacs'
+    PROTOCOL = EmacsProtocol
 
-class EmacsHandler(object):
-    def __init__(self):
-        self.to_emacs_q = []
-        self.net_buf = ''
-        self.agent = None
+    def __init__(self, *args, **kwargs):
+        global emacs
+        super(EmacsHandler, self).__init__(*args, **kwargs)
+        self.views = {}
+        self.emacs_bufs = defaultdict(lambda: [""])
 
-        # self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        # self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        # self.sock.bind(('localhost', 4567))
-        # self.sock.listen(1)
-        self.user_inputs = {}
-        self.user_input_count = 0
-        if sys.version_info[0] == 2 and sys.version_info[1] == 6:
-            # Work around http://bugs.python.org/issue11326
-            msg.error('Disabling SSL to work around a bug in Python 2.6. Please upgrade your Python to get SSL. See http://bugs.python.org/issue11326')
-            G.SECURE = False
-            G.DEFAULT_PORT = 3148
+    @property
+    def client(self):
+        return 'Emacs'
 
     def get_input(self, prompt, initial, cb, *args, **kwargs):
         event = {
@@ -53,21 +55,158 @@ class EmacsHandler(object):
         self.user_inputs[self.user_input_count] = lambda x: cb(x, *args, **kwargs)
         self.user_input_count += 1
 
-    def start(self):
-        # Emacs watches for this line before connecting.
-        print('Now_listening')
+    def on_connect(self):
+        #make outgoing connection
+        pass
 
     def remote_connect(self, workspace_url, on_auth=None, get_bufs=True):
         G.PROJECT_PATH = os.path.realpath(G.PROJECT_PATH)
         G.PROJECT_PATH += os.sep
-        self.agent = AgentConnection(Protocol=Protocol,
-                                     workspace_url=workspace_url,
-                                     on_auth=on_auth,
-                                     get_bufs=get_bufs,
-                                     conn=self)
+        self.agent = agent_connection.AgentConnection(
+                     workspace_url=workspace_url,
+                     on_auth=on_auth,
+                     get_bufs=get_bufs,
+                     conn=self)
         self.agent.connect()
 
-    def share_dir(self, dir_to_share, perms=None):
+    def create_view(self, buf, emacs_buf=None):
+        v = view.View(buf, emacs_buf)
+        self.views[buf['id']] = v
+        return v
+
+    def get_view(self, buf_id):
+        """Warning: side effects!"""
+        view = self.views.get(buf_id)
+        if view:
+            return view
+        buf = self.FLOO_BUFS[buf_id]
+        full_path = utils.get_full_path(buf['path'])
+        emacs_buf = self.emacs_bufs.get(full_path)
+        if emacs_buf:
+            view = self.create_view(buf, emacs_buf)
+        return view
+
+    def get_view_by_path(self, path):
+        """Warning: side effects!"""
+
+        if not path:
+            return None
+        buf = self.get_buf_by_path(path)
+        if not buf:
+            msg.debug("buf not found for path %s" % path)
+            return None
+        view = self.get_view(buf['id'])
+        if not view:
+            msg.debug("view not found for %s %s" % (buf['id'], buf['path']))
+            return None
+        return view
+
+    def update_view(self, data, view):
+        view.set_text(data['buf'])
+
+    def _on_set_follow_mode(self, req):
+        self.follow(bool(req['follow_mode']))
+
+    def _on_change(self, req):
+        path = req['full_path']
+        view = self.get_view_by_path(path)
+        if not view:
+            return
+        changed = req['changed']
+        begin = req['begin']
+        old_length = req['old_length']
+        self.emacs_bufs[path][0] = "%s%s%s" % (self.emacs_bufs[path][0][:begin - 1], changed, self.emacs_bufs[path][0][begin - 1 + old_length:])
+        self.BUFS_CHANGED.append(view.buf['id'])
+
+    def _on_highlight(self, req):
+        view = self.get_view_by_path(req['full_path'])
+        if view:
+            self.SELECTION_CHANGED.append((view, req.get('ping', False)))
+
+    def _on_create_buf(self, req):
+        self.create_buf(req['full_path'])
+
+    def _on_delete_buf(self, req):
+        buf = self.get_buf_by_path(req['path'])
+        if not buf:
+            msg.debug('No buffer for path %s' % req['path'])
+            return
+        msg.log('deleting buffer ', buf['path'])
+        event = {
+            'name': 'delete_buf',
+            'id': buf['id'],
+        }
+        self.agent.put(event)
+
+    def _on_rename_buf(self, req):
+        buf = self.get_buf_by_path(req['old_path'])
+        if not buf:
+            msg.debug('No buffer for path %s' % req['old_path'])
+            return
+        self.rename_buf(buf['id'], req['path'])
+
+    def _on_buffer_list_change(self, req):
+        added = req.get('added') or {}
+        for path, text in added.iteritems():
+            buf = self.get_buf_by_path(path)
+            self.emacs_bufs[path][0] = text
+            if not buf:
+                msg.debug('no buf for path %s' % path)
+                self.create_buf(path, text=text)
+                continue
+            view = self.views.get(buf['id'])
+            if view is None:
+                self.get_view(buf['id'])
+            elif view.is_loading():
+                view._emacs_buf = self.emacs_bufs[path]
+            else:
+                msg.debug('view for buf %s already exists. this is not good. we got out of sync' % buf['path'])
+
+        deleted = req.get('deleted') or []
+        for path in deleted:
+            if self.emacs_bufs.get(path) is None:
+                msg.debug('emacs deleted %s but we already deleted it from emacs_bufs' % path)
+            del self.emacs_bufs[path]
+            buf = self.get_buf_by_path(path)
+            if buf:
+                del self.views[buf['id']]
+
+        seen = set()
+        current = req.get('current') or []
+        for path in current:
+            if self.emacs_bufs.get(path) is None:
+                msg.debug('We should have buffer %s in emacs_bufs but we don\'t' % path)
+            else:
+                seen.add(path)
+
+        for buf_id, view in self.views.iteritems():
+            if utils.get_full_path(view.buf['path']) not in seen:
+                msg.debug('We should not have buffer %s in our views but we do.' % view.buf['path'])
+
+    def _on_saved(self, req):
+        buf = self.get_buf_by_path(req['path'])
+        if not buf:
+            msg.debug('No buffer for path %s' % req['path'])
+            return
+        event = {
+            'name': 'saved',
+            'id': buf['id'],
+        }
+        self.agent.put(event)
+
+    def _on_open_workspace(self, req):
+        try:
+            webbrowser.open(self.agent.workspace_url, new=2, autoraise=True)
+        except Exception as e:
+            msg.error("Couldn't open a browser: %s" % (str(e)))
+
+    def _on_open_workspace_settings(self, req):
+        try:
+            webbrowser.open(self.agent.workspace_url + '/settings', new=2, autoraise=True)
+        except Exception as e:
+            msg.error("Couldn't open a browser: %s" % (str(e)))
+
+    def _on_share_dir(self, dir_to_share, perms=None):
         dir_to_share = os.path.expanduser(dir_to_share)
         dir_to_share = utils.unfuck_path(dir_to_share)
         workspace_name = os.path.basename(dir_to_share)
@@ -136,7 +275,7 @@ class EmacsHandler(object):
 
         self.get_input('Create workspace for (%s) ' % " ".join([x[0] for x in choices]), '', on_done, choices=choices)
 
-    def create_workspace(self, data, workspace_name, dir_to_share, owner=None, perms=None):
+    def _on_create_workspace(self, data, workspace_name, dir_to_share, owner=None, perms=None):
         owner = owner or G.USERNAME
         workspace_name = data.get('response', workspace_name)
         prompt = 'workspace %s already exists. Choose another name: ' % workspace_name
@@ -175,7 +314,7 @@ class EmacsHandler(object):
         G.PROJECT_PATH = dir_to_share
         self.remote_connect(workspace_url, on_auth=lambda this: this.protocol.create_buf(dir_to_share), get_bufs=False)
 
-    def join_workspace(self, data, owner, workspace, dir_to_make=None):
+    def _on_join_workspace(self, data, owner, workspace, dir_to_make=None):
         d = data['response']
         workspace_url = utils.to_workspace_url({'secure': True, 'owner': owner, 'workspace': workspace})
         if dir_to_make:
@@ -198,118 +337,3 @@ class EmacsHandler(object):
             self.remote_connect(workspace_url)
         except Exception as e:
             return msg.error("Couldn't create directory %s: %s" % (G.PROJECT_PATH, str(e)))
-
-    def handle(self, req):
-        self.net_buf += req
-        while True:
-            before, sep, after = self.net_buf.partition('\n')
-            if not sep:
-                break
-            self.net_buf = after
-            try:
-                data = json.loads(before)
-            except Exception as e:
-                msg.error('Unable to parse json:', e)
-                msg.error('Data:', before)
-                raise e
-            if data['name'] == 'share_dir':
-                utils.reload_settings()
-                G.USERNAME = data['username']
-                G.SECRET = data['secret']
-                self.share_dir(data['dir_to_share'], data.get('perms'))
-            elif data['name'] == 'join_workspace':
-                utils.reload_settings()
-                workspace = data['workspace']
-                owner = data['workspace_owner']
-                G.USERNAME = data['username']
-                G.SECRET = data['secret']
-
-                try:
-                    G.PROJECT_PATH = utils.get_persistent_data()['workspaces'][owner][workspace]['path']
-                except Exception:
-                    G.PROJECT_PATH = ''
-
-                if G.PROJECT_PATH and os.path.isdir(G.PROJECT_PATH):
-                    workspace_url = utils.to_workspace_url({'secure': True, 'owner': owner, 'workspace': workspace})
-                    self.remote_connect(workspace_url)
-                    continue
-
-                G.PROJECT_PATH = '~/floobits/share/%s/%s' % (owner, workspace)
-                self.get_input('Give me a directory to sync data to: ', G.PROJECT_PATH, self.join_workspace, owner, workspace)
-
-            elif data['name'] == 'user_input':
-                cb_id = int(data['id'])
-                cb = self.user_inputs.get(cb_id)
-                if cb is None:
-                    msg.error('cb for input %s is none' % cb_id)
-                    continue
-                cb(data)
-                del self.user_inputs[cb_id]
-            else:
-                self.agent.protocol.emacs_handle(data)
-
-    def put(self, name, data):
-        data['name'] = name
-        self.to_emacs_q.append(json.dumps(data) + '\n')
-
-    def reconnect(self):
-        try:
-            self.conn.shutdown(socket.SHUT_RDWR)
-            self.conn.close()
-        except Exception:
-            pass
-        self.sock.close()
-        sys.exit(1)
-
-    # def select(self):
-    #     if not self.conn:
-    #         msg.error('select(): No socket.')
-    #         return self.reconnect()
-
-    #     while True:
-    #         if self.agent:
-    #             self.agent.tick()
-
-    #         out_conns = []
-    #         if len(self.to_emacs_q) > 0:
-    #             out_conns.append(self.conn)
-
-    #         try:
-    #             _in, _out, _except = select.select([self.conn], out_conns, [self.conn], 0.05)
-    #         except (select.error, socket.error, Exception) as e:
-    #             msg.error('Error in select(): %s' % str(e))
-    #             return self.reconnect()
-
-    #         if _except:
-    #             msg.error('Socket error')
-    #             return self.reconnect()
-
-    #         if _in:
-    #             buf = ''
-    #             while True:
-    #                 try:
-    #                     d = self.conn.recv(4096)
-    #                     if not d:
-    #                         break
-    #                     buf += d
-    #                 except (socket.error, TypeError):
-    #                     break
-    #             if buf:
-    #                 self.empty_selects = 0
-    #                 self.handle(buf)
-    #             else:
-    #                 self.empty_selects += 1
-    #                 if self.empty_selects > 10:
-    #                     msg.error('No data from sock.recv() {0} times.'.format(self.empty_selects))
-    #                     return self.reconnect()
-
-    #         if _out:
-    #             while len(self.to_emacs_q) > 0:
-    #                 p = self.to_emacs_q.pop(0)
-    #                 try:
-    #                     msg.debug('to emacs: %s' % p)
-    #                     self.conn.sendall(p)
-    #                 except Exception as e:
-    #                     msg.error('Couldn\'t write to socket: %s' % str(e))
-    #                     return self.reconnect()
-

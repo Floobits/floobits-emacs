@@ -1,10 +1,9 @@
+from floo import emacs_handler
 from floo.common import migrations
 from floo.common import reactor
 from floo.common import msg
 from floo.common import utils
 from floo.common import shared as G
-from floo.common.handlers import base
-from floo.common.protocols import emacs_proto
 
 G.__VERSION__ = '0.03'
 G.__PLUGIN_VERSION__ = '0.2'
@@ -20,13 +19,11 @@ migrations.rename_floobits_dir()
 migrations.migrate_symlinks()
 
 if __name__ == '__main__':
-    emacs = base.BaseHandler()
-    emacs.PROTOCOL = emacs_proto.EmacsProtocol
     r = reactor.install(20)
+    emacs = emacs_handler.EmacsHandler()
     r.listen(emacs, 'localhost', 4567)
-    G.EMACS = emacs
 
     def cb():
         print("Now_listening")
-    utils.set_timeout(cb, 50)
+    utils.set_timeout(cb, 100)
     r.block()
