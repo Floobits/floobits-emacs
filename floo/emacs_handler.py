@@ -76,6 +76,9 @@ class EmacsHandler(base.BaseHandler):
         self.views[buf['id']] = v
         return v
 
+    def save_view(self, view):
+        raise NotImplemented()
+
     def get_view(self, buf_id):
         """Warning: side effects!"""
         view = self.views.get(buf_id)
@@ -111,7 +114,7 @@ class EmacsHandler(base.BaseHandler):
         cb = self.user_inputs.get(cb_id)
         if cb is None:
             msg.error('cb for input %s is none' % cb_id)
-            continue
+            return
         cb(data)
         del self.user_inputs[cb_id]
 
