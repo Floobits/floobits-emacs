@@ -81,7 +81,3 @@ class AgentConnection(floo_handler.FlooHandler):
 
     def _on_msg(self, data):
         msg.log('msg')
-
-    # def send_msg(self, msg):
-    #     self.send({'name': 'msg', 'data': msg})
-    #     self.protocol.chat(self.username, time.time(), msg, True)

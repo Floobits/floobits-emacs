@@ -1,5 +1,3 @@
-
-#!/usr/bin/env python
 # coding: utf-8
 
 try:
@@ -33,10 +31,8 @@ class EmacsHandler(base.BaseHandler):
     PROTOCOL = EmacsProtocol
 
     def __init__(self, *args, **kwargs):
-        global emacs
         super(EmacsHandler, self).__init__(*args, **kwargs)
-        # agent handler (to the backend connection)
-        self.agent = None
+        self.agent = None  # agent handler (to the backend connection)
         self.views = {}
         self.user_inputs = {}
         self.user_input_count = 0

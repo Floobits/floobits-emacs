@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# coding: utf-8
+
 from floo import emacs_handler
 from floo.common import migrations
 from floo.common import reactor
@@ -15,7 +18,6 @@ def main():
     G.__PLUGIN_VERSION__ = '0.2'
     utils.reload_settings()
 
-    # enable debug with let floo_log_level = 'debug'
     floo_log_level = 'debug'
     msg.LOG_LEVEL = msg.LOG_LEVELS.get(floo_log_level.upper(), msg.LOG_LEVELS['MSG'])
     migrations.rename_floobits_dir()
