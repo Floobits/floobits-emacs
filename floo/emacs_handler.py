@@ -18,7 +18,7 @@ from urllib2 import HTTPError
 import agent_connection
 import editor
 
-import view
+from view import View
 from common import api
 from common import msg
 from common import shared as G
@@ -45,20 +45,20 @@ class EmacsHandler(base.BaseHandler):
         self.selection_changed = []
 
     def send_to_floobits(self, data):
-        self.agent.put(data)
+        self.agent.send(data)
 
     def tick(self):
         reported = set()
         while self.bufs_changed:
             buf_id = self.bufs_changed.pop()
-            v = self.get_view(buf_id)
-            buf = v.buf
-            if v.is_loading():
+            view = self.get_view(buf_id)
+            buf = view.buf
+            if view.is_loading():
                 msg.debug('View for buf %s is not ready. Ignoring change event' % buf['id'])
                 continue
             if 'patch' not in self.perms:
                 continue
-            vb_id = v.native_id
+            vb_id = view.native_id
             if vb_id in reported:
                 continue
             if 'buf' not in buf:
@@ -66,18 +66,18 @@ class EmacsHandler(base.BaseHandler):
                 continue
 
             reported.add(vb_id)
-            patch = utils.FlooPatch(v.get_text(), v.buf)
+            patch = utils.FlooPatch(view.get_text(), view.buf)
             # Update the current copy of the buffer
             buf['buf'] = patch.current
             buf['md5'] = hashlib.md5(patch.current.encode('utf-8')).hexdigest()
             self.send_to_floobits(patch.to_json())
 
         while self.selection_changed:
-            v, ping = self.selection_changed.pop()
+            view, ping = self.selection_changed.pop()
             # consume highlight events to avoid leak
             if 'highlight' not in self.perms:
                 continue
-            vb_id = v.native_id
+            vb_id = view.native_id
             if vb_id in reported:
                 continue
 
@@ -85,7 +85,7 @@ class EmacsHandler(base.BaseHandler):
             highlight_json = {
                 'id': vb_id,
                 'name': 'highlight',
-                'ranges': v.get_selections(),
+                'ranges': view.get_selections(),
                 'ping': ping,
             }
             self.send_to_floobits(highlight_json)
@@ -101,7 +101,7 @@ class EmacsHandler(base.BaseHandler):
         elif 'y_or_n' in kwargs:
             event['y_or_n'] = True
             del kwargs['y_or_n']
-        self.put('user_input', event)
+        self.send('user_input', event)
         self.user_inputs[self.user_input_count] = lambda x: cb(x, *args, **kwargs)
         self.user_input_count += 1
 
@@ -116,25 +116,22 @@ class EmacsHandler(base.BaseHandler):
         return self.agent
 
     def create_view(self, buf, emacs_buf=None):
-        v = view.View(buf, emacs_buf)
+        v = View(buf, emacs_buf)
         self.views[buf['id']] = v
         return v
-
-    def save_view(self, view):
-        raise NotImplementedError()
 
     def get_view(self, buf_id):
         """Warning: side effects!"""
         # return self.agent.get_view(buf_id)
-        # view = self.views.get(buf_id)
-        # if view:
-        #     return view
-        # buf = self.FLOO_BUFS[buf_id]
-        # full_path = utils.get_full_path(buf['path'])
-        # emacs_buf = self.emacs_bufs.get(full_path)
-        # if emacs_buf:
-        #     view = self.create_view(buf, emacs_buf)
-        # return view
+        view = self.views.get(buf_id)
+        if view:
+            return view
+        buf = self.agent.bufs[buf_id]
+        full_path = utils.get_full_path(buf['path'])
+        emacs_buf = self.emacs_bufs.get(full_path)
+        if emacs_buf:
+            view = self.create_view(buf, emacs_buf)
+        return view
 
     def get_view_by_path(self, path):
         """Warning: side effects!"""
@@ -153,17 +150,6 @@ class EmacsHandler(base.BaseHandler):
 
     def update_view(self, data, view):
         view.set_text(data['buf'])
-
-    def rename_buf(self, buf_id, new_path):
-        new_path = utils.to_rel_path(new_path)
-        if not utils.is_shared(new_path):
-            msg.log('New path %s is not shared. Discarding rename event.' % new_path)
-            return
-        self.put({
-            'name': 'rename_buf',
-            'id': buf_id,
-            'path': new_path,
-        })
 
     def _on_user_input(self, data):
         cb_id = int(data['id'])
@@ -206,32 +192,24 @@ class EmacsHandler(base.BaseHandler):
             'name': 'delete_buf',
             'id': buf['id'],
         }
-        self.agent.put(event)
+        self.agent.send(event)
 
-    # def _on_rename_buf(self, data):
-    #     buf_id = int(data['id'])
-    #     new = utils.get_full_path(data['path'])
-    #     old = utils.get_full_path(data['old_path'])
-    #     new_dir = os.path.dirname(new)
-    #     if new_dir:
-    #         utils.mkdir(new_dir)
-    #     buf = self.FLOO_BUFS[buf_id]
-    #     old_path = buf['path']
-    #     del self.FLOO_PATHS_TO_BUFS[old_path]
-    #     self.FLOO_PATHS_TO_BUFS[new] = buf_id
-    #     self.FLOO_BUFS[buf_id]['path'] = new
-
-    #     view = self.get_view(buf_id)
-    #     if view:
-    #         view.rename(new)
-    #     else:
-    #         os.rename(old, new)
-    def _on_rename_buf(self, req):
-        buf = self.get_buf_by_path(req['old_path'])
-        if not buf:
-            msg.debug('No buffer for path %s' % req['old_path'])
+    def _on_rename_buf(self, buf_id, new_path):
+        new_path = utils.to_rel_path(new_path)
+        if not utils.is_shared(new_path):
+            msg.log('New path %s is not shared. Discarding rename event.' % new_path)
             return
-        self.rename_buf(buf['id'], req['path'])
+
+        self.send_to_floobits({
+            'name': 'rename_buf',
+            'id': buf_id,
+            'path': new_path,
+        })
+        # KANS: is this right? old code...
+        old_path = self.agent.bufs[buf_id]['path']
+        del self.agent.paths_to_ids[old_path]
+        self.agent.paths_to_ids[new_path] = buf_id
+        self.agent.bufs[buf_id]['path'] = new_path
 
     def _on_buffer_list_change(self, req):
         added = req.get('added') or {}
@@ -280,7 +258,7 @@ class EmacsHandler(base.BaseHandler):
             'name': 'saved',
             'id': buf['id'],
         }
-        self.agent.put(event)
+        self.agent.send(event)
 
     def _on_open_workspace(self, req):
         try:

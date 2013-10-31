@@ -1,5 +1,4 @@
 import sys
-import time
 
 # import editor
 from floo.common.handlers import floo_handler
@@ -21,8 +20,12 @@ class AgentConnection(floo_handler.FlooHandler):
     def client(self):
         return 'Emacs'
 
-    def to_emacs(self, data):
-        self.emacs_handler.put(data)
+    def get_view(self, buf_id):
+        return self.emacs_handler.get_view(buf_id)
+
+    def to_emacs(self, name, data):
+        data['name'] = name
+        self.emacs_handler.send(data)
 
     def _on_room_info(self, data):
         super(AgentConnection, self)._on_room_info(data)
@@ -43,7 +46,7 @@ class AgentConnection(floo_handler.FlooHandler):
 
     def _on_delete_buf(self, data):
         buf_id = int(data['id'])
-        buf = self.FLOO_BUFS[buf_id]
+        buf = self.bufs[buf_id]
         path = buf['path']
         try:
             super(AgentConnection, self)._on_delete_buf(data)
@@ -57,7 +60,7 @@ class AgentConnection(floo_handler.FlooHandler):
             })
 
     def _on_rename_buf(self, data):
-        buf = self.FLOO_BUFS[int(data['id'])]
+        buf = self.bufs[int(data['id'])]
         # This can screw up if someone else renames the buffer around the same time as us. Oh well.
         buf = self.get_buf_by_path(utils.get_full_path(data['path']))
         if not buf:
@@ -66,7 +69,7 @@ class AgentConnection(floo_handler.FlooHandler):
 
     def _on_highlight(self, data):
         super(AgentConnection, self)._on_highlight(data)
-        buf = self.FLOO_BUFS[data['id']]
+        buf = self.bufs[data['id']]
         # TODO: save highlights for when user opens the buffer in emacs
         self.to_emacs('highlight', {
             'id': buf['id'],
@@ -79,32 +82,6 @@ class AgentConnection(floo_handler.FlooHandler):
     def _on_msg(self, data):
         msg.log('msg')
 
-    # def tick(self):
-    #     self.protocol.push()
-    #     self.select()
-    #     editor.call_timeouts()
-
-    def send_get_buf(self, buf_id):
-        req = {
-            'name': 'get_buf',
-            'id': buf_id
-        }
-        self.put(req)
-
-    # def send_auth(self):
-    #     # TODO: we shouldn't throw away all of this
-    #     self.sock_q = Queue.Queue()
-    #     self.put({
-    #         'username': self.username,
-    #         'secret': self.secret,
-    #         'room': self.workspace,
-    #         'room_owner': self.owner,
-    #         'client': self.protocol.CLIENT,
-    #         'platform': sys.platform,
-    #         'supported_encodings': ['utf8', 'base64'],
-    #         'version': G.__VERSION__
-    #     })
-
-    def send_msg(self, msg):
-        self.put({'name': 'msg', 'data': msg})
-        self.protocol.chat(self.username, time.time(), msg, True)
+    # def send_msg(self, msg):
+    #     self.send({'name': 'msg', 'data': msg})
+    #     self.protocol.chat(self.username, time.time(), msg, True)
