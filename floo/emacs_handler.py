@@ -9,6 +9,7 @@ except NameError:
 import os
 import json
 import re
+import hashlib
 import webbrowser
 from collections import defaultdict
 from urllib2 import HTTPError
@@ -48,6 +49,49 @@ class EmacsHandler(base.BaseHandler):
     def client(self):
         return 'Emacs'
 
+    def tick(self):
+        reported = set()
+        while self.BUFS_CHANGED:
+            buf_id = self.BUFS_CHANGED.pop()
+            v = self.get_view(buf_id)
+            buf = v.buf
+            if v.is_loading():
+                msg.debug('View for buf %s is not ready. Ignoring change event' % buf['id'])
+                continue
+            if 'patch' not in self.perms:
+                continue
+            vb_id = v.native_id
+            if vb_id in reported:
+                continue
+            if 'buf' not in buf:
+                msg.debug('No data for buf %s %s yet. Skipping sending patch' % (buf['id'], buf['path']))
+                continue
+
+            reported.add(vb_id)
+            patch = utils.FlooPatch(v.get_text(), v.buf)
+            # Update the current copy of the buffer
+            buf['buf'] = patch.current
+            buf['md5'] = hashlib.md5(patch.current.encode('utf-8')).hexdigest()
+            self.send_to_floobits(patch.to_json())
+
+        while self.SELECTION_CHANGED:
+            v, ping = self.SELECTION_CHANGED.pop()
+            # consume highlight events to avoid leak
+            if 'highlight' not in self.perms:
+                continue
+            vb_id = v.native_id
+            if vb_id in reported:
+                continue
+
+            reported.add(vb_id)
+            highlight_json = {
+                'id': vb_id,
+                'name': 'highlight',
+                'ranges': v.get_selections(),
+                'ping': ping,
+            }
+            self.send_to_floobits(highlight_json)
+
     def get_input(self, prompt, initial, cb, *args, **kwargs):
         event = {
             'id': self.user_input_count,
@@ -81,15 +125,16 @@ class EmacsHandler(base.BaseHandler):
 
     def get_view(self, buf_id):
         """Warning: side effects!"""
-        view = self.views.get(buf_id)
-        if view:
-            return view
-        buf = self.FLOO_BUFS[buf_id]
-        full_path = utils.get_full_path(buf['path'])
-        emacs_buf = self.emacs_bufs.get(full_path)
-        if emacs_buf:
-            view = self.create_view(buf, emacs_buf)
-        return view
+        # return self.agent.get_view(buf_id)
+        # view = self.views.get(buf_id)
+        # if view:
+        #     return view
+        # buf = self.FLOO_BUFS[buf_id]
+        # full_path = utils.get_full_path(buf['path'])
+        # emacs_buf = self.emacs_bufs.get(full_path)
+        # if emacs_buf:
+        #     view = self.create_view(buf, emacs_buf)
+        # return view
 
     def get_view_by_path(self, path):
         """Warning: side effects!"""
@@ -108,6 +153,17 @@ class EmacsHandler(base.BaseHandler):
 
     def update_view(self, data, view):
         view.set_text(data['buf'])
+
+    def rename_buf(self, buf_id, new_path):
+        new_path = utils.to_rel_path(new_path)
+        if not utils.is_shared(new_path):
+            msg.log('New path %s is not shared. Discarding rename event.' % new_path)
+            return
+        self.put({
+            'name': 'rename_buf',
+            'id': buf_id,
+            'path': new_path,
+        })
 
     def _on_user_input(self, data):
         cb_id = int(data['id'])
@@ -152,6 +208,24 @@ class EmacsHandler(base.BaseHandler):
         }
         self.agent.put(event)
 
+    # def _on_rename_buf(self, data):
+    #     buf_id = int(data['id'])
+    #     new = utils.get_full_path(data['path'])
+    #     old = utils.get_full_path(data['old_path'])
+    #     new_dir = os.path.dirname(new)
+    #     if new_dir:
+    #         utils.mkdir(new_dir)
+    #     buf = self.FLOO_BUFS[buf_id]
+    #     old_path = buf['path']
+    #     del self.FLOO_PATHS_TO_BUFS[old_path]
+    #     self.FLOO_PATHS_TO_BUFS[new] = buf_id
+    #     self.FLOO_BUFS[buf_id]['path'] = new
+
+    #     view = self.get_view(buf_id)
+    #     if view:
+    #         view.rename(new)
+    #     else:
+    #         os.rename(old, new)
     def _on_rename_buf(self, req):
         buf = self.get_buf_by_path(req['old_path'])
         if not buf:
