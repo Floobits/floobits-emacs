@@ -34,8 +34,11 @@ class EmacsHandler(base.BaseHandler):
     def __init__(self, *args, **kwargs):
         global emacs
         super(EmacsHandler, self).__init__(*args, **kwargs)
+        # agent handler (to the backend connection)
         self.agent = None
         self.views = {}
+        self.user_inputs = {}
+        self.user_input_count = 0
         self.emacs_bufs = defaultdict(lambda: [""])
 
     def send_to_floobits(self, data):
@@ -102,6 +105,15 @@ class EmacsHandler(base.BaseHandler):
 
     def update_view(self, data, view):
         view.set_text(data['buf'])
+
+    def _on_user_input(self, data):
+        cb_id = int(data['id'])
+        cb = self.user_inputs.get(cb_id)
+        if cb is None:
+            msg.error('cb for input %s is none' % cb_id)
+            continue
+        cb(data)
+        del self.user_inputs[cb_id]
 
     def _on_set_follow_mode(self, req):
         self.follow(bool(req['follow_mode']))

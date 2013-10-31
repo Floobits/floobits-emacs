@@ -15,8 +15,6 @@ class AgentConnection(floo_handler.FlooHandler):
     def __init__(self, owner, workspace, emacs_handler, get_bufs=True):
         super(AgentConnection, self).__init__(owner, workspace, get_bufs)
         self.emacs_handler = emacs_handler
-        self.user_inputs = {}
-        self.user_input_count = 0
         if sys.version_info[0] == 2 and sys.version_info[1] == 6:
             # Work around http://bugs.python.org/issue11326
             msg.error('Disabling SSL to work around a bug in Python 2.6. Please upgrade your Python to get SSL. See http://bugs.python.org/issue11326')
