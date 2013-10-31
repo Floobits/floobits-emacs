@@ -121,7 +121,7 @@ class EmacsHandler(base.BaseHandler):
         return v
 
     def save_view(self, view):
-        raise NotImplemented()
+        raise NotImplementedError()
 
     def get_view(self, buf_id):
         """Warning: side effects!"""
