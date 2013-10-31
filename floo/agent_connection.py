@@ -1,13 +1,9 @@
-import os
-import json
-import socket
-import Queue
 import sys
 import time
 
-import editor
+# import editor
 from floo.common.handlers import floo_handler
-from floo.common import cert, msg, utils, shared as G
+from floo.common import msg, utils, shared as G
 
 
 class AgentConnection(floo_handler.FlooHandler):
@@ -20,6 +16,10 @@ class AgentConnection(floo_handler.FlooHandler):
             msg.error('Disabling SSL to work around a bug in Python 2.6. Please upgrade your Python to get SSL. See http://bugs.python.org/issue11326')
             G.SECURE = False
             G.DEFAULT_PORT = 3148
+
+    @property
+    def client(self):
+        return 'Emacs'
 
     def to_emacs(self, data):
         self.emacs_handler.put(data)
@@ -79,10 +79,10 @@ class AgentConnection(floo_handler.FlooHandler):
     def _on_msg(self, data):
         msg.log('msg')
 
-    def tick(self):
-        self.protocol.push()
-        self.select()
-        editor.call_timeouts()
+    # def tick(self):
+    #     self.protocol.push()
+    #     self.select()
+    #     editor.call_timeouts()
 
     def send_get_buf(self, buf_id):
         req = {
@@ -108,5 +108,3 @@ class AgentConnection(floo_handler.FlooHandler):
     def send_msg(self, msg):
         self.put({'name': 'msg', 'data': msg})
         self.protocol.chat(self.username, time.time(), msg, True)
-
-

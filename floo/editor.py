@@ -57,6 +57,10 @@ def error_message(*args, **kwargs):
     print(args, kwargs)
 
 
+def status_message(msg):
+    print(msg)
+
+
 class Region(object):
     def __init__(*args, **kwargs):
         pass

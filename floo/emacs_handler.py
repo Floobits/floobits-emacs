@@ -47,10 +47,6 @@ class EmacsHandler(base.BaseHandler):
     def send_to_floobits(self, data):
         self.agent.put(data)
 
-    @property
-    def client(self):
-        return 'Emacs'
-
     def tick(self):
         reported = set()
         while self.bufs_changed:
@@ -115,11 +111,9 @@ class EmacsHandler(base.BaseHandler):
     def remote_connect(self, owner, workspace, get_bufs=True):
         G.PROJECT_PATH = os.path.realpath(G.PROJECT_PATH)
         G.PROJECT_PATH += os.sep
-        agent = agent_connection.AgentConnection(owner, workspace, self, get_bufs)
-        print(agent)
-        reactor.connect(agent, G.HOST, G.PORT, True)
-        self.agent = agent
-        return agent
+        self.agent = agent_connection.AgentConnection(owner, workspace, self, get_bufs)
+        reactor.reactor.connect(self.agent, G.DEFAULT_HOST, G.DEFAULT_PORT, True)
+        return self.agent
 
     def create_view(self, buf, emacs_buf=None):
         v = view.View(buf, emacs_buf)
@@ -412,12 +406,11 @@ class EmacsHandler(base.BaseHandler):
             return msg.error('Unable to create workspace: %s' % str(e))
 
         G.PROJECT_PATH = dir_to_share
-        agent = self.remote_connect(workspace_name, owner, False)
+        agent = self.remote_connect(owner, workspace_name, False)
         agent.once("room_info", lambda: agent.upload(dir_to_share))
 
     def join_workspace(self, data, owner, workspace, dir_to_make=None):
         d = data['response']
-        workspace_url = utils.to_workspace_url({'secure': True, 'owner': owner, 'workspace': workspace})
         if dir_to_make:
             if d:
                 d = dir_to_make
@@ -435,26 +428,23 @@ class EmacsHandler(base.BaseHandler):
         try:
             G.PROJECT_PATH = d
             utils.mkdir(os.path.dirname(G.PROJECT_PATH))
-            self.remote_connect(workspace_url)
+            self.remote_connect(owner, workspace)
         except Exception as e:
             return msg.error("Couldn't create directory %s: %s" % (G.PROJECT_PATH, str(e)))
 
     def _on_join_workspace(self, data):
-        utils.reload_settings()
         workspace = data['workspace']
         owner = data['workspace_owner']
         G.USERNAME = data['username']
         G.SECRET = data['secret']
-
+        utils.reload_settings()
         try:
             G.PROJECT_PATH = utils.get_persistent_data()['workspaces'][owner][workspace]['path']
         except Exception:
             G.PROJECT_PATH = ''
 
         if G.PROJECT_PATH and os.path.isdir(G.PROJECT_PATH):
-            workspace_url = utils.to_workspace_url({'secure': True, 'owner': owner, 'workspace': workspace})
-            self.remote_connect(workspace_url)
-            continue
+            return self.remote_connect(owner, workspace)
 
         G.PROJECT_PATH = '~/floobits/share/%s/%s' % (owner, workspace)
         self.get_input('Give me a directory to sync data to: ', G.PROJECT_PATH, self.join_workspace, owner, workspace)
