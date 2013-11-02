@@ -10,6 +10,7 @@ class AgentConnection(floo_handler.FlooHandler):
     def __init__(self, owner, workspace, emacs_handler, get_bufs=True):
         super(AgentConnection, self).__init__(owner, workspace, get_bufs)
         self.emacs_handler = emacs_handler
+        # KANS: not sure if this is doing what it is supposed to ...
         if sys.version_info[0] == 2 and sys.version_info[1] == 6:
             # Work around http://bugs.python.org/issue11326
             msg.error('Disabling SSL to work around a bug in Python 2.6. Please upgrade your Python to get SSL. See http://bugs.python.org/issue11326')
@@ -24,12 +25,17 @@ class AgentConnection(floo_handler.FlooHandler):
         return self.emacs_handler.get_view(buf_id)
 
     def __ok_cancel_dialog(self, prompt, cb):
-        return self.emacs_handler.get_input(prompt, cb=lambda data: cb(data['response']), y_or_n=True)
+        def wrap(data):
+            return cb(data['response'])
+        self.emacs_handler.get_input(prompt, "", cb=wrap, y_or_n=True)
 
     @utils.inlined_callbacks
     def ok_cancel_dialog(self, prompt):
+        print("in ok_cancel_dialog", self, prompt)
         retval = yield self.__ok_cancel_dialog, prompt
-        utils.return_value(retval)
+        retval = "asdfasfasdf"
+        print("returning from yield %s \n\n\n\n" % retval)
+        yield utils.return_value(retval)
 
     def to_emacs(self, name, data):
         data['name'] = name
@@ -76,7 +82,6 @@ class AgentConnection(floo_handler.FlooHandler):
         msg.debug('We already renamed %s. Skipping' % buf['path'])
 
     def _on_highlight(self, data):
-        super(AgentConnection, self)._on_highlight(data)
         buf = self.bufs[data['id']]
         # TODO: save highlights for when user opens the buffer in emacs
         self.to_emacs('highlight', {

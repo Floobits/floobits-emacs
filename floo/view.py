@@ -1,16 +1,17 @@
 from common import msg
 from common import utils
-from common import shared as G
 
 
 class View(object):
     """editors representation of the buffer"""
 
-    def __init__(self, buf, emacs_buf=None):
+    def __init__(self, emacs, buf, emacs_buf=None):
         self.buf = buf
         self._emacs_buf = emacs_buf
+        self._emacs = emacs
         if emacs_buf is None:
-            G.EMACS.put('create_view', {
+            emacs.send({
+                'name': 'create_view',
                 'full_path': utils.get_full_path(buf['path']),
                 'id': buf['id'],
             })
@@ -39,20 +40,29 @@ class View(object):
     def get_text(self):
         return self.emacs_buf
 
+    def update(self):
+        print(';buf is', self.buf)
+        self.set_text(self.buf['buf'])
+
     def set_text(self, text):
         self.emacs_buf = text
-        G.EMACS.put('get_buf', {
+        self._emacs.send({
+            'name': 'get_buf',
             'id': self.buf['id'],
             'full_path': utils.get_full_path(self.buf['path']),
             'buf': text,
         })
+
+    def set_read_only(self, state):
+        pass
 
     def apply_patches(self, buf, patches):
         cursor_offset = self.get_cursor_offset()
         msg.debug('cursor offset is %s bytes' % cursor_offset)
 
         self.emacs_buf = patches[0]
-        G.EMACS.put('edit', {
+        self._emacs.send({
+            'name': 'edit',
             'id': self.buf['id'],
             'full_path': utils.get_full_path(self.buf['path']),
             'edits': patches[2],
@@ -90,4 +100,7 @@ class View(object):
         pass
 
     def save(self):
+        pass
+
+    def set_status(self, status):
         pass

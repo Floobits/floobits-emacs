@@ -43,6 +43,11 @@ class EmacsHandler(base.BaseHandler):
     def send_to_floobits(self, data):
         self.agent.send(data)
 
+    def get_buf_by_path(self, path):
+        if not self.agent:
+            return None
+        return self.agent.get_buf_by_path(path)
+
     def tick(self):
         reported = set()
         while self.bufs_changed:
@@ -52,7 +57,7 @@ class EmacsHandler(base.BaseHandler):
             if view.is_loading():
                 msg.debug('View for buf %s is not ready. Ignoring change event' % buf['id'])
                 continue
-            if 'patch' not in self.perms:
+            if 'patch' not in G.PERMS:
                 continue
             vb_id = view.native_id
             if vb_id in reported:
@@ -71,7 +76,7 @@ class EmacsHandler(base.BaseHandler):
         while self.selection_changed:
             view, ping = self.selection_changed.pop()
             # consume highlight events to avoid leak
-            if 'highlight' not in self.perms:
+            if 'highlight' not in G.PERMS:
                 continue
             vb_id = view.native_id
             if vb_id in reported:
@@ -98,7 +103,6 @@ class EmacsHandler(base.BaseHandler):
         elif 'y_or_n' in kwargs:
             event['y_or_n'] = True
             del kwargs['y_or_n']
-
         self.send(event)
         self.user_inputs[self.user_input_count] = lambda x: cb(x, *args, **kwargs)
         self.user_input_count += 1
@@ -114,7 +118,7 @@ class EmacsHandler(base.BaseHandler):
         return self.agent
 
     def create_view(self, buf, emacs_buf=None):
-        v = View(buf, emacs_buf)
+        v = View(self, buf, emacs_buf)
         self.views[buf['id']] = v
         return v
 
@@ -133,7 +137,6 @@ class EmacsHandler(base.BaseHandler):
 
     def get_view_by_path(self, path):
         """Warning: side effects!"""
-
         if not path:
             return None
         buf = self.get_buf_by_path(path)
@@ -150,6 +153,7 @@ class EmacsHandler(base.BaseHandler):
         view.set_text(data['buf'])
 
     def _on_user_input(self, data):
+        print('got user_input', data)
         cb_id = int(data['id'])
         cb = self.user_inputs.get(cb_id)
         if cb is None:
@@ -186,11 +190,10 @@ class EmacsHandler(base.BaseHandler):
             msg.debug('No buffer for path %s' % req['path'])
             return
         msg.log('deleting buffer ', buf['path'])
-        event = {
+        self.send_to_floobits({
             'name': 'delete_buf',
             'id': buf['id'],
-        }
-        self.agent.send(event)
+        })
 
     def _on_rename_buf(self, buf_id, new_path):
         new_path = utils.to_rel_path(new_path)
@@ -252,11 +255,10 @@ class EmacsHandler(base.BaseHandler):
         if not buf:
             msg.debug('No buffer for path %s' % req['path'])
             return
-        event = {
+        self.send_to_floobits({
             'name': 'saved',
             'id': buf['id'],
-        }
-        self.agent.send(event)
+        })
 
     def _on_open_workspace(self, req):
         try:

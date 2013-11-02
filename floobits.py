@@ -24,9 +24,10 @@ def main():
     migrations.migrate_symlinks()
 
     r = reactor.install(20)
-    emacs = emacs_handler.EmacsHandler()
-    r.listen(emacs, 'localhost', 4567)
-    utils.set_timeout(cb, 100)
+    # emacs = emacs_handler.EmacsHandler()
+    # r.listen(emacs, 'localhost', 4567)
+    # utils.set_timeout(cb, 100)
+    utils.set_timeout(utils.test, 0, 2)
     r.block()
 
 if __name__ == '__main__':
