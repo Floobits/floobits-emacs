@@ -88,6 +88,7 @@ class EmacsHandler(base.BaseHandler):
 
     def get_input(self, prompt, initial, cb, *args, **kwargs):
         event = {
+            'name': 'user_input',
             'id': self.user_input_count,
             'prompt': prompt,
             'initial': initial,
@@ -97,7 +98,7 @@ class EmacsHandler(base.BaseHandler):
         elif 'y_or_n' in kwargs:
             event['y_or_n'] = True
             del kwargs['y_or_n']
-        self.send('user_input', event)
+        self.send(event)
         self.user_inputs[self.user_input_count] = lambda x: cb(x, *args, **kwargs)
         self.user_input_count += 1
 

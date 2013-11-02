@@ -24,6 +24,7 @@ class AgentConnection(floo_handler.FlooHandler):
         return self.emacs_handler.get_view(buf_id)
 
     def ok_cancel_dialog(self, msg, cb):
+        print(msg, cb)
         return self.emacs_handler.get_input(msg, "", cb=cb, y_or_n=True)
 
     def to_emacs(self, name, data):
