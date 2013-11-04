@@ -103,6 +103,8 @@ class EmacsHandler(base.BaseHandler):
         elif 'y_or_n' in kwargs:
             event['y_or_n'] = True
             del kwargs['y_or_n']
+            print(prompt)
+            event['prompt'] = prompt.replace('\n', ', ').replace(", ,", "") + '? '
         self.send(event)
         self.user_inputs[self.user_input_count] = lambda x: cb(x, *args, **kwargs)
         self.user_input_count += 1
