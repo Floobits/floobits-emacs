@@ -24,18 +24,8 @@ class AgentConnection(floo_handler.FlooHandler):
     def get_view(self, buf_id):
         return self.emacs_handler.get_view(buf_id)
 
-    def __ok_cancel_dialog(self, prompt, cb):
-        def wrap(data):
-            return cb(data['response'])
-        self.emacs_handler.get_input(prompt, "", cb=wrap, y_or_n=True)
-
-    @utils.inlined_callbacks
-    def ok_cancel_dialog(self, prompt):
-        print("in ok_cancel_dialog", self, prompt)
-        retval = yield self.__ok_cancel_dialog, prompt
-        retval = "asdfasfasdf"
-        print("returning from yield %s \n\n\n\n" % retval)
-        yield utils.return_value(retval)
+    def ok_cancel_dialog(self, prompt, cb):
+        return self.emacs_handler.get_input(prompt, "", cb=lambda data: cb(data['response']), y_or_n=True)
 
     def to_emacs(self, name, data):
         data['name'] = name
