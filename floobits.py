@@ -18,7 +18,9 @@ def main():
     G.__PLUGIN_VERSION__ = '1.0'
     utils.reload_settings()
 
-    floo_log_level = 'debug'
+    floo_log_level = 'msg'
+    if G.DEBUG:
+        floo_log_level = 'debug'
     msg.LOG_LEVEL = msg.LOG_LEVELS.get(floo_log_level.upper(), msg.LOG_LEVELS['MSG'])
     migrations.rename_floobits_dir()
     migrations.migrate_symlinks()
