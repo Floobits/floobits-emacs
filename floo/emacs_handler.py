@@ -38,7 +38,6 @@ class EmacsHandler(base.BaseHandler):
         self.user_input_count = 0
         self.emacs_bufs = defaultdict(lambda: [""])
         self.bufs_changed = []
-        self.selection_changed = []
 
     def send_to_floobits(self, data):
         self.agent.send(data)
@@ -72,24 +71,6 @@ class EmacsHandler(base.BaseHandler):
             buf['buf'] = patch.current
             buf['md5'] = hashlib.md5(patch.current.encode('utf-8')).hexdigest()
             self.send_to_floobits(patch.to_json())
-
-        while self.selection_changed:
-            view, ping = self.selection_changed.pop()
-            # consume highlight events to avoid leak
-            if 'highlight' not in G.PERMS:
-                continue
-            vb_id = view.native_id
-            if vb_id in reported:
-                continue
-
-            reported.add(vb_id)
-            highlight_json = {
-                'id': vb_id,
-                'name': 'highlight',
-                'ranges': view.get_selections(),
-                'ping': ping,
-            }
-            self.send_to_floobits(highlight_json)
 
     def get_input(self, prompt, initial, cb, *args, **kwargs):
         event = {
@@ -179,9 +160,19 @@ class EmacsHandler(base.BaseHandler):
         self.bufs_changed.append(view.buf['id'])
 
     def _on_highlight(self, req):
+        if 'highlight' not in G.PERMS:
+            return
         view = self.get_view_by_path(req['full_path'])
-        if view:
-            self.selection_changed.append((view, req.get('ping', False)))
+        if not view:
+            return
+        highlight_json = {
+            'id': view.buf['id'],
+            'name': 'highlight',
+            'ranges': req['ranges'],
+            'ping': req.get("ping"),
+        }
+        msg.log("sending highlight upstream %s" % highlight_json)
+        self.send_to_floobits(highlight_json)
 
     def _on_create_buf(self, req):
         self.create_buf(req['full_path'])

@@ -55,7 +55,6 @@
 
 (defvar floobits-debug nil)
 (defvar floobits-agent-host "localhost")
-(defvar floobits-agent-port 4567)
 (defvar floobits-python-path (concat floobits-plugin-dir "floobits.py"))
 (defvar floobits-python-agent)
 
@@ -316,15 +315,15 @@ See floobits-share-dir to create one or visit floobits.com."
       (insert string)
       (set-marker (process-mark proc) (point))
       (beginning-of-buffer)
-      (when (and floobits-on-connect (search-forward "Now_listening" nil t))
-        (setq floobits-on-connect nil)
-        (setq floobits-conn (open-network-stream "floobits" nil floobits-agent-host floobits-agent-port))
-        (message "listeneing")
-        (set-process-coding-system floobits-conn 'utf-8 'utf-8)
-        (set-process-query-on-exit-flag floobits-conn nil)
-        (set-process-filter floobits-conn 'floobits-listener)
-        (funcall callback))
-      (if moving (goto-char (process-mark proc))))))
+      (when (and floobits-on-connect (search-forward "Now_listening " nil t))
+        (let ((port (car (split-string (buffer-substring (point) (point-max)) "\n" t))))
+          (setq floobits-on-connect nil)
+          (setq floobits-conn (open-network-stream "floobits" nil floobits-agent-host port))
+          (set-process-coding-system floobits-conn 'utf-8 'utf-8)
+          (set-process-query-on-exit-flag floobits-conn nil)
+          (set-process-filter floobits-conn 'floobits-listener)
+          (funcall callback))
+      (if moving (goto-char (process-mark proc)))))))
 
 (defun floobits-launch-agent ()
   (condition-case nil
@@ -353,6 +352,13 @@ See floobits-share-dir to create one or visit floobits.com."
 (defun floobits-post-command-func ()
   "used for grabbing changes in point for highlighting"
   (floobits-buffer-list-change)
+; (defun prop-test (old new) (message "XXX: %d %d" old new))
+; (let ((buffer (generate-new-buffer "*prop tst*")))
+;   (with-current-buffer buffer
+;     (insert "1234567890\n1234567890\n")
+;     (put-text-property (point-min) (point-max) 'point-entered 'prop-test)
+;     (put-text-property (point-min) (point-max) 'point-left 'prop-test)
+;     (pop-to-buffer buffer))) 
   (floobits-send-highlight))
 
 (defun floobits-event-user_input (req)
@@ -382,18 +388,16 @@ See floobits-share-dir to create one or visit floobits.com."
 (defun floobits-send-highlight (&optional ping)
   (when (_floobits-is-buffer-public (current-buffer))
     (let* ((name (buffer-file-name (current-buffer)))
-           (mark (or (mark) -1))
-           (current (list
-             (cons 'point (or (point) -1))
-             (cons 'mark mark)
-             (cons 'name (or name "")))))
-      (unless (or ping (equal current floobits-current-position))
-        (setq floobits-current-position current)
-        (let ((req (list
-            (cons 'ranges (vector (vector mark mark)))
+          (point (- (or (point) 0) 1))
+          (req (list
+            (cons 'ranges (if (use-region-p)
+              (vector (vector (- (region-beginning) 1) (- (region-end) 1)))
+              (vector (vector point point))))
             (cons 'full_path name)
             (cons 'ping ping))))
-          (floobits-send-to-agent req 'highlight))))))
+      (when (or ping (not (equal req floobits-current-position)))
+          (setq floobits-current-position req)
+          (floobits-send-to-agent req 'highlight)))))
 
 (defun _floobits-is-buffer-public (buf)
   (let ((name (buffer-name buf)))

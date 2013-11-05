@@ -9,13 +9,13 @@ from floo.common import utils
 from floo.common import shared as G
 
 
-def cb():
-    print("Now_listening")
+def cb(port):
+    print('Now_listening %s' % port)
 
 
 def main():
     G.__VERSION__ = '0.03'
-    G.__PLUGIN_VERSION__ = '0.2'
+    G.__PLUGIN_VERSION__ = '1.0'
     utils.reload_settings()
 
     floo_log_level = 'debug'
@@ -25,8 +25,8 @@ def main():
 
     r = reactor.install(20)
     emacs = emacs_handler.EmacsHandler()
-    r.listen(emacs, 'localhost', 4567)
-    utils.set_timeout(cb, 100)
+    _, port = r.listen(emacs, 'localhost', 0)
+    utils.set_timeout(cb, 100, port)
     r.block()
 
 if __name__ == '__main__':

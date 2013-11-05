@@ -41,7 +41,6 @@ class View(object):
         return self.emacs_buf
 
     def update(self):
-        print(';buf is', self.buf)
         self.set_text(self.buf['buf'])
 
     def set_text(self, text):
