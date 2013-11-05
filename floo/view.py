@@ -40,7 +40,8 @@ class View(object):
     def get_text(self):
         return self.emacs_buf
 
-    def update(self):
+    def update(self, data):
+        self.buf = data
         self.set_text(self.buf['buf'])
 
     def set_text(self, text):
