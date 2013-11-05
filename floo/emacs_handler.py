@@ -171,7 +171,7 @@ class EmacsHandler(base.BaseHandler):
             'ranges': req['ranges'],
             'ping': req.get("ping"),
         }
-        msg.log("sending highlight upstream %s" % highlight_json)
+        msg.debug("sending highlight upstream %s" % highlight_json)
         self.send_to_floobits(highlight_json)
 
     def _on_create_buf(self, req):
