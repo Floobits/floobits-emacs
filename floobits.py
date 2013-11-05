@@ -10,7 +10,7 @@ from floo.common import shared as G
 
 
 def cb(port):
-    print('Now_listening %s' % port)
+    print('Now listening on %s' % port)
 
 
 def main():
@@ -25,7 +25,7 @@ def main():
 
     r = reactor.install(20)
     emacs = emacs_handler.EmacsHandler()
-    _, port = r.listen(emacs, 'localhost', 0)
+    _, port = r.listen(emacs)
     utils.set_timeout(cb, 100, port)
     r.block()
 

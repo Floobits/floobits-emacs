@@ -54,7 +54,7 @@
 (setq max-specpdl-size 1500)
 
 (defvar floobits-debug nil)
-(defvar floobits-agent-host "localhost")
+(defvar floobits-agent-host "127.0.0.1")
 (defvar floobits-python-path (concat floobits-plugin-dir "floobits.py"))
 (defvar floobits-python-agent)
 
@@ -315,7 +315,7 @@ See floobits-share-dir to create one or visit floobits.com."
       (insert string)
       (set-marker (process-mark proc) (point))
       (beginning-of-buffer)
-      (when (and floobits-on-connect (search-forward "Now_listening " nil t))
+      (when (and floobits-on-connect (search-forward "Now listening on " nil t))
         (let ((port (car (split-string (buffer-substring (point) (point-max)) "\n" t))))
           (setq floobits-on-connect nil)
           (setq floobits-conn (open-network-stream "floobits" nil floobits-agent-host port))
