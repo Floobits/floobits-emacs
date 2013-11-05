@@ -341,7 +341,9 @@ See floobits-share-dir to create one or visit floobits.com."
   (if (floobits-process-live-p floobits-conn)
     (progn
       (floo-set-item 'req 'name event)
-      (process-send-string floobits-conn (concat (json-encode req) "\n")))
+      ; TODO FIXME: sending highlights breaks bjorn's emacs
+      (unless (string-equal event "highlight")
+        (process-send-string floobits-conn (concat (json-encode req) "\n"))))
     (progn
       (message "Connection to floobits died :(")
       (floobits-destroy-connection))))
