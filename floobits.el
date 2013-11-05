@@ -94,7 +94,7 @@
 (floobits-initialize)
 
 (defun floobits-debug-message (text &rest rest)
-  (if (eq floobits-debug t)
+  (when floobits-debug
     (apply 'message text rest)))
 
 (defun floobits-add-hooks ()
@@ -351,15 +351,8 @@ See floobits-share-dir to create one or visit floobits.com."
 
 (defun floobits-post-command-func ()
   "used for grabbing changes in point for highlighting"
-  (floobits-buffer-list-change)
-; (defun prop-test (old new) (message "XXX: %d %d" old new))
-; (let ((buffer (generate-new-buffer "*prop tst*")))
-;   (with-current-buffer buffer
-;     (insert "1234567890\n1234567890\n")
-;     (put-text-property (point-min) (point-max) 'point-entered 'prop-test)
-;     (put-text-property (point-min) (point-max) 'point-left 'prop-test)
-;     (pop-to-buffer buffer))) 
-  (floobits-send-highlight))
+ (floobits-buffer-list-change)
+ (floobits-send-highlight))
 
 (defun floobits-event-user_input (req)
   (let* ((choices (floo-get-item req 'choices))
@@ -386,7 +379,7 @@ See floobits-share-dir to create one or visit floobits.com."
         (set-buffer-modified-p nil)))))
 
 (defun floobits-send-highlight (&optional ping)
-  (when (_floobits-is-buffer-public (current-buffer))
+ (when (_floobits-is-buffer-public (current-buffer))
     (let* ((name (buffer-file-name (current-buffer)))
           (point (- (or (point) 0) 1))
           (req (list
@@ -396,8 +389,8 @@ See floobits-share-dir to create one or visit floobits.com."
             (cons 'full_path name)
             (cons 'ping ping))))
       (when (or ping (not (equal req floobits-current-position)))
-          (setq floobits-current-position req)
-          (floobits-send-to-agent req 'highlight)))))
+        (setq floobits-current-position req)
+        (floobits-send-to-agent req 'highlight)))))
 
 (defun _floobits-is-buffer-public (buf)
   (let ((name (buffer-name buf)))
@@ -541,6 +534,9 @@ See floobits-share-dir to create one or visit floobits.com."
       (when floobits-follow-mode
         (find-file filename))
     (message "filename does not exist for buffer %s" (floo-get-item req 'id)))))
+
+(defun floobits-event-message (req)
+  (message "%s" (floo-get-item req "message")))
 
 (defun floobits-switch (text)
   (floobits-debug-message "%s" text)

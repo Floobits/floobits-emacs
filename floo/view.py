@@ -56,27 +56,14 @@ class View(object):
     def set_read_only(self, state):
         pass
 
-    def apply_patches(self, buf, patches):
-        cursor_offset = self.get_cursor_offset()
-        msg.debug('cursor offset is %s bytes' % cursor_offset)
-
-        self.emacs_buf = patches[0]
+    def apply_patches(self, buf, patches, username):
+        self.emacs_buf = buf['buf']
         self._emacs.send({
             'name': 'edit',
             'id': self.buf['id'],
             'full_path': utils.get_full_path(self.buf['path']),
-            'edits': patches[2],
+            'edits': patches,
         })
-
-        for patch in patches[2]:
-            offset = patch[0]
-            length = patch[1]
-            patch_text = patch[2]
-            if cursor_offset > offset:
-                new_offset = len(patch_text) - length
-                cursor_offset += new_offset
-
-        self.set_cursor_position(cursor_offset)
 
     def set_cursor_position(self, offset):
         pass
@@ -103,4 +90,8 @@ class View(object):
         pass
 
     def set_status(self, status):
-        pass
+        msg = {
+            'name': "message",
+            'message': status
+        }
+        self._emacs.send(msg)
