@@ -314,9 +314,9 @@ See floobits-share-dir to create one or visit floobits.com."
       (goto-char (process-mark proc))
       (insert string)
       (set-marker (process-mark proc) (point))
-      (beginning-of-buffer)
-      (when (and floobits-on-connect (search-forward "Now listening on " nil t))
-        (let ((port (car (split-string (buffer-substring (point) (point-max)) "\n" t))))
+      (end-of-buffer)
+      (when (and floobits-on-connect (search-backward "Now listening on " nil t))
+        (let ((port (car (split-string (buffer-substring (+ (length "Now listening on ") (point)) (point-max)) "\n" t))))
           (setq floobits-on-connect nil)
           (setq floobits-conn (open-network-stream "floobits" nil floobits-agent-host port))
           (set-process-coding-system floobits-conn 'utf-8 'utf-8)
@@ -369,7 +369,7 @@ See floobits-share-dir to create one or visit floobits.com."
     (floo-set-item 'req 'response
       (cond
         (choices (completing-read prompt choices nil t initial))
-        ((floo-get-item req 'y_or_n) (yes-or-no-p prompt))
+        ((floo-get-item req 'y_or_n) (y-or-n-p prompt))
         (t (read-from-minibuffer prompt initial))))
   (floobits-send-to-agent req 'user_input)))
 
