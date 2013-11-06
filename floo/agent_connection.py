@@ -1,6 +1,5 @@
 import sys
 
-# import editor
 from floo.common.handlers import floo_handler
 from floo.common import msg, utils, shared as G
 
@@ -10,16 +9,18 @@ class AgentConnection(floo_handler.FlooHandler):
     def __init__(self, owner, workspace, emacs_handler, get_bufs=True):
         super(AgentConnection, self).__init__(owner, workspace, get_bufs)
         self.emacs_handler = emacs_handler
-        # KANS: not sure if this is doing what it is supposed to ...
-        if sys.version_info[0] == 2 and sys.version_info[1] == 6:
-            # Work around http://bugs.python.org/issue11326
-            msg.error('Disabling SSL to work around a bug in Python 2.6. Please upgrade your Python to get SSL. See http://bugs.python.org/issue11326')
-            G.SECURE = False
-            G.DEFAULT_PORT = 3148
 
     @property
     def client(self):
         return 'Emacs'
+
+    def build_protocol(self, host, port, secure=True):
+        # KANS: don't think we need this anymore
+        # if sys.version_info[0] == 2 and sys.version_info[1] == 6:
+        #     # Work around http://bugs.python.org/issue11326
+        #     msg.error('Disabling SSL to work around a bug in Python 2.6. Please upgrade your Python to get SSL. See http://bugs.python.org/issue11326')
+        #     secure = False
+        return super(AgentConnection, self).build_protocol(host, port, secure)
 
     def get_view(self, buf_id):
         return self.emacs_handler.get_view(buf_id)
