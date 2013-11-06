@@ -23,6 +23,10 @@ class View(object):
         return repr(self)
 
     @property
+    def full_path(self):
+        return utils.get_full_path(self.buf['path'])
+
+    @property
     def emacs_buf(self):
         return self._emacs_buf[0]
 

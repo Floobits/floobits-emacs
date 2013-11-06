@@ -1,5 +1,3 @@
-import sys
-
 from floo.common.handlers import floo_handler
 from floo.common import msg, utils, shared as G
 
@@ -13,6 +11,11 @@ class AgentConnection(floo_handler.FlooHandler):
     @property
     def client(self):
         return 'Emacs'
+
+    def save_view(self, view):
+        self.to_emacs('save', {
+            'full_path': view.full_path
+        })
 
     def build_protocol(self, host, port, secure=True):
         # KANS: don't think we need this anymore
@@ -34,7 +37,6 @@ class AgentConnection(floo_handler.FlooHandler):
 
     def _on_room_info(self, data):
         super(AgentConnection, self)._on_room_info(data)
-        # data['project_path'] = G.PROJECT_PATH
         self.to_emacs('room_info', {
             'perms': data['perms'],
             'project_path': G.PROJECT_PATH,

@@ -100,7 +100,7 @@
 (defun floobits-add-hooks ()
   (add-hook 'after-change-functions 'floobits-after-change nil nil)
   (add-hook 'post-command-hook 'floobits-post-command-func nil nil)
-  (add-hook 'after-save-hook 'floobits-after-save nil nil)
+  (add-hook 'after-save-hook 'floobits-after-save-hook nil nil)
   (ad-enable-advice 'delete-file 'before 'floobits-delete-file)
   (ad-enable-advice 'rename-file 'before 'floobits-rename-file)
   (ad-activate 'delete-file)
@@ -109,7 +109,7 @@
 (defun floobits-remove-hooks ()
   (remove-hook 'after-change-functions 'floobits-after-change)
   (remove-hook 'post-command-hook 'floobits-post-command-func)
-  (remove-hook 'after-save-hook 'floobits-after-save)
+  (remove-hook 'after-save-hook 'floobits-after-save-hook)
   (ad-disable-advice 'delete-file 'before 'floobits-delete-file)
   (ad-disable-advice 'rename-file 'before 'floobits-rename-file))
 
@@ -507,6 +507,14 @@ See floobits-share-dir to create one or visit floobits.com."
     (switch-to-buffer buffer)
     (goto-char pos))))
 
+(defun floobits-event-save (req)
+  (let ((buffer (get-file-buffer (floo-get-item req 'full_path))))
+    (when buffer
+      (with-current-buffer buffer
+        (remove-hook 'after-save-hook 'floobits-after-save-hook)
+        (save-buffer)
+        (add-hook 'after-save-hook 'floobits-after-save-hook)))))
+
 (defun floobits-apply-edit (edit)
   (let* ((inhibit-modification-hooks t)
         (edit-start (+ 1 (elt edit 0)))
@@ -576,7 +584,7 @@ See floobits-share-dir to create one or visit floobits.com."
       (floobits-send-to-agent floobits-change-set 'change)
     (setq floobits-change-set))))
 
-(defun floobits-after-save ()
+(defun floobits-after-save-hook ()
   (when (_floobits-is-buffer-shared (current-buffer))
     (floobits-send-to-agent (list (cons 'path (buffer-file-name))) 'saved)))
 
