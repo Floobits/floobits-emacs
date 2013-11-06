@@ -91,7 +91,10 @@ class View(object):
         pass
 
     def save(self):
-        pass
+        self._emacs.send({
+            'name': 'save',
+            'full_path': self.full_path
+        })
 
     def set_status(self, status):
         msg = {

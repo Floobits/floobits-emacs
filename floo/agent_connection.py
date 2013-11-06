@@ -12,11 +12,6 @@ class AgentConnection(floo_handler.FlooHandler):
     def client(self):
         return 'Emacs'
 
-    def save_view(self, view):
-        self.to_emacs('save', {
-            'full_path': view.full_path
-        })
-
     def build_protocol(self, host, port, secure=True):
         # KANS: don't think we need this anymore
         # if sys.version_info[0] == 2 and sys.version_info[1] == 6:
