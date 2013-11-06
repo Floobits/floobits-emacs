@@ -146,7 +146,7 @@ class EmacsHandler(base.BaseHandler):
         del self.user_inputs[cb_id]
 
     def _on_set_follow_mode(self, req):
-        self.follow(bool(req['follow_mode']))
+        msg.log('follow mode is %s' % {True: 'enabled', False: 'disabled'}[req['follow_mode']])
 
     def _on_change(self, req):
         path = req['full_path']

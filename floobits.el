@@ -144,7 +144,7 @@
   (when floobits-conn
     (setq floobits-follow-mode (not floobits-follow-mode))
     (floobits-send-to-agent (list (cons 'follow_mode floobits-follow-mode)) 'set_follow_mode)
-    (message "Follow mode %s." (if (eq floobits-follow-mode nil) "disabled" "enabled"))))
+    (message "Follow mode %s." (if floobits-follow-mode "enabled" "disabled"))))
 
 ;;;###autoload
 (defun floobits-leave-workspace ()
@@ -496,7 +496,7 @@ See floobits-share-dir to create one or visit floobits.com."
         (pos (+ 1 (elt (elt ranges ranges-length) 0)))
         (buffer (get-file-buffer (floo-get-item req 'full_path)))
         (jump (or (floo-get-item req 'ping) floobits-follow-mode))
-        (buffer (and (or buffer jump) (find-file (floo-get-item req 'full_path)))))
+        (buffer (or buffer (and jump (find-file (floo-get-item req 'full_path))))))
 
     (when buffer
       (floobits-apply-highlight user_id buffer ranges)
@@ -566,6 +566,7 @@ See floobits-share-dir to create one or visit floobits.com."
 (defun floobits-switch (text)
   (floobits-debug-message "%s" text)
   (let* ((json-key-type 'string)
+        (json-false 'nil)
         (req (json-read-from-string text))
         (event (floo-get-item req "name"))
         (func (concat "floobits-event-" event)))
