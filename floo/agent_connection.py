@@ -73,11 +73,11 @@ class AgentConnection(floo_handler.FlooHandler):
         buf = self.bufs[data['id']]
         # TODO: save highlights for when user opens the buffer in emacs
         self.to_emacs('highlight', {
-            'id': buf['id'],
             'full_path': utils.get_full_path(buf['path']),
             'ranges': data['ranges'],
             'user_id': data['user_id'],
             'username': data.get('username', 'unknown user'),
+            'ping': data.get('ping')
         })
 
     def _on_msg(self, data):

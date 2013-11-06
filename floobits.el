@@ -441,12 +441,13 @@ See floobits-share-dir to create one or visit floobits.com."
 
 (defun floobits-event-room_info (req)
   (let ((floobits-workspace (floo-get-item req 'workspace_name)))
-    (message "Successfully joined workspace %s" floobits-workspace)
+    (message "Successfully joined workspace %s." floobits-workspace)
     (setq floobits-share-dir (floo-get-item req 'project_path))
-    (message "project path is %s" floobits-share-dir)
+    (message "Project path is %s." floobits-share-dir)
     (setq floobits-perms (append (floo-get-item req 'perms) nil))
+    (dired floobits-share-dir)
     (floobits-add-hooks)
-    (dired floobits-share-dir)))
+    (message "shit?!")))
 
 (defun floobits-event-join (req)
   (floobits-debug-message "%s" req)
@@ -494,18 +495,19 @@ See floobits-share-dir to create one or visit floobits.com."
         (username (floo-get-item req 'username))
         (pos (+ 1 (elt (elt ranges ranges-length) 0)))
         (buffer (get-file-buffer (floo-get-item req 'full_path)))
-        (buffer (or buffer (and floobits-follow-mode (find-file (floo-get-item req 'full_path))))))
+        (jump (or (floo-get-item req 'ping) floobits-follow-mode))
+        (buffer (and (or buffer jump) (find-file (floo-get-item req 'full_path)))))
 
-  (when buffer
-    (floobits-apply-highlight user_id buffer ranges)
-    (with-current-buffer buffer
-      (save-excursion
-        (goto-char pos)
-        (bookmark-set (format "floobits-%s-%s" username user_id)))))
+    (when buffer
+      (floobits-apply-highlight user_id buffer ranges)
+      (with-current-buffer buffer
+        (save-excursion
+          (goto-char pos)
+          (bookmark-set (format "floobits-%s-%s" username user_id)))))
 
-  (when floobits-follow-mode
-    (switch-to-buffer buffer)
-    (goto-char pos))))
+    (when jump
+      (switch-to-buffer buffer)
+      (goto-char pos))))
 
 (defun floobits-event-save (req)
   (let ((buffer (get-file-buffer (floo-get-item req 'full_path))))

@@ -84,9 +84,6 @@ class View(object):
     def clear_selections(self):
         msg.debug('clearing selections for view %s' % self.buf['path'])
 
-    def highlight(self, ranges, user_id, username):
-        msg.debug('highlighting ranges %s' % (ranges))
-
     def rename(self, name):
         pass
 
