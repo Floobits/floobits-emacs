@@ -187,11 +187,25 @@ If the directory corresponds to an existing floobits workspace, you will instead
 (defun floobits-event-error (req)
   (message-box (floo-get-item req 'msg)))
 
+(defun _floobits-read-persistent ()
+  (condition-case nil
+    (with-temp-buffer
+      (insert-file-contents "~/floobits/persistent.json")
+      (let* ((json-key-type 'string)
+            (data (json-read-from-string (buffer-string)))
+            (data (floo-get-item data 'recent_workspaces)))
+        (mapcar (lambda (x) (floo-get-item x 'url)) data)))
+    (error '(""))))
+
 ;;;###autoload
 (defun floobits-join-workspace (floourl)
   "Join an existing floobits workspace.
 See floobits-share-dir to create one or visit floobits.com."
-  (interactive (list (read-from-minibuffer "Floobits workspace URL (owner/workspace): " "https://floobits.com/r/")))
+  (interactive (list 
+    ; read-from-minibuffer prompt &optional initial keymap read history default inherit-input-method
+    (let ((histories (_floobits-read-persistent)))
+      (read-from-minibuffer "Floobits workspace URL (owner/workspace): " 
+        "https://floobits.com/r/" nil nil 'histories))))
   (floobits-load-floorc)
   (let* ((url-struct (url-generic-parse-url floourl))
         (domain (url-host url-struct))
@@ -341,9 +355,7 @@ See floobits-share-dir to create one or visit floobits.com."
   (if (floobits-process-live-p floobits-conn)
     (progn
       (floo-set-item 'req 'name event)
-      ; TODO FIXME: sending highlights breaks bjorn's emacs
-      (unless (string-equal event "highlight")
-        (process-send-string floobits-conn (concat (json-encode req) "\n"))))
+        (process-send-string floobits-conn (concat (json-encode req) "\n")))
     (progn
       (message "Connection to floobits died :(")
       (floobits-destroy-connection))))
@@ -353,8 +365,8 @@ See floobits-share-dir to create one or visit floobits.com."
 
 (defun floobits-post-command-func ()
   "used for grabbing changes in point for highlighting"
- (floobits-buffer-list-change)
- (floobits-send-highlight))
+  (floobits-buffer-list-change)
+  (floobits-send-highlight))
 
 (defun floobits-event-user_input (req)
   (let* ((choices (floo-get-item req 'choices))
@@ -382,7 +394,7 @@ See floobits-share-dir to create one or visit floobits.com."
 
 (defun floobits-send-highlight (&optional ping)
  (when (_floobits-is-buffer-public (current-buffer))
-    (let* ((name (buffer-file-name (current-buffer)))
+    (lexical-let* ((name (buffer-file-name (current-buffer)))
           (point (- (or (point) 0) 1))
           (req (list
             (cons 'ranges (if (use-region-p)
@@ -392,7 +404,8 @@ See floobits-share-dir to create one or visit floobits.com."
             (cons 'ping ping))))
       (when (or ping (not (equal req floobits-current-position)))
         (setq floobits-current-position req)
-        (floobits-send-to-agent req 'highlight)))))
+        (run-at-time .1 nil (lambda () (floobits-send-to-agent req 'highlight)))))))
+
 
 (defun _floobits-is-buffer-public (buf)
   (let ((name (buffer-name buf)))
