@@ -25,11 +25,10 @@ def main():
     migrations.rename_floobits_dir()
     migrations.migrate_symlinks()
 
-    r = reactor.install(20)
     emacs = emacs_handler.EmacsHandler()
-    _, port = r.listen(emacs)
+    _, port = reactor.reactor.listen(emacs)
     utils.set_timeout(cb, 100, port)
-    r.block()
+    reactor.reactor.block()
 
 if __name__ == '__main__':
     main()
