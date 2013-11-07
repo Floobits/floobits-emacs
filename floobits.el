@@ -53,7 +53,7 @@
 
 (setq max-specpdl-size 1500)
 
-(defvar floobits-debug nil)
+(defvar floobits-debug t)
 (defvar floobits-agent-host "127.0.0.1")
 (defvar floobits-python-path (concat floobits-plugin-dir "floobits.py"))
 (defvar floobits-python-agent)
@@ -99,8 +99,9 @@
 
 (defun floobits-add-hooks ()
   (add-hook 'after-change-functions 'floobits-after-change nil nil)
-  (add-hook 'post-command-hook 'floobits-post-command-func nil nil)
+  (add-hook 'post-command-hook 'floobits-send-highlight nil nil)
   (add-hook 'after-save-hook 'floobits-after-save-hook nil nil)
+  (add-hook 'buffer-list-update-hook 'floobits-buffer-list-change nil nil)
   (ad-enable-advice 'delete-file 'before 'floobits-delete-file)
   (ad-enable-advice 'rename-file 'before 'floobits-rename-file)
   (ad-activate 'delete-file)
@@ -108,8 +109,9 @@
 
 (defun floobits-remove-hooks ()
   (remove-hook 'after-change-functions 'floobits-after-change)
-  (remove-hook 'post-command-hook 'floobits-post-command-func)
+  (remove-hook 'post-command-hook 'floobits-send-highlight)
   (remove-hook 'after-save-hook 'floobits-after-save-hook)
+  (remove-hook 'buffer-list-update-hook 'floobits-buffer-list-change)
   (ad-disable-advice 'delete-file 'before 'floobits-delete-file)
   (ad-disable-advice 'rename-file 'before 'floobits-rename-file))
 
@@ -363,10 +365,10 @@ See floobits-share-dir to create one or visit floobits.com."
 (defun floobits-get-text (begin end)
   (buffer-substring-no-properties begin end))
 
-(defun floobits-post-command-func ()
-  "used for grabbing changes in point for highlighting"
-  (floobits-buffer-list-change)
-  (floobits-send-highlight))
+; (defun floobits-post-command-func ()
+;   "used for grabbing changes in point for highlighting"
+;   ; (floobits-buffer-list-change)
+;   (floobits-send-highlight))
 
 (defun floobits-event-user_input (req)
   (let* ((choices (floo-get-item req 'choices))
@@ -446,8 +448,7 @@ See floobits-share-dir to create one or visit floobits.com."
     (message "Project path is %s." floobits-share-dir)
     (setq floobits-perms (append (floo-get-item req 'perms) nil))
     (dired floobits-share-dir)
-    (floobits-add-hooks)
-    (message "shit?!")))
+    (floobits-add-hooks)))
 
 (defun floobits-event-join (req)
   (floobits-debug-message "%s" req)
@@ -576,20 +577,30 @@ See floobits-share-dir to create one or visit floobits.com."
 
 (defun floobits-after-change (begin end old_length)
   (if (_floobits-is-buffer-public (current-buffer))
-     (let ((text (floobits-get-buffer-text (current-buffer)))
+    (with-current-buffer (current-buffer)
+      (let ((text (floobits-get-buffer-text (current-buffer)))
           (changed (buffer-substring-no-properties begin end)))
-      ; (floo-set-item 'floobits-change-set 'after text)
-      (floo-set-item 'floobits-change-set 'changed changed)
-      (floo-set-item 'floobits-change-set 'begin begin)
-      (floo-set-item 'floobits-change-set 'end end)
-      (floo-set-item 'floobits-change-set 'old_length old_length)
-      (floo-set-item 'floobits-change-set 'full_path (buffer-file-name (current-buffer)))
-      (floobits-send-to-agent floobits-change-set 'change)
-    (setq floobits-change-set))))
+        (message "current buffer %s changed %s" (current-buffer) changed)
+        ; (floo-set-item 'floobits-change-set 'after text)
+        (floo-set-item 'floobits-change-set 'changed changed)
+        (floo-set-item 'floobits-change-set 'begin begin)
+        (floo-set-item 'floobits-change-set 'end end)
+        (floo-set-item 'floobits-change-set 'old_length old_length)
+        (floo-set-item 'floobits-change-set 'full_path (buffer-file-name (current-buffer)))
+        (floobits-send-to-agent floobits-change-set 'change)
+    (setq floobits-change-set)))))
 
 (defun floobits-after-save-hook ()
   (when (_floobits-is-buffer-shared (current-buffer))
     (floobits-send-to-agent (list (cons 'path (buffer-file-name))) 'saved)))
+
+(defun floobits-get-text-for-path (p)
+  (let* 
+      ((b (find-buffer-visiting p))
+      (fbs (floobits-filter-func (lambda (b) (if (string= (buffer-file-name b) p) t nil)) (floobits-get-public-buffers)))
+      (text (floobits-get-buffer-text b))
+      (actual (with-temp-buffer (insert-file-contents p) (buffer-string))))
+    (cons (intern p) text)))
 
 (defun floobits-buffer-list-change ()
   (let* ((current-buffers (mapcar 'buffer-file-name (floobits-get-public-buffers)))
@@ -603,10 +614,9 @@ See floobits-share-dir to create one or visit floobits.com."
               (setq buffer-read-only t)))
           added))
       (setq floobits-open-buffers current-buffers)
-      (let* ((added-text (mapcar
-                          (lambda (buf-path)
-                            (cons (intern buf-path)(floobits-get-buffer-text (find-buffer-visiting buf-path)))) added))
-            (req (list
+      (let* 
+          ((added-text (mapcar 'floobits-get-text-for-path added))
+          (req (list
             (cons 'current current-buffers)
             (cons 'added added-text)
             (cons 'deleted deleted))))

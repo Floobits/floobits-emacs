@@ -207,6 +207,7 @@ class EmacsHandler(base.BaseHandler):
 
     def _on_buffer_list_change(self, req):
         added = req.get('added') or {}
+        msg.log("buffer_list_change:\n%s" % req)
         for path, text in added.iteritems():
             buf = self.get_buf_by_path(path)
             self.emacs_bufs[path][0] = text
