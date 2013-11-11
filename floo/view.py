@@ -1,5 +1,7 @@
-from common import msg
-from common import utils
+try:
+    from .common import msg, utils
+except (ImportError, ValueError):
+    from common import msg, utils
 
 
 class View(object):

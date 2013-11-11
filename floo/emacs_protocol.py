@@ -1,7 +1,11 @@
 import sys
 
-from common import msg
-from common.protocols import floo_proto
+try:
+    from .common import msg
+    from .common.protocols import floo_proto
+except (ImportError, ValueError):
+    from common import msg
+    from common.protocols import floo_proto
 
 
 class EmacsProtocol(floo_proto.FlooProtocol):

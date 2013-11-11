@@ -26,6 +26,7 @@ def main():
     migrations.migrate_symlinks()
 
     emacs = emacs_handler.EmacsHandler()
+    G.emacs = emacs
     _, port = reactor.reactor.listen(emacs)
     utils.set_timeout(cb, 100, port)
     reactor.reactor.block()

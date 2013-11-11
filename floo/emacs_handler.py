@@ -11,19 +11,35 @@ import re
 import hashlib
 import webbrowser
 from collections import defaultdict
-from urllib2 import HTTPError
 
-import agent_connection
-import editor
+try:
+    from . import agent_connection, editor
+    from .common import api, msg, shared as G, utils, reactor
+    from .view import View
+    from .common.handlers import base
+    from .emacs_protocol import EmacsProtocol
+except (ImportError, ValueError):
+    import agent_connection, editor
+    from common import api, msg, shared as G, utils, reactor
+    from view import View
+    from common.handlers import base
+    from emacs_protocol import EmacsProtocol
 
-from view import View
-from common import api
-from common import msg
-from common import shared as G
-from common import utils
-from common import reactor
-from floo.common.handlers import base
-from emacs_protocol import EmacsProtocol
+
+try:
+    import urllib
+    from urllib import request
+    Request = request.Request
+    urlopen = request.urlopen
+    HTTPError = urllib.error.HTTPError
+    URLError = urllib.error.URLError
+    assert Request and urlopen and HTTPError and URLError
+except ImportError:
+    import urllib2
+    Request = urllib2.Request
+    urlopen = urllib2.urlopen
+    HTTPError = urllib2.HTTPError
+    URLError = urllib2.URLError
 
 
 def has_perm(perm):
@@ -47,6 +63,12 @@ class EmacsHandler(base.BaseHandler):
         self.user_input_count = 0
         self.emacs_bufs = defaultdict(lambda: [""])
         self.bufs_changed = []
+
+    def error_message(self, *args, **kwargs):
+        print(args, kwargs)
+
+    def status_message(self, *args, **kwargs):
+        print(args, kwargs)
 
     def send_to_floobits(self, data):
         self.agent.send(data)
