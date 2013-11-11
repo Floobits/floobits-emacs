@@ -26,6 +26,15 @@ from floo.common.handlers import base
 from emacs_protocol import EmacsProtocol
 
 
+def has_perm(perm):
+    def outer(f):
+        def inner(*args, **kwargs):
+            if perm in G.PERMS:
+                return f(*args, **kwargs)
+        return inner
+    return outer
+
+
 class EmacsHandler(base.BaseHandler):
     CLIENT = 'Emacs'
     PROTOCOL = EmacsProtocol
@@ -159,9 +168,8 @@ class EmacsHandler(base.BaseHandler):
         self.emacs_bufs[path][0] = "%s%s%s" % (self.emacs_bufs[path][0][:begin - 1], changed, self.emacs_bufs[path][0][begin - 1 + old_length:])
         self.bufs_changed.append(view.buf['id'])
 
+    @has_perm('highlight')
     def _on_highlight(self, req):
-        if 'highlight' not in G.PERMS:
-            return
         view = self.get_view_by_path(req['full_path'])
         if not view:
             return
@@ -174,9 +182,11 @@ class EmacsHandler(base.BaseHandler):
         msg.debug("sending highlight upstream %s" % highlight_json)
         self.send_to_floobits(highlight_json)
 
+    @has_perm('create_buf')
     def _on_create_buf(self, req):
-        self.create_buf(req['full_path'])
+        self.agent.upload(req['full_path'])
 
+    @has_perm('delete_buf')
     def _on_delete_buf(self, req):
         buf = self.get_buf_by_path(req['path'])
         if not buf:
@@ -188,22 +198,39 @@ class EmacsHandler(base.BaseHandler):
             'id': buf['id'],
         })
 
-    def _on_rename_buf(self, buf_id, new_path):
-        new_path = utils.to_rel_path(new_path)
-        if not utils.is_shared(new_path):
-            msg.log('New path %s is not shared. Discarding rename event.' % new_path)
+    @has_perm('rename_buf')
+    def _on_rename_buf(self, req):
+        old_path = utils.to_rel_path(req['old_path'])
+        buf = self.get_buf_by_path(old_path)
+        if not buf:
+            msg.debug('No buffer for path %s' % req['path'])
             return
-
+        path = utils.to_rel_path(req['path'])
+        if not utils.is_shared(path):
+            msg.log('New path %s is not shared. Discarding rename event.' % path)
+            return
+        buf_id = buf['id']
         self.send_to_floobits({
             'name': 'rename_buf',
-            'id': buf_id,
-            'path': new_path,
+            'id': buf['id'],
+            'path': path,
         })
         # KANS: is this right? old code...
         old_path = self.agent.bufs[buf_id]['path']
         del self.agent.paths_to_ids[old_path]
-        self.agent.paths_to_ids[new_path] = buf_id
-        self.agent.bufs[buf_id]['path'] = new_path
+        self.agent.paths_to_ids[path] = buf_id
+        self.agent.bufs[buf_id]['path'] = path
+
+    @has_perm('saved')
+    def _on_saved(self, req):
+        buf = self.get_buf_by_path(req['path'])
+        if not buf:
+            msg.debug('No buffer for path %s' % req['path'])
+            return
+        self.send_to_floobits({
+            'name': 'saved',
+            'id': buf['id'],
+        })
 
     def _on_buffer_list_change(self, req):
         added = req.get('added') or {}
@@ -213,7 +240,8 @@ class EmacsHandler(base.BaseHandler):
             self.emacs_bufs[path][0] = text
             if not buf:
                 msg.debug('no buf for path %s' % path)
-                self.create_buf(path, text=text)
+                if 'create_buf' in G.PERMS:
+                    self.agent._upload(path, text=text)
                 continue
             view = self.views.get(buf['id'])
             if view is None:
@@ -243,16 +271,6 @@ class EmacsHandler(base.BaseHandler):
         for buf_id, view in self.views.iteritems():
             if utils.get_full_path(view.buf['path']) not in seen:
                 msg.debug('We should not have buffer %s in our views but we do.' % view.buf['path'])
-
-    def _on_saved(self, req):
-        buf = self.get_buf_by_path(req['path'])
-        if not buf:
-            msg.debug('No buffer for path %s' % req['path'])
-            return
-        self.send_to_floobits({
-            'name': 'saved',
-            'id': buf['id'],
-        })
 
     def _on_open_workspace(self, req):
         try:
@@ -326,7 +344,7 @@ class EmacsHandler(base.BaseHandler):
                 return agent.once("room_info", lambda: agent.upload(dir_to_share))
 
         def on_done(data, choices=None):
-            self.create_workspace({}, workspace_name, dir_to_share, owner=data.get('response'), perms=perms)
+            self._on_create_workspace({}, workspace_name, dir_to_share, owner=data.get('response'), perms=perms)
 
         orgs = api.get_orgs_can_admin()
         orgs = json.loads(orgs.read().decode('utf-8'))
@@ -373,7 +391,7 @@ class EmacsHandler(base.BaseHandler):
             else:
                 prompt = 'Workspace %s/%s already exists. Choose another name:' % (owner, workspace_name)
 
-            return self.get_input(prompt, workspace_name, self.create_workspace, workspace_name, dir_to_share, owner, perms)
+            return self.get_input(prompt, workspace_name, self._on_create_workspace, workspace_name, dir_to_share, owner, perms)
         except Exception as e:
             return msg.error('Unable to create workspace: %s' % str(e))
 

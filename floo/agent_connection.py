@@ -12,14 +12,6 @@ class AgentConnection(floo_handler.FlooHandler):
     def client(self):
         return 'Emacs'
 
-    def build_protocol(self, host, port, secure=True):
-        # KANS: don't think we need this anymore
-        # if sys.version_info[0] == 2 and sys.version_info[1] == 6:
-        #     # Work around http://bugs.python.org/issue11326
-        #     msg.error('Disabling SSL to work around a bug in Python 2.6. Please upgrade your Python to get SSL. See http://bugs.python.org/issue11326')
-        #     secure = False
-        return super(AgentConnection, self).build_protocol(host, port, secure)
-
     def get_view(self, buf_id):
         return self.emacs_handler.get_view(buf_id)
 
@@ -65,7 +57,7 @@ class AgentConnection(floo_handler.FlooHandler):
         buf = self.bufs[int(data['id'])]
         # This can screw up if someone else renames the buffer around the same time as us. Oh well.
         buf = self.get_buf_by_path(utils.get_full_path(data['path']))
-        if not buf:
+        if buf:
             return super(AgentConnection, self)._on_rename_buf(data)
         msg.debug('We already renamed %s. Skipping' % buf['path'])
 
