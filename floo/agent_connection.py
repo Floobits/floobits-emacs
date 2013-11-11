@@ -54,12 +54,12 @@ class AgentConnection(floo_handler.FlooHandler):
             })
 
     def _on_rename_buf(self, data):
-        buf = self.bufs[int(data['id'])]
         # This can screw up if someone else renames the buffer around the same time as us. Oh well.
-        buf = self.get_buf_by_path(utils.get_full_path(data['path']))
+        msg.debug('asdf %s' % data)
+        buf = self.get_buf_by_path(utils.get_full_path(data['old_path']))
         if buf:
             return super(AgentConnection, self)._on_rename_buf(data)
-        msg.debug('We already renamed %s. Skipping' % buf['path'])
+        msg.debug('We already renamed %s. Skipping' % data['old_path'])
 
     def _on_highlight(self, data):
         buf = self.bufs[data['id']]

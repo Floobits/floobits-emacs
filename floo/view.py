@@ -85,7 +85,12 @@ class View(object):
         msg.debug('clearing selections for view %s' % self.buf['path'])
 
     def rename(self, name):
-        pass
+        msg.debug("renaming %s" % name)
+        self._emacs.send({
+            'name': 'rename',
+            'new_name': name,
+            'full_path': self.full_path
+        })
 
     def save(self):
         self._emacs.send({

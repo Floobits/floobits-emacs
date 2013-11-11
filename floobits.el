@@ -564,6 +564,20 @@ See floobits-share-dir to create one or visit floobits.com."
 (defun floobits-event-message (req)
   (message "%s" (floo-get-item req "message")))
 
+(defun floobits-event-rename (req)
+  (let* ((new-name (floo-get-item req "new_name"))
+      (old-name (floo-get-item req "full_path"))
+      (buf (get-file-buffer old-name)))
+    (message "%s %s %s" new-name old-name buf)
+    (if buf
+      (if (get-buffer new-name)
+          (message "A buffer named '%s' already exists!" new-name)
+        (with-current-buffer buf
+          (rename-file old-name new-name t)
+          (rename-buffer new-name)
+          (set-visited-file-name new-name)
+          (set-buffer-modified-p nil))))))
+
 (defun floobits-switch (text)
   (floobits-debug-message "%s" text)
   (let* ((json-key-type 'string)
