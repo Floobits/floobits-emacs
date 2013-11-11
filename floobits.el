@@ -554,6 +554,11 @@ See floobits-share-dir to create one or visit floobits.com."
         (username (floo-get-item req "username")))
     (message "User %s created buffer %s" username filename)))
 
+(defun floobits-event-delete_buf (req)
+  (let ((filename (floo-get-item req "path" ))
+        (username (floo-get-item req "username")))
+    (message "User %s deleted buffer %s" username filename)))
+
 (defun floobits-event-get_buf (req)
   (let ((filename (floo-get-item req "full_path" )))
     (if (not (eq filename nil))
