@@ -2,6 +2,11 @@ import sys
 from collections import defaultdict
 import time
 
+try:
+    from .common import shared as G
+except (ImportError, ValueError):
+    import common.shared as G
+
 
 timeouts = defaultdict(list)
 top_timeout_id = 0
@@ -54,12 +59,19 @@ def call_timeouts():
 
 
 def error_message(*args, **kwargs):
-    print(args, kwargs)
+    editor = getattr(G, 'editor', None)
+    if editor:
+        editor.error_message(*args, **kwargs)
+    else:
+        print(args, kwargs)
 
 
-class Region(object):
-    def __init__(*args, **kwargs):
-        pass
+def status_message(msg):
+    editor = getattr(G, 'editor', None)
+    if editor:
+        editor.status_message(msg)
+    else:
+        print(msg)
 
 
 def platform():
