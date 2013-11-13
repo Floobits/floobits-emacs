@@ -23,7 +23,7 @@
 ;;  -----
 ;;  All commands are documented in `apropos-command <RET> floobits'
 ;;
-;;  `floobits-join-workspace <RET> https://floobits.com/r/owner/workspace/ <RET>'
+;;  `floobits-join-workspace <RET> https://floobits.com/owner/workspace/ <RET>'
 ;;  Join an existing floobits workspace.
 ;;
 ;;  `floobits-share-dir <RET> DIR <RET>'
@@ -207,7 +207,7 @@ See floobits-share-dir to create one or visit floobits.com."
     ; read-from-minibuffer prompt &optional initial keymap read history default inherit-input-method
     (let ((histories (_floobits-read-persistent)))
       (read-from-minibuffer "Floobits workspace URL (owner/workspace): " 
-        "https://floobits.com/r/" nil nil 'histories))))
+        "https://floobits.com/" nil nil 'histories))))
   (floobits-load-floorc)
   (let* ((url-struct (url-generic-parse-url floourl))
         (domain (url-host url-struct))
@@ -217,7 +217,7 @@ See floobits-share-dir to create one or visit floobits.com."
           (if (string= "/" (substring path -1))
             (concat path "")
             (concat path "/")))
-        (_ (string-match "^/r/\\(.*\\)/\\(.*\\)/" path))
+        (_ (string-match "^/\\(.*\\)/\\(.*\\)/" path))
         (owner (match-string 1 path))
         (workspace (match-string 2 path)))
     (if (and path workspace owner)
@@ -230,7 +230,7 @@ See floobits-share-dir to create one or visit floobits.com."
           (cons 'workspace_owner owner)))
           (func (lambda () (floobits-send-to-agent req 'join_workspace))))
           (floobits-create-connection func)))
-      (message "Invalid url! I should look like: https://floobits.com/r/owner/workspace/"))))
+      (message "Invalid url! I should look like: https://floobits.com/owner/workspace/"))))
 
 ;;;###autoload
 (defun floobits-workspace-settings ()

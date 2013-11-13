@@ -31,7 +31,7 @@ vim_executable mvim
 
 All commands are documented in `apropos-command <RET> floobits`
 <ul>
-  <li><code>M-x floobits-join-workspace &lt;RET&gt; https://floobits.com/r/owner/workspace/ &lt;RET&gt;</code> &nbsp; Join an existing floobits workspace.</li>
+  <li><code>M-x floobits-join-workspace &lt;RET&gt; https://floobits.com/owner/workspace/ &lt;RET&gt;</code> &nbsp; Join an existing floobits workspace.</li>
   <li><code>M-x floobits-share-dir &lt;RET&gt; DIR &lt;RET&gt;</code> &nbsp; Create a workspace and populate it with the contents of the directory, DIR (or make it).</li>
   <li><code>M-x floobits-leave-workspace &lt;RET&gt;</code> &nbsp; Leave the current workspace.</li>
   <li><code>M-x floobits-summon &lt;RET&gt;</code> &nbsp; Summon everyone in the workspace to your cursor position.</li>
