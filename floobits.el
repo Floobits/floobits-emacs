@@ -593,7 +593,6 @@ See floobits-share-dir to create one or visit floobits.com."
     (with-current-buffer (current-buffer)
       (let ((text (floobits-get-buffer-text (current-buffer)))
           (changed (buffer-substring-no-properties begin end)))
-        (message "current buffer %s changed %s" (current-buffer) changed)
         ; (floo-set-item 'floobits-change-set 'after text)
         (floo-set-item 'floobits-change-set 'changed changed)
         (floo-set-item 'floobits-change-set 'begin begin)
