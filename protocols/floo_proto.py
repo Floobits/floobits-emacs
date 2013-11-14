@@ -3,8 +3,8 @@ import socket
 import select
 import collections
 import json
+import traceback
 import errno
-import sublime
 import os.path
 
 try:
@@ -13,17 +13,14 @@ try:
 except ImportError:
     ssl = False
 try:
-    from .. import editor
-    from . import cert, msg, shared as G, utils, event_emitter, reactor
+    from ... import editor
+    from .. import cert, msg, shared as G, utils
+    from . import base
     assert cert and G and msg and utils
 except (ImportError, ValueError):
-    import editor
-    import cert
-    import msg
-    import shared as G
-    import utils
-    import event_emitter
-    import reactor
+    from floo import editor
+    from floo.common import cert, msg, shared as G, utils
+    import base
 
 try:
     connect_errno = (errno.WSAEWOULDBLOCK, errno.WSAEALREADY, errno.WSAEINVAL)
@@ -33,7 +30,6 @@ except Exception:
     iscon_errno = errno.EISCONN
 
 
-CHAT_VIEW = None
 PY2 = sys.version_info < (3, 0)
 
 
@@ -42,20 +38,14 @@ def sock_debug(*args, **kwargs):
         msg.log(*args, **kwargs)
 
 
-class FlooProtocol(event_emitter.EventEmitter):
+class FlooProtocol(base.BaseProtocol):
     ''' Base FD Interface'''
-    NEWLINE = '\n'.encode('utf-8')
     MAX_RETRIES = 20
     INITIAL_RECONNECT_DELAY = 500
 
     def __init__(self, host, port, secure=True):
-        super(FlooProtocol, self).__init__()
-
-        self.host = host
-        self.port = port
-        self.secure = secure
+        super(FlooProtocol, self).__init__(host, port, secure)
         self.connected = False
-
         self._needs_handshake = bool(secure)
         self._sock = None
         self._q = collections.deque()
@@ -89,7 +79,7 @@ class FlooProtocol(event_emitter.EventEmitter):
                 self.emit("data", name, data)
                 msg.debug("got data " + name)
             except Exception as e:
-                print(e)
+                print(traceback.format_exc())
                 msg.error('Error handling %s event (%s).' % (name, str(e)))
                 if name == 'room_info':
                     editor.error_message('Error joining workspace: %s' % str(e))
@@ -123,13 +113,12 @@ class FlooProtocol(event_emitter.EventEmitter):
         self.retries = self.MAX_RETRIES
         self.emit("connect")
         self.connected = True
-        reactor.reactor.select()
 
     def __len__(self):
         return len(self._q)
 
     def fileno(self):
-        return self._sock
+        return self._sock and self._sock.fileno()
 
     def fd_set(self, readable, writeable, errorable):
         if not self.connected:
@@ -145,7 +134,7 @@ class FlooProtocol(event_emitter.EventEmitter):
 
         readable.append(fileno)
 
-    def connect(self):
+    def connect(self, conn=None):
         utils.cancel_timeout(self._reconnect_timeout)
         self._reconnect_timeout = None
         self.cleanup()
@@ -180,27 +169,32 @@ class FlooProtocol(event_emitter.EventEmitter):
         G.JOINED_WORKSPACE = False
         self._buf = bytes()
         self._sock = None
+        self._needs_handshake = self.secure
         self.connected = False
+
+    def _do_ssl_handshake(self):
+        try:
+            sock_debug('Doing SSL handshake')
+            self._sock.do_handshake()
+        except ssl.SSLError as e:
+            sock_debug('Floobits: ssl.SSLError. This is expected sometimes.')
+            if e.args[0] in [ssl.SSL_ERROR_WANT_READ, ssl.SSL_ERROR_WANT_WRITE]:
+                return False
+        except Exception as e:
+            msg.error('Error in SSL handshake:', e)
+        else:
+            sock_debug('Successful handshake')
+            self._needs_handshake = False
+            editor.status_message('SSL handshake completed to %s:%s' % (self.host, self.port))
+            return True
+
+        self.reconnect()
+        return False
 
     def write(self):
         sock_debug('Socket is writeable')
-        if self._needs_handshake:
-            # sock_debug('Socket is writeable')
-            try:
-                sock_debug('Doing SSL handshake')
-                self._sock.do_handshake()
-            except ssl.SSLError as e:
-                sock_debug('ssl.SSLError. This is expected sometimes.')
-                return
-            except Exception as e:
-                msg.error('Error in SSL handshake:', e)
-                self.reconnect()
-                return
-
-            self._needs_handshake = False
-            sock_debug('Successful handshake')
+        if self._needs_handshake and not self._do_ssl_handshake():
             return
-
         try:
             while True:
                 # TODO: use sock.send()
@@ -212,6 +206,8 @@ class FlooProtocol(event_emitter.EventEmitter):
 
     def read(self):
         sock_debug('Socket is readable')
+        if self._needs_handshake and not self._do_ssl_handshake():
+            return
         buf = ''.encode('utf-8')
         while True:
             try:
@@ -236,7 +232,7 @@ class FlooProtocol(event_emitter.EventEmitter):
             return self.reconnect()
 
     def error(self):
-        raise NotImplemented()
+        raise NotImplementedError()
 
     def stop(self):
         self.retries = -1
