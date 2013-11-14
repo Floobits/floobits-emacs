@@ -401,7 +401,7 @@ See floobits-share-dir to create one or visit floobits.com."
           (cons 'ping ping))))
       (when (or ping (not (equal req floobits-current-position)))
         (setq floobits-current-position req)
-        (run-at-time .05 nil (lambda () (save-excursion (floobits-send-to-agent req 'highlight))))))))
+        (floobits-send-to-agent req 'highlight)))))
 
 (defun _floobits-is-buffer-public (buf)
   (let ((name (buffer-name buf)))
@@ -429,7 +429,8 @@ See floobits-share-dir to create one or visit floobits.com."
 (defun floobits-get-buffer-text (buffer)
   "returns properties free text of buffer with name (name)"
   (with-current-buffer buffer
-    (buffer-substring-no-properties (point-min) (point-max))))
+    (save-excursion
+      (buffer-substring-no-properties (point-min) (point-max)))))
 
 (defun floobits-event-disconnect (req)
   (message "Disconnected: %s" (floo-get-item req 'reason)))
