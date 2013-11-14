@@ -381,7 +381,6 @@ See floobits-share-dir to create one or visit floobits.com."
   (let* ((old-path (floo-get-item req 'old_path))
         (new-path (floo-get-item req 'path))
         (buf (get-file-buffer old-path)))
-    (message "renaming %s to %s" old-path new-path)
     (rename-file old-path new-path 1)
     (when buf
       (with-current-buffer buf
@@ -453,7 +452,6 @@ See floobits-share-dir to create one or visit floobits.com."
   (message "%s left the workspace" (floo-get-item req 'username)))
 
 (defun floobits-event-create_view (req)
-  (message "opening file %s" (floo-get-item req 'full_path))
   (find-file (floo-get-item req 'full_path))
   (floobits-buffer-list-change))
 
@@ -546,7 +544,7 @@ See floobits-share-dir to create one or visit floobits.com."
 (defun floobits-event-create_buf (req)
   (let ((filename (floo-get-item req "path" ))
         (username (floo-get-item req "username")))
-    (message "User %s created buffer %s" username filename)))
+    (floobits-debug-message "User %s created buffer %s" username filename)))
 
 (defun floobits-event-delete_buf (req)
   (let ((filename (floo-get-item req "path" ))
@@ -567,7 +565,6 @@ See floobits-share-dir to create one or visit floobits.com."
   (let* ((new-name (floo-get-item req "new_name"))
       (old-name (floo-get-item req "full_path"))
       (buf (get-file-buffer old-name)))
-    (message "%s %s %s" new-name old-name buf)
     (if buf
       (if (get-buffer new-name)
           (message "A buffer named '%s' already exists!" new-name)
@@ -628,6 +625,24 @@ See floobits-share-dir to create one or visit floobits.com."
             (cons 'added added-text)
             (cons 'deleted deleted))))
         (floobits-send-to-agent req 'buffer_list_change)))))
+
+; ;; filter annoying messages see http://www.emacswiki.org/emacs/EchoArea
+; (defvar message-filter-regexp-list '("^Starting new Ispell process \\[.+\\] \\.\\.\\.$"
+;                                      "^Ispell process killed$")
+;   "filter formatted message string to remove noisy messages")
+; (defadvice message (around message-filter-by-regexp activate)
+;   (if (not (ad-get-arg 0))
+;       ad-do-it
+;     (let ((formatted-string (apply 'format (ad-get-args 0))))
+;       (if (and (stringp formatted-string)
+;                (some (lambda (re) (string-match re formatted-string)) message-filter-regexp-list))
+;           (save-excursion
+;             (set-buffer "*Messages*")
+;             (goto-char (point-max))
+;             (insert formatted-string "\n"))
+;         (progn
+;           (ad-set-args 0 `("%s" ,formatted-string))
+;           ad-do-it)))))
 
 (provide 'floobits)
 ;;; floobits.el ends here
