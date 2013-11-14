@@ -74,5 +74,9 @@ def status_message(msg):
         print(msg)
 
 
+def open_file(file):
+    raise NotImplementedError('open_file')
+
+
 def platform():
     return sys.platform

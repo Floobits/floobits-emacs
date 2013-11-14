@@ -19,7 +19,8 @@ try:
     from .common.handlers import base
     from .emacs_protocol import EmacsProtocol
 except (ImportError, ValueError):
-    import agent_connection, editor
+    import agent_connection
+    import editor
     from common import api, msg, shared as G, utils, reactor
     from view import View
     from common.handlers import base
