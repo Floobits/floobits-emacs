@@ -68,7 +68,7 @@ class View(object):
             'name': 'edit',
             'id': self.buf['id'],
             'full_path': utils.get_full_path(self.buf['path']),
-            'edits': patches,
+            'edits': patches[2],
         })
 
     def set_cursor_position(self, offset):
