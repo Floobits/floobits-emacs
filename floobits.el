@@ -53,7 +53,7 @@
 
 (setq max-specpdl-size 1500)
 
-(defvar floobits-debug t)
+(defvar floobits-debug f)
 (defvar floobits-agent-host "127.0.0.1")
 (defvar floobits-python-path (concat floobits-plugin-dir "floobits.py"))
 (defvar floobits-python-agent)
