@@ -365,11 +365,6 @@ See floobits-share-dir to create one or visit floobits.com."
 (defun floobits-get-text (begin end)
   (buffer-substring-no-properties begin end))
 
-; (defun floobits-post-command-func ()
-;   "used for grabbing changes in point for highlighting"
-;   ; (floobits-buffer-list-change)
-;   (floobits-send-highlight))
-
 (defun floobits-event-user_input (req)
   (let* ((choices (floo-get-item req 'choices))
         (choices (and choices (mapcar (lambda (x) (append x nil)) choices)))
@@ -397,17 +392,16 @@ See floobits-share-dir to create one or visit floobits.com."
 (defun floobits-send-highlight (&optional ping)
  (when (_floobits-is-buffer-public (current-buffer))
     (lexical-let* ((name (buffer-file-name (current-buffer)))
-          (point (- (or (point) 0) 1))
-          (req (list
-            (cons 'ranges (if (use-region-p)
-              (vector (vector (- (region-beginning) 1) (- (region-end) 1)))
-              (vector (vector point point))))
-            (cons 'full_path name)
-            (cons 'ping ping))))
+        (point (- (or (point) 0) 1))
+        (req (list
+          (cons 'ranges (if (use-region-p)
+            (vector (vector (- (region-beginning) 1) (- (region-end) 1)))
+            (vector (vector point point))))
+          (cons 'full_path name)
+          (cons 'ping ping))))
       (when (or ping (not (equal req floobits-current-position)))
         (setq floobits-current-position req)
-        (run-at-time .1 nil (lambda () (floobits-send-to-agent req 'highlight)))))))
-
+        (run-at-time .05 nil (lambda () (save-excursion (floobits-send-to-agent req 'highlight))))))))
 
 (defun _floobits-is-buffer-public (buf)
   (let ((name (buffer-name buf)))
@@ -434,9 +428,8 @@ See floobits-share-dir to create one or visit floobits.com."
 
 (defun floobits-get-buffer-text (buffer)
   "returns properties free text of buffer with name (name)"
-  (with-current-buffer buffer)
-  ; (with-current-buffer (set-buffer (get-buffer-create name))
-    (buffer-substring-no-properties (point-min) (point-max)))
+  (with-current-buffer buffer
+    (buffer-substring-no-properties (point-min) (point-max))))
 
 (defun floobits-event-disconnect (req)
   (message "Disconnected: %s" (floo-get-item req 'reason)))
@@ -614,12 +607,7 @@ See floobits-share-dir to create one or visit floobits.com."
     (floobits-send-to-agent (list (cons 'path (buffer-file-name))) 'saved)))
 
 (defun floobits-get-text-for-path (p)
-  (let* 
-      ((b (find-buffer-visiting p))
-      (fbs (floobits-filter-func (lambda (b) (if (string= (buffer-file-name b) p) t nil)) (floobits-get-public-buffers)))
-      (text (floobits-get-buffer-text b))
-      (actual (with-temp-buffer (insert-file-contents p) (buffer-string))))
-    (cons (intern p) text)))
+  (cons (intern p) (floobits-get-buffer-text (find-buffer-visiting p))))
 
 (defun floobits-buffer-list-change ()
   (let* ((current-buffers (mapcar 'buffer-file-name (floobits-get-public-buffers)))
