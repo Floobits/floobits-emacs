@@ -12,7 +12,6 @@ class EmacsProtocol(floo_proto.FlooProtocol):
     ''' Speaks floo proto, but is given the conn and we don't want to reconnect '''
     MAX_RETRIES = -1
     INITIAL_RECONNECT_DELAY = 0
-    CLIENT = 'Emacs'
 
     def __init__(self, host, port, secure):
         super(EmacsProtocol, self).__init__(host, port, secure)

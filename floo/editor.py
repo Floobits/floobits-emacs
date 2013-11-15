@@ -14,6 +14,14 @@ cancelled_timeouts = set()
 calling_timeouts = False
 
 
+def name():
+    if sys.version_info < (3, 0):
+        py_version = 2
+    else:
+        py_version = 3
+    return 'Emacs-py%s' % py_version
+
+
 def windows(*args, **kwargs):
     return []
 

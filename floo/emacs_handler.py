@@ -53,7 +53,6 @@ def has_perm(perm):
 
 
 class EmacsHandler(base.BaseHandler):
-    CLIENT = 'Emacs'
     PROTOCOL = EmacsProtocol
 
     def __init__(self, *args, **kwargs):

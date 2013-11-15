@@ -8,10 +8,6 @@ class AgentConnection(floo_handler.FlooHandler):
         super(AgentConnection, self).__init__(owner, workspace, get_bufs)
         self.emacs_handler = emacs_handler
 
-    @property
-    def client(self):
-        return 'Emacs'
-
     def get_view(self, buf_id):
         return self.emacs_handler.get_view(buf_id)
 
