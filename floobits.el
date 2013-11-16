@@ -460,11 +460,11 @@ See floobits-share-dir to create one or visit floobits.com."
   (goto-char (+ 1 (floo-get-item req 'offset))))
 
 (defun floobits-apply-highlight (user_id buffer ranges)
-  (let* ((key (list user_id (buffer-file-name buffer)))
-         (previous-ranges (gethash key floobits-user-highlights)))
-    (floobits-debug-message "%s key %s" key previous-ranges)
-    (with-current-buffer buffer
-      (save-excursion
+  (with-current-buffer buffer
+    (save-excursion
+      (let* ((key (list user_id (buffer-file-name buffer)))
+             (previous-ranges (gethash key floobits-user-highlights)))
+        (floobits-debug-message "%s key %s" key previous-ranges)
         (when previous-ranges
           ; convert to list :(
           (mapc
@@ -515,6 +515,7 @@ See floobits-share-dir to create one or visit floobits.com."
         (edit-start (+ 1 (elt edit 0)))
         (edit-length (elt edit 1))
         (edit-end (min (+ 1 (buffer-size)) (+ edit-start edit-length)))
+        (active mark-active)
         (mark (mark))
         (point (point)))
     (delete-region edit-start edit-end)
@@ -522,15 +523,17 @@ See floobits-share-dir to create one or visit floobits.com."
       (goto-char edit-start)
       (insert (elt edit 2)))
     (goto-char
-      (if (> point edit-start)
+      (if (>= point edit-start)
         (+ point (- (length (elt edit 2)) edit-length))
       point))
     (when mark
       (pop-mark)
       (push-mark
-        (if (> mark edit-start)
+        (if (>= mark edit-start)
           (+ mark (- (length (elt edit 2)) edit-length))
-        mark) t t))))
+        mark) t active))
+      ; (message "%s %s %s %s %s" mark (mark) edit-start edit-end edit-length active)
+    ))
 
 (defun floobits-event-edit (req)
   (let* ((filename (floo-get-item req "full_path"))
