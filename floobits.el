@@ -46,6 +46,7 @@
 (require 'cl)
 (require 'json)
 (require 'url)
+(require 'bookmark)
 
 (defvar floobits-plugin-dir (file-name-directory load-file-name))
 (add-to-list 'load-path floobits-plugin-dir)
@@ -440,6 +441,11 @@ See floobits-share-dir to create one or visit floobits.com."
     (setq floobits-share-dir (floo-get-item req 'project_path))
     (message "Project path is %s." floobits-share-dir)
     (setq floobits-perms (append (floo-get-item req 'perms) nil))
+    (mapc
+      (lambda (x)
+        (when (string="floobits-" (substring x 0 9))
+          (bookmark-delete x)))
+      (bookmark-all-names))
     (dired floobits-share-dir)
     (floobits-add-hooks)))
 
