@@ -69,6 +69,7 @@
 (defvar floobits-share-dir)
 (defvar floobits-user-highlights)
 (defvar floobits-on-connect)
+; (defvar floobits-jump-list)
 
 (defvar floobits-username)
 (defvar floobits-secret)
@@ -103,6 +104,7 @@
   (add-hook 'post-command-hook 'floobits-send-highlight nil nil)
   (add-hook 'after-save-hook 'floobits-after-save-hook nil nil)
   (add-hook 'buffer-list-update-hook 'floobits-buffer-list-change nil nil)
+  ; (add-hook 'minibuffer-exit-hook 'floobits-minibuffer-hook nil nil)
   (ad-enable-advice 'delete-file 'before 'floobits-delete-file)
   (ad-enable-advice 'rename-file 'before 'floobits-rename-file)
   (ad-activate 'delete-file)
@@ -113,6 +115,7 @@
   (remove-hook 'post-command-hook 'floobits-send-highlight)
   (remove-hook 'after-save-hook 'floobits-after-save-hook)
   (remove-hook 'buffer-list-update-hook 'floobits-buffer-list-change)
+  ; (remove-hook 'minibuffer-exit-hook 'floobits-minibuffer-hook)
   (ad-disable-advice 'delete-file 'before 'floobits-delete-file)
   (ad-disable-advice 'rename-file 'before 'floobits-rename-file))
 
@@ -493,20 +496,23 @@ See floobits-share-dir to create one or visit floobits.com."
         (user_id (floo-get-item req 'user_id))
         (username (floo-get-item req 'username))
         (pos (+ 1 (elt (elt ranges ranges-length) 0)))
-        (buffer (get-file-buffer (floo-get-item req 'full_path)))
+        (path (floo-get-item req 'full_path))
+        (buffer (get-file-buffer path))
         (jump (or (floo-get-item req 'ping) floobits-follow-mode))
-        (buffer (or buffer (and jump (find-file (floo-get-item req 'full_path))))))
+        (buffer (or buffer (and jump (find-file path)))))
 
     (when buffer
-      (floobits-apply-highlight user_id buffer ranges)
       (with-current-buffer buffer
         (save-excursion
+          (floobits-apply-highlight user_id buffer ranges)
           (goto-char pos)
           (bookmark-set (format "floobits-%s-%s" username user_id)))))
 
     (when jump
-      (switch-to-buffer buffer)
-      (goto-char pos))))
+      (unless (window-minibuffer-p (get-buffer-window))
+        ; (setq floobits-jump-list (list path pos))
+        (switch-to-buffer buffer)
+        (goto-char pos)))))
 
 (defun floobits-event-save (req)
   (let ((buffer (get-file-buffer (floo-get-item req 'full_path))))
@@ -612,6 +618,12 @@ See floobits-share-dir to create one or visit floobits.com."
   (when (_floobits-is-buffer-shared (current-buffer))
     (floobits-send-to-agent (list (cons 'path (buffer-file-name))) 'saved)))
 
+; (defun floobits-minibuffer-hook ()
+;   (when floobits-jump-list
+;     (run-at-time 0.1 nil (lambda (path pos) (switch-to-buffer path) (goto-char pos)) 
+;       (car floobits-jump-list) (cadr floobits-jump-list))
+;     (setq floobits-jump-list nil)))
+
 (defun floobits-get-text-for-path (p)
   (cons (intern p) (floobits-get-buffer-text (find-buffer-visiting p))))
 
@@ -634,24 +646,6 @@ See floobits-share-dir to create one or visit floobits.com."
             (cons 'added added-text)
             (cons 'deleted deleted))))
         (floobits-send-to-agent req 'buffer_list_change)))))
-
-; ;; filter annoying messages see http://www.emacswiki.org/emacs/EchoArea
-; (defvar message-filter-regexp-list '("^Starting new Ispell process \\[.+\\] \\.\\.\\.$"
-;                                      "^Ispell process killed$")
-;   "filter formatted message string to remove noisy messages")
-; (defadvice message (around message-filter-by-regexp activate)
-;   (if (not (ad-get-arg 0))
-;       ad-do-it
-;     (let ((formatted-string (apply 'format (ad-get-args 0))))
-;       (if (and (stringp formatted-string)
-;                (some (lambda (re) (string-match re formatted-string)) message-filter-regexp-list))
-;           (save-excursion
-;             (set-buffer "*Messages*")
-;             (goto-char (point-max))
-;             (insert formatted-string "\n"))
-;         (progn
-;           (ad-set-args 0 `("%s" ,formatted-string))
-;           ad-do-it)))))
 
 (provide 'floobits)
 ;;; floobits.el ends here
