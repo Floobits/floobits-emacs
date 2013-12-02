@@ -2,6 +2,8 @@ import os
 import json
 import re
 import hashlib
+import vim
+import msg
 from functools import wraps
 
 try:
@@ -81,8 +83,10 @@ def reload_settings():
     floorc_settings = load_floorc()
     for name, val in floorc_settings.items():
         setattr(G, name, val)
-    G.COLAB_DIR = G.SHARE_DIR or os.path.join(G.BASE_DIR, 'share')
-    G.COLAB_DIR = os.path.expanduser(G.COLAB_DIR)
+    if G.SHARE_DIR:
+        G.BASE_DIR = G.SHARE_DIR
+    G.BASE_DIR = os.path.realpath(os.path.expanduser(G.BASE_DIR))
+    G.COLAB_DIR = os.path.join(G.BASE_DIR, 'share')
     G.COLAB_DIR = os.path.realpath(G.COLAB_DIR)
     mkdir(G.COLAB_DIR)
 
@@ -114,6 +118,13 @@ def load_floorc():
 
 cancelled_timeouts = set()
 timeout_ids = set()
+
+
+def redraw():
+    def doit():
+        msg.debug("redrawing!")
+        vim.command(":redraw!")
+    set_timeout(doit, 100)
 
 
 def set_timeout(func, timeout, *args, **kwargs):
