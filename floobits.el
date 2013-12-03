@@ -101,9 +101,12 @@
 
 (defun floobits-add-hooks ()
   (add-hook 'after-change-functions 'floobits-after-change nil nil)
-  (add-hook 'post-command-hook 'floobits-send-highlight nil nil)
+  (if (> emacs-major-version 23)
+    (progn
+      (add-hook 'post-command-hook 'floobits-send-highlight nil nil)
+      (add-hook 'buffer-list-update-hook 'floobits-buffer-list-change nil nil))
+    (add-hook 'post-command-hook 'floobits-post-command-func nil nil))
   (add-hook 'after-save-hook 'floobits-after-save-hook nil nil)
-  (add-hook 'buffer-list-update-hook 'floobits-buffer-list-change nil nil)
   ; (add-hook 'minibuffer-exit-hook 'floobits-minibuffer-hook nil nil)
   (ad-enable-advice 'delete-file 'before 'floobits-delete-file)
   (ad-enable-advice 'rename-file 'before 'floobits-rename-file)
@@ -112,9 +115,13 @@
 
 (defun floobits-remove-hooks ()
   (remove-hook 'after-change-functions 'floobits-after-change)
-  (remove-hook 'post-command-hook 'floobits-send-highlight)
+  (if (> emacs-major-version 23)
+    (progn
+      (remove-hook 'post-command-hook 'floobits-send-highlight)
+      (remove-hook 'buffer-list-update-hook 'floobits-buffer-list-change))
+    (remove-hook 'post-command-hook 'floobits-post-command-func))
+
   (remove-hook 'after-save-hook 'floobits-after-save-hook)
-  (remove-hook 'buffer-list-update-hook 'floobits-buffer-list-change)
   ; (remove-hook 'minibuffer-exit-hook 'floobits-minibuffer-hook)
   (ad-disable-advice 'delete-file 'before 'floobits-delete-file)
   (ad-disable-advice 'rename-file 'before 'floobits-rename-file))
@@ -325,6 +332,11 @@ See floobits-share-dir to create one or visit floobits.com."
 (defun floobits-filter-func (condp lst)
   (delq nil
   (mapcar (lambda (x) (and (funcall condp x) x)) lst)))
+
+(defun floobits-post-command-func ()
+  "used for grabbing changes in point for highlighting"
+  (floobits-buffer-list-change)
+  (floobits-send-highlight))
 
 (defun floobits-agent-listener (proc string)
   (with-current-buffer "*Floobits*"
