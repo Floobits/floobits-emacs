@@ -83,6 +83,10 @@ def status_message(msg):
         print(msg)
 
 
+def message_dialog(msg):
+    editor.status_message(msg)
+
+
 def open_file(file):
     raise NotImplementedError('open_file')
 
