@@ -12,6 +12,7 @@ timeouts = defaultdict(list)
 top_timeout_id = 0
 cancelled_timeouts = set()
 calling_timeouts = False
+welcome_text = ''
 
 
 def name():
