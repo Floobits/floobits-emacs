@@ -1,3 +1,5 @@
+import base64
+
 from floo.common.handlers import floo_handler
 from floo.common import msg, utils, shared as G
 
@@ -27,12 +29,25 @@ class AgentConnection(floo_handler.FlooHandler):
         })
 
     def _on_create_buf(self, data):
-        super(AgentConnection, self)._on_create_buf(data)
+        if data['encoding'] == 'base64':
+            data['buf'] = base64.b64decode(data['buf'])
+        self.bufs[data['id']] = data
+        self.paths_to_ids[data['path']] = data['id']
+        abs_path = utils.get_full_path(data['path'])
+
         self.to_emacs('create_buf', {
             'full_path': utils.get_full_path(data['path']),
             'path': data['path'],
             'username': data.get('username', ''),
         })
+
+        if abs_path not in self.emacs_handler.emacs_bufs:
+            utils.save_buf(data)
+            return
+        text = self.emacs_handler.emacs_bufs.get(abs_path)[0]
+        if text == data['buf']:
+            return
+        self.emacs_handler.bufs_changed.append(data['id'])
 
     def _on_delete_buf(self, data):
         buf_id = int(data['id'])

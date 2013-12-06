@@ -182,12 +182,12 @@ class EmacsHandler(base.BaseHandler):
     def _on_change(self, req):
         path = req['full_path']
         view = self.get_view_by_path(path)
-        if not view:
-            return
         changed = req['changed']
         begin = req['begin']
         old_length = req['old_length']
         self.emacs_bufs[path][0] = "%s%s%s" % (self.emacs_bufs[path][0][:begin - 1], changed, self.emacs_bufs[path][0][begin - 1 + old_length:])
+        if not view:
+            return
         self.bufs_changed.append(view.buf['id'])
 
     @has_perm('highlight')
@@ -264,6 +264,8 @@ class EmacsHandler(base.BaseHandler):
                 msg.debug('no buf for path %s' % path)
                 if 'create_buf' in G.PERMS:
                     self.agent._upload(path, text=text)
+                else:
+                    del self.emacs_bufs[path]
                 continue
             view = self.views.get(buf['id'])
             if view is None:
