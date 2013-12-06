@@ -84,7 +84,11 @@ def status_message(msg):
 
 
 def message_dialog(msg):
-    editor.status_message(msg)
+    editor = getattr(G, 'editor', None)
+    if editor:
+        editor.status_message(msg)
+    else:
+        print(msg)
 
 
 def open_file(file):
