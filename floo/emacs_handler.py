@@ -362,6 +362,7 @@ class EmacsHandler(base.BaseHandler):
             except HTTPError:
                 pass
             else:
+                result = utils.parse_url(workspace_url)
                 agent = self.remote_connect(result['owner'], result['workspace'], False)
                 return agent.once("room_info", lambda: agent.upload(dir_to_share))
 
