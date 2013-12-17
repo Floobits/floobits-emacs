@@ -1,4 +1,5 @@
 import base64
+import webbrowser
 
 from floo.common.handlers import floo_handler
 from floo.common import msg, utils, shared as G
@@ -19,6 +20,16 @@ class AgentConnection(floo_handler.FlooHandler):
     def to_emacs(self, name, data):
         data['name'] = name
         self.emacs_handler.send(data)
+
+    @utils.inlined_callbacks
+    def prompt_join_hangout(self, hangout_url):
+        join = yield self.ok_cancel_dialog, 'This workspace is being edited in a hangout. Would you like to join the hangout?'
+        if not join:
+            return
+        try:
+            webbrowser.open(hangout_url, new=2, autoraise=True)
+        except Exception as e:
+            msg.error("Couldn't open a browser: %s" % (str(e)))
 
     def _on_room_info(self, data):
         super(AgentConnection, self)._on_room_info(data)
