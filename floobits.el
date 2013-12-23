@@ -373,7 +373,10 @@ See floobits-share-dir to create one or visit floobits.com."
   (if (floobits-process-live-p floobits-conn)
     (progn
       (floo-set-item 'req 'name event)
-        (process-send-string floobits-conn (concat (json-encode req) "\n")))
+      (run-at-time .01 nil
+        (lambda (req)
+          (process-send-string floobits-conn (concat (json-encode req) "\n")))
+        req))
     (progn
       (message "Connection to floobits died :(")
       (floobits-destroy-connection))))
@@ -416,7 +419,7 @@ See floobits-share-dir to create one or visit floobits.com."
           (cons 'ping ping))))
       (when (or ping (not (equal req floobits-current-position)))
         (setq floobits-current-position req)
-        (floobits-send-to-agent req 'highlight)))))
+          (floobits-send-to-agent req 'highlight)))))
 
 (defun _floobits-is-buffer-public (buf)
   (let ((name (buffer-name buf)))
