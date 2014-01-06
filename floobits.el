@@ -416,6 +416,7 @@ See floobits-share-dir to create one or visit floobits.com."
             (vector (vector (- (region-beginning) 1) (- (region-end) 1)))
             (vector (vector point point))))
           (cons 'full_path name)
+          (cons 'following floobits-follow-mode)
           (cons 'ping ping))))
       (when (or ping (not (equal req floobits-current-position)))
         (setq floobits-current-position req)
@@ -513,8 +514,11 @@ See floobits-share-dir to create one or visit floobits.com."
         (pos (+ 1 (elt (elt ranges ranges-length) 0)))
         (path (floo-get-item req 'full_path))
         (buffer (get-file-buffer path))
-        (jump (or (floo-get-item req 'ping) floobits-follow-mode))
-        (buffer (or buffer (and jump (find-file path)))))
+        (following (floo-get-item req 'following))
+        (should-jump (or 
+          (floo-get-item req 'ping)
+          (and floobits-follow-mode (not following))))
+        (buffer (or buffer (and should-jump (find-file path)))))
 
     (when buffer
       (with-current-buffer buffer
@@ -523,7 +527,7 @@ See floobits-share-dir to create one or visit floobits.com."
           (goto-char pos)
           (bookmark-set (format "floobits-%s-%s" username user_id)))))
 
-    (when jump
+    (when should-jump
       (unless (window-minibuffer-p (get-buffer-window))
         ; (setq floobits-jump-list (list path pos))
         (switch-to-buffer buffer)

@@ -91,6 +91,7 @@ class AgentConnection(floo_handler.FlooHandler):
             'ranges': data['ranges'],
             'user_id': data['user_id'],
             'username': data.get('username', 'unknown user'),
+            'following': data.get('following', False),
             'ping': data.get('ping', False)
         })
 

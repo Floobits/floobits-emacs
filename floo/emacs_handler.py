@@ -199,6 +199,7 @@ class EmacsHandler(base.BaseHandler):
             'id': view.buf['id'],
             'name': 'highlight',
             'ranges': req['ranges'],
+            'following': bool(req['following']),
             'ping': req.get("ping"),
         }
         msg.debug("sending highlight upstream %s" % highlight_json)
