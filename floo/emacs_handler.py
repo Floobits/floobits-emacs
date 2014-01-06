@@ -14,14 +14,14 @@ from collections import defaultdict
 
 try:
     from . import agent_connection, editor
-    from .common import api, msg, shared as G, utils, reactor
+    from .common import api, msg, shared as G, utils, reactor, ignore
     from .view import View
     from .common.handlers import base
     from .emacs_protocol import EmacsProtocol
 except (ImportError, ValueError):
     import agent_connection
     import editor
-    from common import api, msg, shared as G, utils, reactor
+    from common import api, msg, shared as G, utils, reactor, ignore
     from view import View
     from common.handlers import base
     from emacs_protocol import EmacsProtocol
@@ -262,7 +262,7 @@ class EmacsHandler(base.BaseHandler):
             self.emacs_bufs[path][0] = text
             if not buf:
                 msg.debug('no buf for path %s' % path)
-                if 'create_buf' in G.PERMS:
+                if 'create_buf' in G.PERMS and not ignore.is_ignored(path):
                     self.agent._upload(path, text=text)
                 else:
                     del self.emacs_bufs[path]
