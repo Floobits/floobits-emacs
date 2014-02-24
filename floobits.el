@@ -462,7 +462,7 @@ See floobits-share-dir to create one or visit floobits.com."
     (setq floobits-perms (append (floo-get-item req 'perms) nil))
     (mapc
       (lambda (x)
-        (when (string="floobits-" (substring x 0 9))
+        (when (and (> (length x) 9) (string="floobits-" (substring x 0 9)))
           (bookmark-delete x)))
       (bookmark-all-names))
     (dired floobits-share-dir)
