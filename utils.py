@@ -90,6 +90,10 @@ def reload_settings():
     G.BASE_DIR = os.path.realpath(os.path.expanduser(G.BASE_DIR))
     G.COLAB_DIR = os.path.join(G.BASE_DIR, 'share')
     G.COLAB_DIR = os.path.realpath(G.COLAB_DIR)
+    if G.DEBUG == '1':
+        msg.LOG_LEVEL = msg.LOG_LEVELS['DEBUG']
+    else:
+        msg.LOG_LEVEL = msg.LOG_LEVELS['MSG']
     mkdir(G.COLAB_DIR)
 
 
@@ -120,7 +124,6 @@ def load_floorc():
 
 cancelled_timeouts = set()
 timeout_ids = set()
-
 
 
 def set_timeout(func, timeout, *args, **kwargs):
@@ -192,8 +195,12 @@ def to_workspace_url(r):
     if port != '':
         port = ':%s' % port
     host = r.get('host', G.DEFAULT_HOST)
-    workspace_url = '%s://%s%s/%s/%s/' % (proto, host, port, r['owner'], r['workspace'])
+    workspace_url = '%s://%s%s/%s/%s' % (proto, host, port, r['owner'], r['workspace'])
     return workspace_url
+
+
+def normalize_url(workspace_url):
+    return to_workspace_url(parse_url(workspace_url))
 
 
 def get_full_path(p):
@@ -202,7 +209,7 @@ def get_full_path(p):
 
 
 def unfuck_path(p):
-    return os.path.normcase(os.path.normpath(p))
+    return os.path.normpath(p)
 
 
 def to_rel_path(p):
@@ -271,6 +278,18 @@ def update_persistent_data(data):
     per_path = os.path.join(G.BASE_DIR, 'persistent.json')
     with open(per_path, 'wb') as per:
         per.write(json.dumps(data, indent=2).encode('utf-8'))
+
+
+# Cleans up URLs in persistent.json
+def normalize_persistent_data():
+    persistent_data = get_persistent_data()
+    for rw in persistent_data['recent_workspaces']:
+        rw['url'] = normalize_url(rw['url'])
+
+    for owner, workspaces in persistent_data['workspaces'].items():
+        for name, workspace in workspaces.items():
+            workspace['url'] = normalize_url(workspace['url'])
+    update_persistent_data(persistent_data)
 
 
 def add_workspace_to_persistent_json(owner, name, url, path):
@@ -372,7 +391,7 @@ def inlined_callbacks(f):
 
 def has_browser():
     valid_browsers = [
-        "MacOSX", #Default mac browser.
+        "MacOSX",  # Default mac browser.
         "Chrome",
         "Chromium",
         "Firefox",
@@ -383,6 +402,6 @@ def has_browser():
         try:
             webbrowser.get(browser)
             return True
-        except Exception as e:
+        except Exception:
             continue
     return False
