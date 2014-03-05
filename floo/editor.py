@@ -23,6 +23,10 @@ def name():
     return 'Emacs-py%s' % py_version
 
 
+def codename():
+    return 'emacs'
+
+
 def windows(*args, **kwargs):
     return []
 
