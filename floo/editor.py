@@ -61,7 +61,7 @@ def call_timeouts():
     calling_timeouts = True
     now = time.time()
     to_remove = []
-    for t, tos in timeouts.items():
+    for t, tos in timeouts.copy().items():
         if now >= t:
             for timeout in tos:
                 timeout()
