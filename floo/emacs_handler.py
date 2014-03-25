@@ -310,6 +310,7 @@ class EmacsHandler(base.BaseHandler):
             msg.error("Couldn't open a browser: %s" % (str(e)))
 
     def _on_share_dir(self, data):
+        file_to_share = None
         utils.reload_settings()
         G.USERNAME = data['username']
         G.SECRET = data['secret']
@@ -322,12 +323,13 @@ class EmacsHandler(base.BaseHandler):
         msg.debug('%s %s %s' % (G.USERNAME, workspace_name, G.PROJECT_PATH))
 
         if os.path.isfile(dir_to_share):
-            return msg.error('%s is a file. Give me a directory please.' % dir_to_share)
+            file_to_share = dir_to_share
+            dir_to_share = os.path.dirname(dir_to_share)
 
         try:
             utils.mkdir(dir_to_share)
         except Exception:
-            return msg.error("The directory %s doesn't exist and I can't make it." % dir_to_share)
+            return msg.error("The directory %s doesn't exist and I can't create it." % dir_to_share)
 
         floo_file = os.path.join(dir_to_share, '.floo')
 
@@ -342,48 +344,35 @@ class EmacsHandler(base.BaseHandler):
 
         workspace_url = info.get('url')
         if workspace_url:
-            try:
-                result = utils.parse_url(workspace_url)
-            except Exception as e:
-                msg.error(str(e))
-            else:
-                workspace_name = result['workspace']
-                try:
-                    # TODO: blocking. beachballs sublime 2 if API is super slow
-                    api.get_workspace_by_url(workspace_url)
-                except HTTPError:
-                    workspace_url = None
-                    workspace_name = os.path.basename(dir_to_share)
-                else:
-                    utils.add_workspace_to_persistent_json(result['owner'], result['workspace'], workspace_url, dir_to_share)
+            parsed_url = api.prejoin_workspace(workspace_url, dir_to_share, {'perms': perms})
+            if parsed_url:
+                # TODO: make sure we create_flooignore
+                # utils.add_workspace_to_persistent_json(parsed_url['owner'], parsed_url['workspace'], workspace_url, dir_to_share)
+                agent = self.remote_connect(parsed_url['owner'], parsed_url['workspace'], False)
+                return agent.once("room_info", lambda: agent.upload(file_to_share or dir_to_share))
 
-        workspace_url = utils.get_workspace_by_path(dir_to_share) or workspace_url
-
-        if workspace_url:
-            try:
-                api.get_workspace_by_url(workspace_url)
-            except HTTPError:
-                pass
-            else:
-                result = utils.parse_url(workspace_url)
-                agent = self.remote_connect(result['owner'], result['workspace'], False)
-                return agent.once("room_info", lambda: agent.upload(dir_to_share))
+        parsed_url = utils.get_workspace_by_path(dir_to_share, api.prejoin_workspace)
+        if parsed_url:
+            agent = self.remote_connect(parsed_url['owner'], parsed_url['workspace'], False)
+            return agent.once("room_info", lambda: agent.upload(file_to_share or dir_to_share))
 
         def on_done(data, choices=None):
             self._on_create_workspace({}, workspace_name, dir_to_share, owner=data.get('response'), perms=perms)
 
-        orgs = api.get_orgs_can_admin()
-        orgs = json.loads(orgs.read().decode('utf-8'))
-        if len(orgs) == 0:
+        try:
+            r = api.get_orgs_can_admin()
+        except IOError as e:
+            return editor.error_message('Error getting org list: %s' % str(e))
+        if r.code >= 400 or len(r.body) == 0:
             return on_done({'response': G.USERNAME})
         i = 0
         choices = []
         choices.append([G.USERNAME, i])
-        for o in orgs:
+        for org in r.body:
             i += 1
-            choices.append([o['name'], i])
+            choices.append([org['name'], i])
 
-        self.get_input('Create workspace for (%s) ' % " ".join([x[0] for x in choices]), '', on_done, choices=choices)
+        self.get_input('Create workspace owned by (%s) ' % " ".join([x[0] for x in choices]), '', on_done, choices=choices)
 
     def _on_create_workspace(self, data, workspace_name, dir_to_share, owner=None, perms=None):
         owner = owner or G.USERNAME
