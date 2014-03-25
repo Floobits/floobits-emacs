@@ -315,7 +315,7 @@ class EmacsHandler(base.BaseHandler):
         G.USERNAME = data['username']
         G.SECRET = data['secret']
         dir_to_share = data['dir_to_share']
-        perms = data.get('perms')
+        perms = data.get('perms', {})
         dir_to_share = os.path.expanduser(dir_to_share)
         dir_to_share = utils.unfuck_path(dir_to_share)
         workspace_name = os.path.basename(dir_to_share)
@@ -351,13 +351,20 @@ class EmacsHandler(base.BaseHandler):
                 agent = self.remote_connect(parsed_url['owner'], parsed_url['workspace'], False)
                 return agent.once("room_info", lambda: agent.upload(file_to_share or dir_to_share))
 
-        parsed_url = utils.get_workspace_by_path(dir_to_share, api.prejoin_workspace)
+        parsed_url = utils.get_workspace_by_path(dir_to_share,
+                                                 lambda workspace_url: api.prejoin_workspace(workspace_url, dir_to_share, {'perms': perms}))
         if parsed_url:
             agent = self.remote_connect(parsed_url['owner'], parsed_url['workspace'], False)
             return agent.once("room_info", lambda: agent.upload(file_to_share or dir_to_share))
 
         def on_done(data, choices=None):
-            self._on_create_workspace({}, workspace_name, dir_to_share, owner=data.get('response'), perms=perms)
+            self.get_input('Workspace name:',
+                           workspace_name,
+                           self._on_create_workspace,
+                           workspace_name,
+                           dir_to_share,
+                           owner=data.get('response'),
+                           perms=perms)
 
         try:
             r = api.get_orgs_can_admin()
@@ -377,7 +384,7 @@ class EmacsHandler(base.BaseHandler):
     def _on_create_workspace(self, data, workspace_name, dir_to_share, owner=None, perms=None):
         owner = owner or G.USERNAME
         workspace_name = data.get('response', workspace_name)
-        prompt = 'workspace %s already exists. Choose another name: ' % workspace_name
+
         try:
             api_args = {
                 'name': workspace_name,
@@ -385,34 +392,44 @@ class EmacsHandler(base.BaseHandler):
             }
             if perms:
                 api_args['perms'] = perms
-            api.create_workspace(api_args)
-            workspace_url = utils.to_workspace_url({'secure': True, 'owner': owner, 'workspace': workspace_name})
-            msg.debug('Created workspace %s' % workspace_url)
-        except HTTPError as e:
-            err_body = e.read()
-            msg.error('Unable to create workspace: %s %s' % (unicode(e), err_body))
-            if e.code not in [400, 402, 409]:
-                return msg.error('Unable to create workspace: %s' % str(e))
-            if e.code == 400:
-                workspace_name = re.sub('[^A-Za-z0-9_\-]', '-', workspace_name)
-                prompt = 'Invalid name. Workspace names must match the regex [A-Za-z0-9_\-]. Choose another name:'
-            elif e.code == 402:
-                try:
-                    err_body = json.loads(err_body)
-                    err_body = err_body['detail']
-                except Exception:
-                    pass
-                return editor.error_message('%s' % err_body)
-            else:
-                prompt = 'Workspace %s/%s already exists. Choose another name:' % (owner, workspace_name)
-
-            return self.get_input(prompt, workspace_name, self._on_create_workspace, workspace_name, dir_to_share, owner, perms)
+            msg.debug(str(api_args))
+            r = api.create_workspace(api_args)
         except Exception as e:
-            return msg.error('Unable to create workspace: %s' % str(e))
+            msg.error('Unable to create workspace: %s' % unicode(e))
+            return editor.error_message('Unable to create workspace: %s' % unicode(e))
 
-        G.PROJECT_PATH = dir_to_share
-        agent = self.remote_connect(owner, workspace_name, False)
-        agent.once("room_info", lambda: agent.upload(dir_to_share))
+        workspace_url = 'https://%s/%s/%s' % (G.DEFAULT_HOST, owner, workspace_name)
+
+        if r.code < 400:
+            msg.log('Created workspace %s' % workspace_url)
+            utils.add_workspace_to_persistent_json(self.owner, workspace_name, workspace_url, dir_to_share)
+            G.PROJECT_PATH = dir_to_share
+            agent = self.remote_connect(owner, workspace_name, False)
+            return agent.once("room_info", lambda: agent.upload(dir_to_share))
+
+        msg.error('Unable to create workspace: %s' % r.body)
+        if r.code not in [400, 402, 409]:
+            try:
+                r.body = r.body['detail']
+            except Exception:
+                pass
+            return editor.error_message('Unable to create workspace: %s' % r.body)
+
+        if r.code == 400:
+            workspace_name = re.sub('[^A-Za-z0-9_\-\.]', '-', workspace_name)
+            prompt = 'Invalid name. Workspace names must match the regex [A-Za-z0-9_\-\.]. Choose another name:'
+        elif r.code == 402:
+            try:
+                r.body = r.body['detail']
+            except Exception:
+                pass
+            if self.get_input('%s Open billing settings?' % r.body, '', y_or_n=True):
+                webbrowser.open('https://%s/%s/settings#billing' % (G.DEFAULT_HOST, owner))
+            return
+        else:
+            prompt = 'Workspace %s/%s already exists. Choose another name:' % (owner, workspace_name)
+
+        return self.get_input(prompt, workspace_name, self._on_create_workspace, workspace_name, dir_to_share, owner, perms)
 
     def join_workspace(self, data, owner, workspace, dir_to_make=None):
         d = data['response']
