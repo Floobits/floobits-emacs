@@ -14,9 +14,10 @@ def cb(port):
 
 
 def main():
-    G.__VERSION__ = '0.03'
-    G.__PLUGIN_VERSION__ = '1.0'
+    G.__VERSION__ = '0.10'
+    G.__PLUGIN_VERSION__ = '1.1'
     utils.reload_settings()
+    utils.normalize_persistent_data()
 
     floo_log_level = 'msg'
     if G.DEBUG:
