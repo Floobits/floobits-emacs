@@ -257,7 +257,7 @@ class EmacsHandler(base.BaseHandler):
     def _on_buffer_list_change(self, req):
         added = req.get('added') or {}
         msg.log("buffer_list_change:\n%s" % req)
-        for path, text in added.iteritems():
+        for path, text in added.items():
             buf = self.get_buf_by_path(path)
             self.emacs_bufs[path][0] = text
             if not buf:
@@ -292,7 +292,7 @@ class EmacsHandler(base.BaseHandler):
             else:
                 seen.add(path)
 
-        for buf_id, view in self.views.iteritems():
+        for buf_id, view in self.views.items():
             if utils.get_full_path(view.buf['path']) not in seen:
                 msg.debug('We should not have buffer %s in our views but we do.' % view.buf['path'])
 
@@ -401,7 +401,7 @@ class EmacsHandler(base.BaseHandler):
 
         if r.code < 400:
             msg.log('Created workspace %s' % workspace_url)
-            utils.add_workspace_to_persistent_json(self.owner, workspace_name, workspace_url, dir_to_share)
+            utils.add_workspace_to_persistent_json(owner, workspace_name, workspace_url, dir_to_share)
             G.PROJECT_PATH = dir_to_share
             agent = self.remote_connect(owner, workspace_name, False)
             return agent.once("room_info", lambda: agent.upload(dir_to_share))
@@ -422,8 +422,8 @@ class EmacsHandler(base.BaseHandler):
                 r.body = r.body['detail']
             except Exception:
                 pass
-            if self.get_input('%s Open billing settings?' % r.body, '', y_or_n=True):
-                webbrowser.open('https://%s/%s/settings#billing' % (G.DEFAULT_HOST, owner))
+            cb = lambda data: data['response'] and webbrowser.open('https://%s/%s/settings#billing' % (G.DEFAULT_HOST, owner))
+            self.get_input('%s Open billing settings?' % r.body, '', cb, y_or_n=True)
             return
         else:
             prompt = 'Workspace %s/%s already exists. Choose another name:' % (owner, workspace_name)
