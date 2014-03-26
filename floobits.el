@@ -176,6 +176,7 @@ If the directory corresponds to an existing floobits workspace, you will instead
   (lexical-let* ((req (list
                 (cons 'username floobits-username)
                 (cons 'secret floobits-secret)
+                (cons 'perms '((AnonymousUser . ["view_room"])))
                 (cons 'dir_to_share dir-to-share)))
                 (func (lambda () (floobits-send-to-agent req 'share_dir))))
     (floobits-create-connection func)))
@@ -327,7 +328,7 @@ See floobits-share-dir to create one or visit floobits.com."
       (delete-process floobits-python-agent))
     (floobits-initialize)
     (setq floobits-python-agent nil)
-    (message "")))
+    (message "You have left the workspace.")))
 
 (defun floobits-filter-func (condp lst)
   (delq nil

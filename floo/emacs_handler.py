@@ -314,7 +314,7 @@ class EmacsHandler(base.BaseHandler):
         G.USERNAME = data['username']
         G.SECRET = data['secret']
         dir_to_share = data['dir_to_share']
-        perms = data.get('perms', {})
+        perms = data['perms']
         dir_to_share = os.path.expanduser(dir_to_share)
         dir_to_share = utils.unfuck_path(dir_to_share)
         workspace_name = os.path.basename(dir_to_share)
