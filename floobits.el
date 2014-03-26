@@ -9,7 +9,7 @@
 ;;      Geoff Greer
 ;; Keywords: comm, tools
 ;; Package-Requires: ((json "1.2") (highlight "0"))
-;; Package-Version: 0.1
+;; Package-Version: 0.2
 ;; URL: http://github.com/Floobits/floobits-emacs
 ;; Version: 23.0
 ;;
