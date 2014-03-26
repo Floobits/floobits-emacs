@@ -1,8 +1,8 @@
 # [Floobits](https://floobits.com/) plugin for Emacs
 
-Real-time collaborative editing. Think Etherpad, but with native editors. This is the plugin for Emacs. We also have plugins for [Sublime Text](https://github.com/Floobits/floobits-sublime) and [Vim](https://github.com/Floobits/floobits-vim).
+Real-time collaborative editing. Think Etherpad, but with native editors. This is the plugin for Emacs. We also have plugins for [Sublime Text](https://github.com/Floobits/floobits-sublime), [Vim](https://github.com/Floobits/floobits-vim), and [IntelliJ](https://github.com/Floobits/floobits-intellij).
 
-### Development status: new, but reasonably stable. We've tested it on Emacs 23 and later, but earlier versions might work. This plugin requires Python 2.7.
+### Development status: new, but reasonably stable. We've tested it on Emacs 23 and later, but earlier versions might work. This plugin requires Python 2.7 or later.
 
 ## Installation
 ### MELPA
@@ -32,9 +32,15 @@ vim_executable mvim
 All commands are documented in `apropos-command <RET> floobits`
 <ul>
   <li><code>M-x floobits-join-workspace &lt;RET&gt; https://floobits.com/owner/workspace/ &lt;RET&gt;</code> &nbsp; Join an existing floobits workspace.</li>
-  <li><code>M-x floobits-share-dir &lt;RET&gt; DIR &lt;RET&gt;</code> &nbsp; Create a workspace and populate it with the contents of the directory, DIR (or make it).</li>
+  <li><code>M-x floobits-share-dir-private &lt;RET&gt; DIR &lt;RET&gt;</code> &nbsp; Create a workspace and populate it with the contents of the directory, DIR (or make it).</li>
+  <li><code>M-x floobits-share-dir-public &lt;RET&gt; DIR &lt;RET&gt;</code> &nbsp; Create a workspace and populate it with the contents of the directory, DIR (or make it).</li>
   <li><code>M-x floobits-leave-workspace &lt;RET&gt;</code> &nbsp; Leave the current workspace.</li>
   <li><code>M-x floobits-summon &lt;RET&gt;</code> &nbsp; Summon everyone in the workspace to your cursor position.</li>
   <li><code>M-x floobits-follow-mode-toggle &lt;RET&gt;</code> &nbsp; Toggle following of recent changes.</li>
   <li><code>M-x floobits-clear-highlights &lt;RET&gt;</code> &nbsp; Clears all mirrored highlights.</li>
 </ul>
+
+
+## Help
+
+If you have trouble setting up or using this plugin, please [contact us](https://floobits.com/help#support).
