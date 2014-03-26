@@ -126,7 +126,6 @@ class EmacsHandler(base.BaseHandler):
 
     def remote_connect(self, owner, workspace, get_bufs=True):
         G.PROJECT_PATH = os.path.realpath(G.PROJECT_PATH)
-        G.PROJECT_PATH += os.sep
         self.agent = agent_connection.AgentConnection(owner, workspace, self, get_bufs)
         reactor.reactor.connect(self.agent, G.DEFAULT_HOST, G.DEFAULT_PORT, True)
         return self.agent
@@ -339,8 +338,8 @@ class EmacsHandler(base.BaseHandler):
             info = json.loads(floo_info)
         except (IOError, OSError):
             pass
-        except Exception:
-            msg.debug("Couldn't read the floo_info file: %s" % floo_file)
+        except Exception as e:
+            msg.warn("Couldn't read .floo file: %s: %s" % (floo_file, str(e)))
 
         workspace_url = info.get('url')
         if workspace_url:
@@ -440,7 +439,7 @@ class EmacsHandler(base.BaseHandler):
             else:
                 d = ''
         if d == '':
-            return self.get_input('Give me a directory to sync data to: ', G.PROJECT_PATH, self.join_workspace, owner, workspace)
+            return self.get_input('Save workspace files to: ', G.PROJECT_PATH, self.join_workspace, owner, workspace)
         d = os.path.realpath(os.path.expanduser(d))
         if not os.path.isdir(d):
             if dir_to_make:
@@ -469,4 +468,4 @@ class EmacsHandler(base.BaseHandler):
             return self.remote_connect(owner, workspace)
 
         G.PROJECT_PATH = '~/floobits/share/%s/%s' % (owner, workspace)
-        self.get_input('Give me a directory to sync data to: ', G.PROJECT_PATH, self.join_workspace, owner, workspace)
+        self.get_input('Save workspace files to: ', G.PROJECT_PATH, self.join_workspace, owner, workspace)

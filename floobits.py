@@ -17,7 +17,6 @@ def main():
     G.__VERSION__ = '0.10'
     G.__PLUGIN_VERSION__ = '1.1'
     utils.reload_settings()
-    utils.normalize_persistent_data()
 
     floo_log_level = 'msg'
     if G.DEBUG:
@@ -25,6 +24,7 @@ def main():
     msg.LOG_LEVEL = msg.LOG_LEVELS.get(floo_log_level.upper(), msg.LOG_LEVELS['MSG'])
     migrations.rename_floobits_dir()
     migrations.migrate_symlinks()
+    utils.normalize_persistent_data()
 
     emacs = emacs_handler.EmacsHandler()
     G.emacs = emacs
