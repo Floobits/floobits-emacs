@@ -72,6 +72,7 @@
 (defvar floobits-share-dir)
 (defvar floobits-user-highlights)
 (defvar floobits-on-connect)
+(defvar floobits-last-highlight)
 ; (defvar floobits-jump-list)
 
 (defvar floobits-username)
@@ -88,6 +89,7 @@
   (setq floobits-perms nil)
   (setq floobits-share-dir "")
   (setq floobits-on-connect nil)
+  (setq floobits-last-highlight nil)
   (setq floobits-user-highlights (make-hash-table :test 'equal)))
 
 (add-hook 'kill-emacs-hook (lambda ()
@@ -160,6 +162,8 @@
   (when floobits-conn
     (setq floobits-follow-mode (not floobits-follow-mode))
     (floobits-send-to-agent (list (cons 'follow_mode floobits-follow-mode)) 'set_follow_mode)
+    (when floobits-follow-mode
+      (floobits-event-highlight floobits-last-highlight))
     (message "Follow mode %s." (if floobits-follow-mode "enabled" "disabled"))))
 
 ;;;###autoload
@@ -511,6 +515,7 @@ See floobits-share-dir to create one or visit floobits.com."
         (puthash key ranges floobits-user-highlights)))))
 
 (defun floobits-event-highlight (req)
+  (setq floobits-last-highlight req)
   (let* ((ranges (floo-get-item req 'ranges))
         (ranges-length (- (length ranges) 1))
         (user_id (floo-get-item req 'user_id))
