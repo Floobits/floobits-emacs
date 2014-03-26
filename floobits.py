@@ -14,7 +14,7 @@ def cb(port):
 
 
 def main():
-    G.__VERSION__ = '0.10'
+    G.__VERSION__ = '0.11'
     G.__PLUGIN_VERSION__ = '1.1'
     utils.reload_settings()
 
