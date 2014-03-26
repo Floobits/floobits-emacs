@@ -3,7 +3,7 @@
 ;; Filename: floobits.el
 ;; Description: Real-time collaborative editing.
 ;;
-;; Copyright 2013 Floobits, Inc.
+;; Copyright 2013-2014 Floobits, Inc.
 ;;
 ;; Author: Matt Kaniaris
 ;;      Geoff Greer
@@ -17,7 +17,7 @@
 ;;
 ;;    Real-time collaborative editing.
 ;;
-;;  This plugin requires Python 2.6 or 2.7 and a Floobits account.
+;;  This plugin requires Python 2.7 or later and a Floobits account.
 ;;
 ;;  Usage
 ;;  -----
@@ -26,7 +26,10 @@
 ;;  `floobits-join-workspace <RET> https://floobits.com/owner/workspace/ <RET>'
 ;;  Join an existing floobits workspace.
 ;;
-;;  `floobits-share-dir <RET> DIR <RET>'
+;;  `floobits-share-dir-private <RET> DIR <RET>'
+;;  Create a workspace and populate it with the contents of the directory, DIR (or make it).
+;;
+;;  `floobits-share-dir-public <RET> DIR <RET>'
 ;;  Create a workspace and populate it with the contents of the directory, DIR (or make it).
 ;;
 ;;  `floobits-leave-workspace <RET>'
