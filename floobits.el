@@ -469,7 +469,7 @@ See floobits-share-dir to create one or visit floobits.com."
   "returns properties free text of buffer with name (name)"
   (with-current-buffer buffer
     (save-excursion
-      (buffer-substring-no-properties (point-min) (point-max)))))
+      (buffer-substring-no-properties 1 (+ 1 (buffer-size))))))
 
 (defun floobits-event-disconnect (req)
   (message "Disconnected: %s" (floo-get-item req 'reason)))
