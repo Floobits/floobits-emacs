@@ -1,4 +1,5 @@
 import sys
+import os
 from collections import defaultdict
 import time
 
@@ -13,6 +14,7 @@ top_timeout_id = 0
 cancelled_timeouts = set()
 calling_timeouts = False
 welcome_text = ''
+line_endings = os.linesep
 
 
 def name():
@@ -101,3 +103,7 @@ def open_file(file):
 
 def platform():
     return sys.platform
+
+
+def get_line_endings(path=None):
+    return line_endings
