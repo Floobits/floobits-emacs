@@ -267,13 +267,19 @@ class EmacsHandler(base.BaseHandler):
                 else:
                     del self.emacs_bufs[path]
                 continue
-            view = self.views.get(buf['id'])
+            buf_id = int(buf['id'])
+            view = self.views.get(buf_id)
             if view is None:
-                self.get_view(buf['id'])
+                self.get_view(buf_id)
             elif view.is_loading():
                 view._emacs_buf = self.emacs_bufs[path]
             else:
                 msg.debug('view for buf %s already exists. this is not good. we got out of sync' % buf['path'])
+            d = self.agent.on_load.get(buf_id)
+            if d:
+                del self.agent.on_load[buf_id]
+                for _, f in d.items():
+                    f()
 
         deleted = req.get('deleted') or []
         for path in deleted:
