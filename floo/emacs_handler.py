@@ -206,6 +206,7 @@ class EmacsHandler(base.BaseHandler):
 
     @has_perm('create_buf')
     def _on_create_buf(self, req):
+        # TODO: use the view state if it exists instead of uploading the on-disk state
         self.agent.upload(req['full_path'])
 
     @has_perm('delete_buf')
@@ -256,10 +257,14 @@ class EmacsHandler(base.BaseHandler):
 
     def _on_buffer_list_change(self, req):
         added = req.get('added') or {}
-        msg.log("buffer_list_change:\n%s" % req)
         for path, text in added.items():
             buf = self.get_buf_by_path(path)
-            self.emacs_bufs[path][0] = text
+            buf_id = buf and int(buf.get('id'))
+            d = buf and self.agent.on_load.get(buf_id)
+            if d:
+                self.emacs_bufs[path][0] = buf['buf']
+            else:
+                self.emacs_bufs[path][0] = text
             if not buf:
                 msg.debug('no buf for path %s' % path)
                 if 'create_buf' in G.PERMS and not ignore.is_ignored(path):
@@ -267,7 +272,6 @@ class EmacsHandler(base.BaseHandler):
                 else:
                     del self.emacs_bufs[path]
                 continue
-            buf_id = int(buf['id'])
             view = self.views.get(buf_id)
             if view is None:
                 self.get_view(buf_id)
@@ -275,7 +279,6 @@ class EmacsHandler(base.BaseHandler):
                 view._emacs_buf = self.emacs_bufs[path]
             else:
                 msg.debug('view for buf %s already exists. this is not good. we got out of sync' % buf['path'])
-            d = self.agent.on_load.get(buf_id)
             if d:
                 del self.agent.on_load[buf_id]
                 for _, f in d.items():
