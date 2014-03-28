@@ -185,6 +185,7 @@ If the directory corresponds to an existing floobits workspace, you will instead
                 (cons 'secret floobits-secret)
                 (cons 'perms '((AnonymousUser . ["view_room"])))
                 (cons 'dir_to_share dir-to-share)))
+                (cons 'line-endings (get-line-endings))
                 (func (lambda () (floobits-send-to-agent req 'share_dir))))
     (floobits-create-connection func)))
 
@@ -201,6 +202,7 @@ If the directory corresponds to an existing floobits workspace, you will instead
         (cons 'username floobits-username)
         (cons 'secret floobits-secret)
         (cons 'perms '((AnonymousUser . [])))
+        (cons 'line-endings (get-line-endings))
         (cons 'dir_to_share dir-to-share)))
       (func (lambda () (floobits-send-to-agent req 'share_dir))))
     (floobits-create-connection func)))
@@ -246,6 +248,7 @@ See floobits-share-dir to create one or visit floobits.com."
           (cons 'username floobits-username)
           (cons 'workspace workspace)
           (cons 'secret floobits-secret)
+          (cons 'line-endings (get-line-endings))
           (cons 'workspace_owner owner)))
           (func (lambda () (floobits-send-to-agent req 'join_workspace))))
           (floobits-create-connection func)))
@@ -674,6 +677,12 @@ See floobits-share-dir to create one or visit floobits.com."
             (cons 'added added-text)
             (cons 'deleted deleted))))
         (floobits-send-to-agent req 'buffer_list_change)))))
+
+(defun get-line-endings ()
+  (let ((name (symbol-name buffer-file-coding-system)))
+    (cond
+     ((string-match "dos" name) "\r\n")
+     ((string-match "unix" name) "\n" ))))
 
 (provide 'floobits)
 ;;; floobits.el ends here
