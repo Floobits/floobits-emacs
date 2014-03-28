@@ -220,6 +220,15 @@ If the directory corresponds to an existing floobits workspace, you will instead
         (mapcar (lambda (x) (floo-get-item x 'url)) data)))
     (error '(""))))
 
+(defun _floobits-get-url-from-dot-floo ()
+  (condition-case nil
+    (with-temp-buffer
+      (insert-file-contents ".floo")
+      (let* ((json-key-type 'string)
+          (entry (json-read-from-string  (buffer-string))))
+        (cdr (assoc-string "url" entry))))
+    (error "https://floobits.com/")))
+
 ;;;###autoload
 (defun floobits-join-workspace (floourl)
   "Join an existing floobits workspace.
@@ -228,7 +237,7 @@ See floobits-share-dir to create one or visit floobits.com."
     ; read-from-minibuffer prompt &optional initial keymap read history default inherit-input-method
     (let ((histories (_floobits-read-persistent)))
       (read-from-minibuffer "Floobits workspace URL (owner/workspace): " 
-        "https://floobits.com/" nil nil 'histories))))
+        (_floobits-get-url-from-dot-floo) nil nil 'histories))))
   (floobits-load-floorc)
   (let* ((url-struct (url-generic-parse-url floourl))
         (domain (url-host url-struct))
