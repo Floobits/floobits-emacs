@@ -607,11 +607,14 @@ See floobits-share-dir to create one or visit floobits.com."
     (message "User %s deleted buffer %s" username filename)))
 
 (defun floobits-event-get_buf (req)
-  (let ((filename (floo-get-item req "full_path" )))
-    (if (not (eq filename nil))
-      (when floobits-follow-mode
-        (find-file filename))
-    (message "filename does not exist for buffer %s" (floo-get-item req 'id)))))
+  (let* ((filename (floo-get-item req "full_path"))
+      (buf (get-file-buffer filename)))
+    (when buf
+      (save-excursion
+        (with-current-buffer buf
+          (atomic-change-group
+            (delete-region 1 (+ 1 (buffer-size)))
+            (insert (floo-get-item req "buf"))))))))
 
 (defun floobits-event-message (req)
   (message "%s" (floo-get-item req "message")))
