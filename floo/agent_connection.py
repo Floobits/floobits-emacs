@@ -11,6 +11,10 @@ class AgentConnection(floo_handler.FlooHandler):
         super(AgentConnection, self).__init__(owner, workspace, get_bufs)
         self.emacs_handler = emacs_handler
 
+    def stop(self):
+        super(AgentConnection, self).stop()
+        self.emacs_handler.stop()
+
     def get_view(self, buf_id):
         return self.emacs_handler.get_view(buf_id)
 
@@ -22,16 +26,54 @@ class AgentConnection(floo_handler.FlooHandler):
         self.emacs_handler.send(data)
 
     def stomp_prompt(self, changed_bufs, missing_bufs, cb):
+        prompt = 'The workspace is out of sync.\n\n'
         choices = [['overwrite-remote', 0], ['overwrite-local', 1], ['cancel', 2]]
-        prompt = 'The workspace is out of sync. '
 
-        def handle_choice(choice):
+        def handle_choice(choice, *args, **kwargs):
             for c in choices:
                 if c[0] == choice:
                     return cb(c[1])
             return cb(-1)
 
-        choice = self.emacs_handler.get_input(prompt, 'overwrite-remote', cb=handle_choice, choices=choices)
+        def pluralize(arg):
+            return len(arg) > 1 and 's' or ''
+
+        diffs = changed_bufs + missing_bufs
+        overwrite_local = ''
+        overwrite_remote = ''
+
+        if changed_bufs:
+            if len(diffs) < 5:
+                changed = ', '.join([buf['path'] for buf in changed_bufs])
+            else:
+                changed = len(changed_bufs)
+            overwrite_local += 'Fetch %s' % changed
+            overwrite_remote += 'Upload %s' % changed
+
+            if missing_bufs:
+                if len(diffs) < 5:
+                    missing = ', '.join([buf['path'] for buf in missing_bufs])
+                else:
+                    missing = '%s remote file%s.' % (len(missing_bufs), pluralize(missing_bufs))
+                overwrite_local += ' and fetch %s' % missing
+                overwrite_remote += ' and remove %s' % missing
+            elif len(diffs) >= 5:
+                overwrite_remote += ' file%s.' % pluralize(changed_bufs)
+                overwrite_local += ' remote file%s.' % pluralize(changed_bufs)
+        elif missing_bufs:
+            if len(diffs) < 5:
+                missing = ', '.join([buf['path'] for buf in missing_bufs])
+            else:
+                missing = '%s remote file%s.' % (len(missing_bufs), pluralize(missing_bufs))
+            overwrite_local += 'Fetch %s.' % missing
+            overwrite_remote += 'Remove %s.' % missing
+
+        prompt += 'overwrite-remote: %s\n' % overwrite_remote
+        prompt += 'overwrite-local: %s\n' % overwrite_local
+        prompt += 'cancel: Disconnect and resolve conflict manually.\n\n'
+        prompt += 'Action: '
+
+        self.emacs_handler.get_input(prompt, 'overwrite-', cb=handle_choice, choices=choices)
 
     @utils.inlined_callbacks
     def prompt_join_hangout(self, hangout_url):
@@ -44,12 +86,14 @@ class AgentConnection(floo_handler.FlooHandler):
             msg.error("Couldn't open a browser: %s" % (str(e)))
 
     def _on_room_info(self, data):
+        def send_room_info():
+            self.to_emacs('room_info', {
+                'perms': data['perms'],
+                'project_path': G.PROJECT_PATH,
+                'workspace_name': data['room_name']
+            })
+        self.once('room_info', send_room_info)
         super(AgentConnection, self)._on_room_info(data)
-        self.to_emacs('room_info', {
-            'perms': data['perms'],
-            'project_path': G.PROJECT_PATH,
-            'workspace_name': data['room_name'],
-        })
 
     def _on_create_buf(self, data):
         if data['encoding'] == 'base64':
