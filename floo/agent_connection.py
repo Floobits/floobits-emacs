@@ -21,6 +21,18 @@ class AgentConnection(floo_handler.FlooHandler):
         data['name'] = name
         self.emacs_handler.send(data)
 
+    def stomp_prompt(self, changed_bufs, missing_bufs, cb):
+        choices = [['overwrite-remote', 0], ['overwrite-local', 1], ['cancel', 2]]
+        prompt = 'The workspace is out of sync. '
+
+        def handle_choice(choice):
+            for c in choices:
+                if c[0] == choice:
+                    return cb(c[1])
+            return cb(-1)
+
+        choice = self.emacs_handler.get_input(prompt, 'overwrite-remote', cb=handle_choice, choices=choices)
+
     @utils.inlined_callbacks
     def prompt_join_hangout(self, hangout_url):
         join = yield self.ok_cancel_dialog, 'This workspace is being edited in a hangout. Would you like to join the hangout?'
