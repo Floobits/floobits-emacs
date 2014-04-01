@@ -47,26 +47,28 @@ class AgentConnection(floo_handler.FlooHandler):
                 changed = ', '.join([buf['path'] for buf in changed_bufs])
             else:
                 changed = len(changed_bufs)
-            overwrite_local += 'Fetch %s' % changed
+            overwrite_local += 'Overwrite %s' % changed
             overwrite_remote += 'Upload %s' % changed
 
             if missing_bufs:
                 if len(diffs) < 5:
                     missing = ', '.join([buf['path'] for buf in missing_bufs])
+                    overwrite_local += ' and create %s' % missing
+                    overwrite_remote += ' and remove %s' % missing
                 else:
-                    missing = '%s remote file%s.' % (len(missing_bufs), pluralize(missing_bufs))
-                overwrite_local += ' and fetch %s' % missing
-                overwrite_remote += ' and remove %s' % missing
+                    overwrite_local += ' and create %s local file%s.' % (len(missing_bufs), pluralize(missing_bufs))
+                    overwrite_remote += ' and remove %s remote file%s.' % (len(missing_bufs), pluralize(missing_bufs))
             elif len(diffs) >= 5:
+                overwrite_local += ' local file%s.' % pluralize(changed_bufs)
                 overwrite_remote += ' file%s.' % pluralize(changed_bufs)
-                overwrite_local += ' remote file%s.' % pluralize(changed_bufs)
         elif missing_bufs:
             if len(diffs) < 5:
                 missing = ', '.join([buf['path'] for buf in missing_bufs])
+                overwrite_local += 'Create %s.' % missing
+                overwrite_remote += 'Remove %s.' % missing
             else:
-                missing = '%s remote file%s.' % (len(missing_bufs), pluralize(missing_bufs))
-            overwrite_local += 'Fetch %s.' % missing
-            overwrite_remote += 'Remove %s.' % missing
+                overwrite_local += 'Create %s local file%s.' % (len(missing_bufs), pluralize(missing_bufs))
+                overwrite_remote += 'Remove %s remote file%s.' % (len(missing_bufs), pluralize(missing_bufs))
 
         prompt += 'overwrite-remote: %s\n' % overwrite_remote
         prompt += 'overwrite-local: %s\n' % overwrite_local
