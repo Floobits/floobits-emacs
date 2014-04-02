@@ -29,10 +29,7 @@ class AgentConnection(floo_handler.FlooHandler):
         prompt = 'The workspace is out of sync.\n\n'
         choices = [['overwrite-remote', 0], ['overwrite-local', 1], ['cancel', 2]]
 
-        def handle_choice(data, timedout=False, *args, **kwargs):
-            if timedout:
-                msg.log("Timed out, quiting")
-                return cb(-1)
+        def handle_choice(data, *args, **kwargs):
             for c in choices:
                 if c[0] == data.get('response'):
                     return cb(c[1])
