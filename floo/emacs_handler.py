@@ -103,7 +103,8 @@ class EmacsHandler(base.BaseHandler):
             buf['md5'] = hashlib.md5(patch.current.encode('utf-8')).hexdigest()
             self.send_to_floobits(patch.to_json())
 
-    def get_input(self, prompt, initial, cb, *args, **kwargs):
+    def get_input(self, prompt, initial, cb, timeout=None, *args, **kwargs):
+        self.user_input_count += 1
         event = {
             'name': 'user_input',
             'id': self.user_input_count,
@@ -115,11 +116,15 @@ class EmacsHandler(base.BaseHandler):
         elif 'y_or_n' in kwargs:
             event['y_or_n'] = True
             del kwargs['y_or_n']
-            print(prompt)
             event['prompt'] = prompt.replace('\n', ', ').replace(", ,", "") + '? '
         self.send(event)
-        self.user_inputs[self.user_input_count] = lambda x: cb(x, *args, **kwargs)
-        self.user_input_count += 1
+
+        if not timeout:
+            self.user_inputs[self.user_input_count] = lambda x: cb(x, *args, **kwargs)
+            return
+
+        timeout_id = editor.set_timeout(cb, timeout, None, timedout=True)
+        self.user_inputs[self.user_input_count] = lambda x: editor.cancel_timeout(timeout_id) or cb(x, *args, **kwargs)
 
     def on_connect(self):
         msg.log("have an emacs!")
@@ -166,7 +171,6 @@ class EmacsHandler(base.BaseHandler):
         view.set_text(data['buf'])
 
     def _on_user_input(self, data):
-        print('got user_input', data)
         cb_id = int(data['id'])
         cb = self.user_inputs.get(cb_id)
         if cb is None:
