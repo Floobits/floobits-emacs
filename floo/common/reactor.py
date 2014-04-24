@@ -2,14 +2,14 @@ import socket
 import select
 
 try:
-    from . import msg
+    from . import api, msg
     from .. import editor
     from ..common.handlers import tcp_server
     assert msg and tcp_server
 except (ImportError, ValueError):
     from floo.common.handlers import tcp_server
+    from floo.common import api, msg
     from floo import editor
-    import msg
 
 reactor = None
 
@@ -29,6 +29,7 @@ class _Reactor(object):
     def listen(self, factory, host='127.0.0.1', port=0):
         listener_factory = tcp_server.TCPServerHandler(factory, self)
         proto = listener_factory.build_protocol(host, port)
+        factory.listener_factory = listener_factory
         self._protos.append(proto)
         self._handlers.append(listener_factory)
         return proto.sockname()
@@ -40,7 +41,10 @@ class _Reactor(object):
             msg.warn('Error stopping connection: %s' % str(e))
         self._handlers.remove(handler)
         self._protos.remove(handler.proto)
+        if hasattr(handler, 'listener_factory'):
+            return handler.listener_factory.stop()
         if not self._handlers and not self._protos:
+            msg.log('All handlers stopped. Stopping reactor.')
             self.stop()
 
     def stop(self):
@@ -68,6 +72,7 @@ class _Reactor(object):
                 pass
         fd.reconnect()
 
+    @api.send_errors
     def tick(self, timeout=0):
         for factory in self._handlers:
             factory.tick()
@@ -75,7 +80,7 @@ class _Reactor(object):
         editor.call_timeouts()
 
     def block(self):
-        while True:
+        while self._protos or self._handlers:
             self.tick(.05)
 
     def select(self, timeout=0):

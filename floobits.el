@@ -112,7 +112,7 @@
       (add-hook 'buffer-list-update-hook 'floobits-buffer-list-change nil nil))
     (add-hook 'post-command-hook 'floobits-post-command-func nil nil))
   (add-hook 'after-save-hook 'floobits-after-save-hook nil nil)
-  ; (add-hook 'minibuffer-exit-hook 'floobits-minibuffer-hook nil nil)
+  ; (add-hook 'buffer-list-update-hook 'floobits-buffer-list-change nil nil)
   (ad-enable-advice 'delete-file 'before 'floobits-delete-file)
   (ad-enable-advice 'rename-file 'before 'floobits-rename-file)
   (ad-activate 'delete-file)
@@ -127,7 +127,6 @@
     (remove-hook 'post-command-hook 'floobits-post-command-func))
 
   (remove-hook 'after-save-hook 'floobits-after-save-hook)
-  ; (remove-hook 'minibuffer-exit-hook 'floobits-minibuffer-hook)
   (ad-disable-advice 'delete-file 'before 'floobits-delete-file)
   (ad-disable-advice 'rename-file 'before 'floobits-rename-file))
 
@@ -660,12 +659,6 @@ See floobits-share-dir to create one or visit floobits.com."
 (defun floobits-after-save-hook ()
   (when (_floobits-is-buffer-shared (current-buffer))
     (floobits-send-to-agent (list (cons 'path (buffer-file-name))) 'saved)))
-
-; (defun floobits-minibuffer-hook ()
-;   (when floobits-jump-list
-;     (run-at-time 0.1 nil (lambda (path pos) (switch-to-buffer path) (goto-char pos)) 
-;       (car floobits-jump-list) (cadr floobits-jump-list))
-;     (setq floobits-jump-list nil)))
 
 (defun floobits-get-text-for-path (p)
   (cons (intern p) (floobits-get-buffer-text (find-buffer-visiting p))))
