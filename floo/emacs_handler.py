@@ -253,6 +253,16 @@ class EmacsHandler(base.BaseHandler):
             'id': buf['id'],
         })
 
+    @has_perm('patch')
+    def _on_revert(self, req):
+        path = req['full_path']
+        view = self.get_view_by_path(path)
+        self.emacs_bufs[path][0] = req['buf']
+        if not view:
+            # TODO: send a create_buf?
+            return
+        self.bufs_changed.append(view.buf['id'])
+
     def _on_buffer_list_change(self, req):
         added = req.get('added') or {}
         for path, text in added.items():

@@ -106,6 +106,7 @@
 
 (defun floobits-add-hooks ()
   (add-hook 'after-change-functions 'floobits-after-change nil nil)
+  (add-hook 'after-revert-hook 'floobits-after-revert nil nil)
   (if (> emacs-major-version 23)
     (progn
       (add-hook 'post-command-hook 'floobits-send-highlight nil nil)
@@ -120,6 +121,7 @@
 
 (defun floobits-remove-hooks ()
   (remove-hook 'after-change-functions 'floobits-after-change)
+  (remove-hook 'after-revert-hook 'floobits-after-revert)
   (if (> emacs-major-version 23)
     (progn
       (remove-hook 'post-command-hook 'floobits-send-highlight)
@@ -643,18 +645,26 @@ See floobits-share-dir to create one or visit floobits.com."
       (message "func %s doesn't exist" func))))
 
 (defun floobits-after-change (begin end old_length)
-  (if (_floobits-is-buffer-public (current-buffer))
+  (when (_floobits-is-buffer-public (current-buffer))
+    ; not sure why we're doing with-current-buffer here, but it seems important. Originally added in
+    ; https://github.com/Floobits/floobits-emacs/commit/41b6ed9358de6dffa78fa229c347b4b531fc2021
     (with-current-buffer (current-buffer)
-      (let ((text (floobits-get-buffer-text (current-buffer)))
-          (changed (buffer-substring-no-properties begin end)))
-        ; (floo-set-item 'floobits-change-set 'after text)
-        (floo-set-item 'floobits-change-set 'changed changed)
-        (floo-set-item 'floobits-change-set 'begin begin)
-        (floo-set-item 'floobits-change-set 'end end)
-        (floo-set-item 'floobits-change-set 'old_length old_length)
-        (floo-set-item 'floobits-change-set 'full_path (buffer-file-name (current-buffer)))
-        (floobits-send-to-agent floobits-change-set 'change)
-    (setq floobits-change-set)))))
+      (floobits-send-to-agent
+        (list
+          (cons 'changed (buffer-substring-no-properties begin end))
+          (cons 'begin begin)
+          (cons 'end end)
+          (cons 'old_length old_length)
+          (cons 'full_path (buffer-file-name (current-buffer)))) 'change))))
+
+(defun floobits-after-revert ()
+  (when (_floobits-is-buffer-public (current-buffer))
+    ; not sure why we're doing with-current-buffer here, but it seems important. Originally added in
+    ; https://github.com/Floobits/floobits-emacs/commit/41b6ed9358de6dffa78fa229c347b4b531fc2021
+    (floobits-send-to-agent
+      (list
+        (cons 'buf (floobits-get-buffer-text (current-buffer)))
+        (cons 'full_path (buffer-file-name (current-buffer)))) 'revert)))
 
 (defun floobits-after-save-hook ()
   (when (_floobits-is-buffer-shared (current-buffer))
