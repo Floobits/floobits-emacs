@@ -481,6 +481,7 @@ See floobits-share-dir to create one or visit floobits.com."
     (setq floobits-share-dir (floo-get-item req 'project_path))
     (message "Project path is %s." floobits-share-dir)
     (setq floobits-perms (append (floo-get-item req 'perms) nil))
+    (floobits-debug-message "Permissions are %s." floobits-perms)
     (mapc
       (lambda (x)
         (when (and (> (length x) 9) (string="floobits-" (substring x 0 9)))
