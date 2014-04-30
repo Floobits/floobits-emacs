@@ -132,12 +132,10 @@
   (ad-disable-advice 'delete-file 'before 'floobits-delete-file)
   (ad-disable-advice 'rename-file 'before 'floobits-rename-file))
 
-(defadvice delete-file (before floobits-delete-file (name))
+(defadvice delete-file (before floobits-delete-file (name &optional trash))
   (when (_floobits-is-path-shared name)
     (if (member "delete_buf" floobits-perms)
-      (let ((req (list
-            (cons 'path name))))
-        (floobits-send-to-agent req 'delete_buf))
+      (floobits-send-to-agent (list (cons 'path name)) 'delete_buf)
       (message "You don't have permission to delete buffers in this workspace."))))
 
 (defadvice rename-file (before floobits-rename-file
