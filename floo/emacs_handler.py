@@ -298,7 +298,7 @@ class EmacsHandler(base.BaseHandler):
                 msg.debug('emacs deleted %s but we already deleted it from emacs_bufs' % path)
             del self.emacs_bufs[path]
             buf = self.get_buf_by_path(path)
-            if buf:
+            if buf and buf['id'] in self.views:
                 del self.views[buf['id']]
 
         seen = set()
