@@ -8,6 +8,13 @@ Real-time collaborative editing. Think Etherpad, but with native editors. This i
 ### MELPA
 If you have [MELPA](https://github.com/milkypostman/melpa), simply `M-x package-install <RET> floobits <RET>`
 
+### el-get
+If you have [el-get](https://github.com/dimitri/el-get), simply `M-x el-get-install <RET> floobits <RET>`. To keep everything up to date, you can add the following line to your `~/.emacs`:
+
+```lisp
+(el-get-update-all 1)
+```
+
 ### Manual installation
 * `cd ~/.emacs.d/`
 * `git clone https://github.com/Floobits/floobits-emacs.git floobits`
