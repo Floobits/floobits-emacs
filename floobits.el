@@ -146,6 +146,21 @@
         (floobits-send-to-agent req 'rename_buf))
       (message "You don't have permission to rename buffers in this workspace."))))
 
+(defun floobits-send-debug ()
+  (when floobits-conn
+  (floobits-send-to-agent
+    (list
+      (cons 'name 'debug)
+      (cons 'value floobits-debug)) 'setting)))
+
+;;;###autoload
+(defun floobits-debug ()
+  "Toggles debug logging."
+  (interactive)
+  (setq floobits-debug (not floobits-debug))
+  (message "Debug logging %s." (if floobits-debug "enabled" "disabled"))
+  (floobits-send-debug))
+
 ;;;###autoload
 (defun floobits-summon ()
   "Summons all users to your cursor position."
@@ -384,12 +399,14 @@ See floobits-share-dir to create one or visit floobits.com."
   (switch-to-buffer "*Floobits*")
   (set-process-filter floobits-python-agent 'floobits-agent-listener)
   (accept-process-output floobits-python-agent 5)
-  (set-process-query-on-exit-flag floobits-python-agent nil))
+  (set-process-query-on-exit-flag floobits-python-agent nil)
+  (floobits-send-debug))
 
 (defun floobits-send-to-agent (req event)
   (if (floobits-process-live-p floobits-conn)
     (progn
       (floo-set-item 'req 'name event)
+      ; This works around a bug in Emacs where regions aren't shown or something
       (run-at-time .01 nil
         (lambda (req)
           (process-send-string floobits-conn (concat (json-encode req) "\n")))
