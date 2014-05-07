@@ -488,3 +488,8 @@ class EmacsHandler(base.BaseHandler):
 
         G.PROJECT_PATH = '~/floobits/share/%s/%s' % (owner, workspace)
         self.get_input('Save workspace files to: ', G.PROJECT_PATH, self.join_workspace, owner, workspace)
+
+    def _on_setting(self, data):
+        setattr(G, data['name'], data['value'])
+        if data['name'] == 'debug':
+            utils.update_log_level()
