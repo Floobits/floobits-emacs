@@ -73,8 +73,6 @@
 (defvar floobits-user-highlights)
 (defvar floobits-on-connect)
 (defvar floobits-last-highlight)
-; (defvar floobits-jump-list)
-
 (defvar floobits-username)
 (defvar floobits-secret)
 
@@ -561,7 +559,7 @@ See floobits-share-dir to create one or visit floobits.com."
 
 (defun floobits-apply-edit (edit)
   (let* ((inhibit-modification-hooks t)
-        (edit-start (+ 1 (elt edit 0)))
+        (edit-start (max 1 (+ 1 (elt edit 0))))
         (edit-length (elt edit 1))
         (edit-end (min (+ 1 (buffer-size)) (+ edit-start edit-length)))
         (active mark-active)
@@ -580,9 +578,7 @@ See floobits-share-dir to create one or visit floobits.com."
       (push-mark
         (if (>= mark edit-start)
           (+ mark (- (length (elt edit 2)) edit-length))
-        mark) t active))
-      ; (message "%s %s %s %s %s" mark (mark) edit-start edit-end edit-length active)
-    ))
+        mark) t active))))
 
 (defun floobits-event-edit (req)
   (let* ((filename (floo-get-item req "full_path"))
