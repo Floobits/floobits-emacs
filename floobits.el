@@ -365,7 +365,7 @@ See floobits-share-dir to create one or visit floobits.com."
       (goto-char (process-mark proc))
       (insert string)
       (set-marker (process-mark proc) (point))
-      (end-of-buffer)
+      (goto-char (point-max))
       (when (and floobits-on-connect (search-backward "Now listening on " nil t))
         (let ((port (car (split-string (buffer-substring (+ (length "Now listening on ") (point)) (point-max)) "\n" t))))
           (setq floobits-on-connect nil)
