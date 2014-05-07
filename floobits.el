@@ -503,6 +503,15 @@ See floobits-share-dir to create one or visit floobits.com."
   (find-file (floo-get-item req 'full_path))
   (goto-char (+ 1 (floo-get-item req 'offset))))
 
+(defun floobits-highlight-apply-f (f highlights)
+  ; convert to list :(
+  (mapc
+    (lambda(x)
+      (let ((start (max 1 (min (buffer-size buffer) (+ (elt x 0) 1))))
+            (end (+ (elt x 1) 2)))
+        (funcall f start end)))
+    highlights))
+
 (defun floobits-apply-highlight (user_id buffer ranges)
   (with-current-buffer buffer
     (save-excursion
@@ -510,19 +519,8 @@ See floobits-share-dir to create one or visit floobits.com."
              (previous-ranges (gethash key floobits-user-highlights)))
         (floobits-debug-message "%s key %s" key previous-ranges)
         (when previous-ranges
-          ; convert to list :(
-          (mapc
-            (lambda(x)
-              (let ((start (min (buffer-size buffer) (+ (elt x 0) 1)))
-                    (end (+ (elt x 1) 2)))
-                (hlt-unhighlight-region start end)))
-            previous-ranges))
-        (mapc
-          (lambda(x)
-            (let ((start (min (buffer-size buffer) (+ (elt x 0) 1)))
-                  (end (+ (elt x 1) 2)))
-              (hlt-highlight-region start end)))
-          ranges)
+          (floobits-highlight-apply-f 'hlt-unhighlight-region previous-ranges))
+        (floobits-highlight-apply-f 'hlt-highlight-region ranges)
         (puthash key ranges floobits-user-highlights)))))
 
 (defun floobits-event-highlight (req)
@@ -535,9 +533,7 @@ See floobits-share-dir to create one or visit floobits.com."
         (path (floo-get-item req 'full_path))
         (buffer (get-file-buffer path))
         (following (floo-get-item req 'following))
-        (should-jump (or 
-          (floo-get-item req 'ping)
-          (and floobits-follow-mode (not following))))
+        (should-jump (or (floo-get-item req 'ping) (and floobits-follow-mode (not following))))
         (buffer (or buffer (and should-jump (find-file path)))))
 
     (when buffer
@@ -549,9 +545,11 @@ See floobits-share-dir to create one or visit floobits.com."
 
     (when should-jump
       (unless (window-minibuffer-p (get-buffer-window))
-        ; (setq floobits-jump-list (list path pos))
         (switch-to-buffer buffer)
-        (goto-char pos)))))
+        (unless (pos-visible-in-window-p pos)
+          (condition-case err
+            (scroll-up (- (line-number-at-pos pos) (line-number-at-pos)))
+            (error)))))))
 
 (defun floobits-event-save (req)
   (let ((buffer (get-file-buffer (floo-get-item req 'full_path))))
