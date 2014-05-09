@@ -73,8 +73,6 @@
 (defvar floobits-user-highlights)
 (defvar floobits-on-connect)
 (defvar floobits-last-highlight)
-; (defvar floobits-jump-list)
-
 (defvar floobits-username)
 (defvar floobits-secret)
 
@@ -132,12 +130,10 @@
   (ad-disable-advice 'delete-file 'before 'floobits-delete-file)
   (ad-disable-advice 'rename-file 'before 'floobits-rename-file))
 
-(defadvice delete-file (before floobits-delete-file (name))
+(defadvice delete-file (before floobits-delete-file (name &optional trash))
   (when (_floobits-is-path-shared name)
     (if (member "delete_buf" floobits-perms)
-      (let ((req (list
-            (cons 'path name))))
-        (floobits-send-to-agent req 'delete_buf))
+      (floobits-send-to-agent (list (cons 'path name)) 'delete_buf)
       (message "You don't have permission to delete buffers in this workspace."))))
 
 (defadvice rename-file (before floobits-rename-file
@@ -149,6 +145,21 @@
             (cons 'old_path old-name))))
         (floobits-send-to-agent req 'rename_buf))
       (message "You don't have permission to rename buffers in this workspace."))))
+
+(defun floobits-send-debug ()
+  (when floobits-conn
+  (floobits-send-to-agent
+    (list
+      (cons 'name 'debug)
+      (cons 'value floobits-debug)) 'setting)))
+
+;;;###autoload
+(defun floobits-debug ()
+  "Toggles debug logging."
+  (interactive)
+  (setq floobits-debug (not floobits-debug))
+  (message "Debug logging %s." (if floobits-debug "enabled" "disabled"))
+  (floobits-send-debug))
 
 ;;;###autoload
 (defun floobits-summon ()
@@ -367,7 +378,7 @@ See floobits-share-dir to create one or visit floobits.com."
       (goto-char (process-mark proc))
       (insert string)
       (set-marker (process-mark proc) (point))
-      (end-of-buffer)
+      (goto-char (point-max))
       (when (and floobits-on-connect (search-backward "Now listening on " nil t))
         (let ((port (car (split-string (buffer-substring (+ (length "Now listening on ") (point)) (point-max)) "\n" t))))
           (setq floobits-on-connect nil)
@@ -388,12 +399,14 @@ See floobits-share-dir to create one or visit floobits.com."
   (switch-to-buffer "*Floobits*")
   (set-process-filter floobits-python-agent 'floobits-agent-listener)
   (accept-process-output floobits-python-agent 5)
-  (set-process-query-on-exit-flag floobits-python-agent nil))
+  (set-process-query-on-exit-flag floobits-python-agent nil)
+  (floobits-send-debug))
 
 (defun floobits-send-to-agent (req event)
   (if (floobits-process-live-p floobits-conn)
     (progn
       (floo-set-item 'req 'name event)
+      ; This works around a bug in Emacs where regions aren't shown or something
       (run-at-time .01 nil
         (lambda (req)
           (process-send-string floobits-conn (concat (json-encode req) "\n")))
@@ -505,6 +518,15 @@ See floobits-share-dir to create one or visit floobits.com."
   (find-file (floo-get-item req 'full_path))
   (goto-char (+ 1 (floo-get-item req 'offset))))
 
+(defun floobits-highlight-apply-f (f highlights)
+  ; convert to list :(
+  (mapc
+    (lambda(x)
+      (let ((start (max 1 (min (buffer-size buffer) (+ (elt x 0) 1))))
+            (end (+ (elt x 1) 2)))
+        (funcall f start end)))
+    highlights))
+
 (defun floobits-apply-highlight (user_id buffer ranges)
   (with-current-buffer buffer
     (save-excursion
@@ -512,19 +534,8 @@ See floobits-share-dir to create one or visit floobits.com."
              (previous-ranges (gethash key floobits-user-highlights)))
         (floobits-debug-message "%s key %s" key previous-ranges)
         (when previous-ranges
-          ; convert to list :(
-          (mapc
-            (lambda(x)
-              (let ((start (min (buffer-size buffer) (+ (elt x 0) 1)))
-                    (end (+ (elt x 1) 2)))
-                (hlt-unhighlight-region start end)))
-            previous-ranges))
-        (mapc
-          (lambda(x)
-            (let ((start (min (buffer-size buffer) (+ (elt x 0) 1)))
-                  (end (+ (elt x 1) 2)))
-              (hlt-highlight-region start end)))
-          ranges)
+          (floobits-highlight-apply-f 'hlt-unhighlight-region previous-ranges))
+        (floobits-highlight-apply-f 'hlt-highlight-region ranges)
         (puthash key ranges floobits-user-highlights)))))
 
 (defun floobits-event-highlight (req)
@@ -537,9 +548,7 @@ See floobits-share-dir to create one or visit floobits.com."
         (path (floo-get-item req 'full_path))
         (buffer (get-file-buffer path))
         (following (floo-get-item req 'following))
-        (should-jump (or 
-          (floo-get-item req 'ping)
-          (and floobits-follow-mode (not following))))
+        (should-jump (or (floo-get-item req 'ping) (and floobits-follow-mode (not following))))
         (buffer (or buffer (and should-jump (find-file path)))))
 
     (when buffer
@@ -551,9 +560,11 @@ See floobits-share-dir to create one or visit floobits.com."
 
     (when should-jump
       (unless (window-minibuffer-p (get-buffer-window))
-        ; (setq floobits-jump-list (list path pos))
         (switch-to-buffer buffer)
-        (goto-char pos)))))
+        (unless (pos-visible-in-window-p pos)
+          (condition-case err
+            (scroll-up (- (line-number-at-pos pos) (line-number-at-pos)))
+            (error)))))))
 
 (defun floobits-event-save (req)
   (let ((buffer (get-file-buffer (floo-get-item req 'full_path))))
@@ -565,7 +576,7 @@ See floobits-share-dir to create one or visit floobits.com."
 
 (defun floobits-apply-edit (edit)
   (let* ((inhibit-modification-hooks t)
-        (edit-start (+ 1 (elt edit 0)))
+        (edit-start (max 1 (+ 1 (elt edit 0))))
         (edit-length (elt edit 1))
         (edit-end (min (+ 1 (buffer-size)) (+ edit-start edit-length)))
         (active mark-active)
@@ -584,9 +595,7 @@ See floobits-share-dir to create one or visit floobits.com."
       (push-mark
         (if (>= mark edit-start)
           (+ mark (- (length (elt edit 2)) edit-length))
-        mark) t active))
-      ; (message "%s %s %s %s %s" mark (mark) edit-start edit-end edit-length active)
-    ))
+        mark) t active))))
 
 (defun floobits-event-edit (req)
   (let* ((filename (floo-get-item req "full_path"))
