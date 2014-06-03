@@ -6,35 +6,42 @@ try:
     from . import base
     from .. import api, shared as G, utils
     from ... import editor
-    from ..protocols import floo_proto
+    from ..protocols import no_reconnect
     assert api and G and utils
 except (ImportError, ValueError):
     import base
     from floo import editor
-    from floo.common.protocols import floo_proto
+    from floo.common.protocols import no_reconnect
     from .. import api, shared as G, utils
 
 WELCOME_MSG = """Welcome %s!\n\nYou are all set to collaborate.
 
-You may want to check out our docs at https://%s/help/plugins"""
+You may want to check out our docs at https://%s/help/plugins/sublime#usage"""
 
 
 class RequestCredentialsHandler(base.BaseHandler):
-    PROTOCOL = floo_proto.FlooProtocol
+    PROTOCOL = no_reconnect.NoReconnectProto
 
     def __init__(self, token):
         super(RequestCredentialsHandler, self).__init__()
         self.token = token
+        self.success = False
 
     def build_protocol(self, *args):
         proto = super(RequestCredentialsHandler, self).build_protocol(*args)
-        webbrowser.open('https://%s/dash/link_editor/%s/%s' % (proto.host, self.codename, self.token))
+
+        def on_stop():
+            self.emit('end', self.success)
+            self.stop()
+
+        proto.once('stop', on_stop)
         return proto
 
     def is_ready(self):
         return False
 
     def on_connect(self):
+        webbrowser.open('https://%s/dash/link_editor/%s/%s' % (self.proto.host, self.codename, self.token))
         self.send({
             'name': 'request_credentials',
             'client': self.client,
@@ -45,17 +52,20 @@ class RequestCredentialsHandler(base.BaseHandler):
 
     def on_data(self, name, data):
         if name == 'credentials':
-            with open(G.FLOORC_PATH, 'w') as floorc_fd:
-                floorc = self.BASE_FLOORC + '\n'.join(['%s %s' % (k, v) for k, v in data['credentials'].items()]) + '\n'
-                floorc_fd.write(floorc)
+            s = utils.load_floorc_json()
+            auth = s.get('AUTH', {})
+            auth[self.proto.host] = data['credentials']
+            s['AUTH'] = auth
+            utils.save_floorc_json(s)
             utils.reload_settings()
-            if not G.USERNAME or not G.SECRET:
+            self.success = utils.can_auth(self.proto.host)
+            if not self.success:
                 editor.error_message('Something went wrong. See https://%s/help/floorc to complete the installation.' % self.proto.host)
                 api.send_error('No username or secret')
             else:
                 p = os.path.join(G.BASE_DIR, 'welcome.md')
                 with open(p, 'w') as fd:
-                    text = WELCOME_MSG % (G.USERNAME, self.proto.host)
+                    text = WELCOME_MSG % (G.AUTH.get(self.proto.host, {}).get('username'), self.proto.host)
                     fd.write(text)
                 editor.open_file(p)
-            self.proto.stop()
+            self.stop()
