@@ -73,8 +73,8 @@
 (defvar floobits-user-highlights)
 (defvar floobits-on-connect)
 (defvar floobits-last-highlight)
-(defvar floobits-username)
-(defvar floobits-secret)
+(defvar floobits-auth)
+(defvar floobits-default-host)
 
 
 (defun floobits-initialize ()
@@ -190,11 +190,9 @@
 If the directory corresponds to an existing floobits workspace, you will instead join the workspace.
 "
   (interactive "DDirectory to share: ")
-  (floobits-load-floorc)
+  (floobits-load-floorc-json)
   (floobits-destroy-connection)
   (lexical-let* ((req (list
-                (cons 'username floobits-username)
-                (cons 'secret floobits-secret)
                 (cons 'perms '((AnonymousUser . ["view_room"])))
                 (cons 'line_endings (floobits-get-line-endings))
                 (cons 'dir_to_share dir-to-share)))
@@ -207,12 +205,10 @@ If the directory corresponds to an existing floobits workspace, you will instead
 If the directory corresponds to an existing floobits workspace, you will instead join the workspace.
 "
   (interactive "DDirectory to share: ")
-  (floobits-load-floorc)
+  (floobits-load-floorc-json)
   (floobits-destroy-connection)
   (lexical-let* (
       (req (list
-        (cons 'username floobits-username)
-        (cons 'secret floobits-secret)
         (cons 'perms '((AnonymousUser . [])))
         (cons 'line_endings (floobits-get-line-endings))
         (cons 'dir_to_share dir-to-share)))
@@ -250,7 +246,7 @@ See floobits-share-dir to create one or visit floobits.com."
     (let ((histories (_floobits-read-persistent)))
       (read-from-minibuffer "Floobits workspace URL (owner/workspace): " 
         (_floobits-get-url-from-dot-floo) nil nil 'histories))))
-  (floobits-load-floorc)
+  (floobits-load-floorc-json)
   (let* ((url-struct (url-generic-parse-url floourl))
         (domain (url-host url-struct))
         (port (url-port url-struct))
@@ -266,9 +262,7 @@ See floobits-share-dir to create one or visit floobits.com."
       (progn
         (floobits-destroy-connection)
         (lexical-let* ((req (list
-          (cons 'username floobits-username)
           (cons 'workspace workspace)
-          (cons 'secret floobits-secret)
           (cons 'line_endings (floobits-get-line-endings))
           (cons 'workspace_owner owner)))
           (func (lambda () (floobits-send-to-agent req 'join_workspace))))
@@ -327,22 +321,22 @@ See floobits-share-dir to create one or visit floobits.com."
   "set an element in an alist"
   (list 'add-to-list alist (list 'cons key value)))
 
-(defun floobits-load-floorc ()
-  "loads floorc file vars"
+(defun floobits-load-floorc-json ()
   (condition-case nil
-    (progn
-      (with-temp-buffer
-        (insert-file-contents "~/.floorc")
-        (goto-char 1)
-        (let ((strings (split-string (buffer-string) "\n" t)))
-          (loop for s in strings do
-            (let ((substrings (split-string s " " t)))
-              (set (intern (concat "floobits-" (car substrings))) (cadr substrings)))))))
-  (error nil))
-  (if (or (not (boundp 'floobits-username)) (string= "" floobits-username))
-    (error "Floobits username not found. Please define a username and secret in ~/.floorc"))
-  (if (or (not (boundp 'floobits-secret)) (string= "" floobits-secret))
-    (error "Floobits secret not found. Please define a username and secret in ~/.floorc")))
+    (with-temp-buffer
+      (insert-file-contents "~/.floorc.json")
+      (let*
+          ((json-key-type 'string)
+          (data (json-read-from-string (buffer-string))))
+        (loop for (key . value) in data do
+          (set (intern (concat "floobits-" key)) value))))
+    (error '("")))
+  (let ((ok nil))
+    (loop for (key . value) in floobits-auth do
+      (when (and (floo-get-item value 'username) (floo-get-item value 'secret))
+        (setq ok t)))
+    (unless ok
+      (error "Floobits credentials not found. Please define a username and secret in ~/.floorc"))))
 
 (defun floobits-listener (process response)
   (setq floobits-agent-buffer (concat floobits-agent-buffer response))
