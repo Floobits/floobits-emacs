@@ -16,6 +16,7 @@ try:
     from . import agent_connection, editor
     from .common import api, msg, shared as G, utils, reactor, ignore
     from .view import View
+    from .common.exc_fmt import str_e
     from .common.handlers import base
     from .emacs_protocol import EmacsProtocol
 except (ImportError, ValueError):
@@ -23,6 +24,7 @@ except (ImportError, ValueError):
     import editor
     from common import api, msg, shared as G, utils, reactor, ignore
     from view import View
+    from common.exc_fmt import str_e
     from common.handlers import base
     from emacs_protocol import EmacsProtocol
 
@@ -357,11 +359,15 @@ class EmacsHandler(base.BaseHandler):
         except (IOError, OSError):
             pass
         except Exception as e:
-            msg.warn("Couldn't read .floo file: %s: %s" % (floo_file, str(e)))
+            msg.warn("Couldn't read .floo file: %s: %s" % (floo_file, str_e(e)))
 
         workspace_url = info.get('url')
         if workspace_url:
-            parsed_url = api.prejoin_workspace(workspace_url, dir_to_share, {'perms': perms})
+            try:
+                parsed_url = api.prejoin_workspace(workspace_url, dir_to_share, {'perms': perms})
+            except ValueError as e:
+                return self.error_message(str_e(e))
+
             if parsed_url:
                 # TODO: make sure we create_flooignore
                 # utils.add_workspace_to_persistent_json(parsed_url['owner'], parsed_url['workspace'], workspace_url, dir_to_share)

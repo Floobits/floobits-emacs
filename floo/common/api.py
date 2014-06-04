@@ -208,6 +208,11 @@ def prejoin_workspace(workspace_url, dir_to_share, api_args):
     except Exception as e:
         msg.error(str_e(e))
         return False
+
+    host = result.get('host')
+    if not get_basic_auth(host):
+        raise ValueError('No auth credentials for %s. Please add a username and secret for %s in your ~/.floorc.json' % (host, host))
+
     try:
         w = get_workspace_by_url(workspace_url)
     except Exception as e:
