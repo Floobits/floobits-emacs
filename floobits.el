@@ -262,6 +262,7 @@ See floobits-share-dir to create one or visit floobits.com."
       (progn
         (floobits-destroy-connection)
         (lexical-let* ((req (list
+          (cons 'host domain)
           (cons 'workspace workspace)
           (cons 'line_endings (floobits-get-line-endings))
           (cons 'workspace_owner owner)))

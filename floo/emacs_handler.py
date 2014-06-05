@@ -10,6 +10,8 @@ import json
 import re
 import hashlib
 import webbrowser
+import uuid
+import binascii
 from collections import defaultdict
 
 try:
@@ -52,28 +54,6 @@ def has_perm(perm):
                 return f(*args, **kwargs)
         return inner
     return outer
-
-
-
-def link_account(host, cb):
-    account = sublime.ok_cancel_dialog('No credentials found in ~/.floorc.json for %s.\n\n'
-                                       'Click "Link Account" to open a web browser and add credentials.' % host,
-                                       'Link Account')
-    if not account:
-        return
-    token = binascii.b2a_hex(uuid.uuid4().bytes).decode('utf-8')
-    agent = RequestCredentialsHandler(token)
-    if not agent:
-        sublime.error_message('''A configuration error occured earlier. Please go to %s and sign up to use this plugin.\n
-We're really sorry. This should never happen.''' % host)
-        return
-
-    agent.once('end', cb)
-
-    try:
-        reactor.connect(agent, host, G.DEFAULT_PORT, True)
-    except Exception as e:
-        print(str_e(e))
 
 
 class EmacsHandler(base.BaseHandler):
@@ -147,11 +127,14 @@ class EmacsHandler(base.BaseHandler):
     def on_connect(self):
         msg.log("have an emacs!")
 
+    def link_account(self, host, cb):
+        raise Exception("Finish writing me")
+
     def remote_connect(self, host, owner, workspace, get_bufs=True):
         G.PROJECT_PATH = os.path.realpath(G.PROJECT_PATH)
         auth = G.AUTH.get(host)
         if not auth:
-            success = yield link_account, host
+            success = yield self.link_account, host
             if not success:
                 return
             auth = G.AUTH.get(host)
@@ -505,7 +488,7 @@ class EmacsHandler(base.BaseHandler):
 
         return self.get_input(prompt, workspace_name, self._on_create_workspace, workspace_name, dir_to_share, owner, perms, host)
 
-    def join_workspace(self, data, owner, workspace, dir_to_make=None):
+    def join_workspace(self, data, host, owner, workspace, dir_to_make=None):
         d = data['response']
         if dir_to_make:
             if d:
@@ -514,25 +497,24 @@ class EmacsHandler(base.BaseHandler):
             else:
                 d = ''
         if d == '':
-            return self.get_input('Save workspace files to: ', G.PROJECT_PATH, self.join_workspace, owner, workspace)
+            return self.get_input('Save workspace files to: ', G.PROJECT_PATH, self.join_workspace, host, owner, workspace)
         d = os.path.realpath(os.path.expanduser(d))
         if not os.path.isdir(d):
             if dir_to_make:
                 return msg.error("Couldn't create directory %s" % dir_to_make)
             prompt = '%s is not a directory. Create it? ' % d
-            return self.get_input(prompt, '', self.join_workspace, owner, workspace, dir_to_make=d, y_or_n=True)
+            return self.get_input(prompt, '', self.join_workspace, host, owner, workspace, dir_to_make=d, y_or_n=True)
         try:
             G.PROJECT_PATH = d
             utils.mkdir(os.path.dirname(G.PROJECT_PATH))
-            self.remote_connect(owner, workspace)
+            self.remote_connect(host, owner, workspace)
         except Exception as e:
             return msg.error("Couldn't create directory %s: %s" % (G.PROJECT_PATH, str_e(e)))
 
     def _on_join_workspace(self, data):
         workspace = data['workspace']
         owner = data['workspace_owner']
-        G.USERNAME = data['username']
-        G.SECRET = data['secret']
+        host = data['host']
         editor.line_endings = data['line_endings'].find("unix") >= 0 and "\n" or "\r\n"
         utils.reload_settings()
         try:
@@ -541,10 +523,10 @@ class EmacsHandler(base.BaseHandler):
             G.PROJECT_PATH = ''
 
         if G.PROJECT_PATH and os.path.isdir(G.PROJECT_PATH):
-            return self.remote_connect(owner, workspace)
+            return self.remote_connect(host, owner, workspace)
 
         G.PROJECT_PATH = '~/floobits/share/%s/%s' % (owner, workspace)
-        self.get_input('Save workspace files to: ', G.PROJECT_PATH, self.join_workspace, owner, workspace)
+        self.get_input('Save workspace files to: ', G.PROJECT_PATH, self.join_workspace, host, owner, workspace)
 
     def _on_setting(self, data):
         setattr(G, data['name'], data['value'])
