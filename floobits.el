@@ -281,6 +281,16 @@ See floobits-share-dir to create one or visit floobits.com."
   (floobits-send-to-agent () 'open_workspace_settings))
 
 ;;;###autoload
+(defun floobits-remove-from-workspace (path)
+  "Removes a file from the remote workspace without deleting it locally"
+  (interactive "fpath: ")
+  (if (member "delete_buf" floobits-perms)
+      (progn
+        (message "removing %s from workspace" path)
+        (floobits-send-to-agent (list (cons 'path path)) 'delete_buf))
+      (message "You don't have permission to delete buffers in this workspace.")))
+
+;;;###autoload
 (defun floobits-open-workspace-in-browser ()
   (interactive)
   (floobits-send-to-agent () 'open_workspace))
