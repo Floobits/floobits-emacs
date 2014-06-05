@@ -277,7 +277,7 @@ class EmacsHandler(base.BaseHandler):
                 msg.debug('no buf for path %s' % path)
                 if 'create_buf' in G.PERMS and not ignore.is_ignored(path):
                     self.agent._upload(path, text=text)
-                else:
+                elif path in self.emacs_bufs:
                     del self.emacs_bufs[path]
                 continue
             view = self.views.get(buf_id)
@@ -296,7 +296,8 @@ class EmacsHandler(base.BaseHandler):
         for path in deleted:
             if self.emacs_bufs.get(path) is None:
                 msg.debug('emacs deleted %s but we already deleted it from emacs_bufs' % path)
-            del self.emacs_bufs[path]
+            if path in self.emacs_bufs:
+                del self.emacs_bufs[path]
             buf = self.get_buf_by_path(path)
             if buf and buf['id'] in self.views:
                 del self.views[buf['id']]
