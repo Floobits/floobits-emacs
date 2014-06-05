@@ -130,8 +130,13 @@ class EmacsHandler(base.BaseHandler):
     def link_account(self, host, cb):
         raise Exception("Finish writing me")
 
-    def remote_connect(self, host, owner, workspace, get_bufs=True):
-        G.PROJECT_PATH = os.path.realpath(G.PROJECT_PATH)
+    def remote_connect(self, host, owner, workspace, d, get_bufs=True):
+        G.PROJECT_PATH = os.path.realpath(d)
+        try:
+            utils.mkdir(os.path.dirname(G.PROJECT_PATH))
+        except Exception as e:
+            return msg.error("Couldn't create directory %s: %s" % (G.PROJECT_PATH, str_e(e)))
+
         auth = G.AUTH.get(host)
         if not auth:
             success = yield self.link_account, host
@@ -348,8 +353,8 @@ class EmacsHandler(base.BaseHandler):
         dir_to_share = os.path.expanduser(dir_to_share)
         dir_to_share = utils.unfuck_path(dir_to_share)
         workspace_name = os.path.basename(dir_to_share)
-        G.PROJECT_PATH = os.path.realpath(dir_to_share)
-        msg.debug('%s %s %s' % (G.USERNAME, workspace_name, G.PROJECT_PATH))
+        dir_to_share = os.path.realpath(dir_to_share)
+        msg.debug('%s %s' % (workspace_name, dir_to_share))
 
         if os.path.isfile(dir_to_share):
             # file_to_share = dir_to_share
@@ -383,7 +388,7 @@ class EmacsHandler(base.BaseHandler):
             if parsed_url:
                 # TODO: make sure we create_flooignore
                 # utils.add_workspace_to_persistent_json(parsed_url['owner'], parsed_url['workspace'], workspace_url, dir_to_share)
-                self.remote_connect(parsed_url['host'], parsed_url['owner'], parsed_url['workspace'], True)
+                self.remote_connect(parsed_url['host'], parsed_url['owner'], parsed_url['workspace'], dir_to_share, True)
                 return
 
         def prejoin(workspace_url):
@@ -394,7 +399,7 @@ class EmacsHandler(base.BaseHandler):
 
         parsed_url = utils.get_workspace_by_path(dir_to_share, prejoin)
         if parsed_url:
-            self.remote_connect(parsed_url['host'], parsed_url['owner'], parsed_url['workspace'], True)
+            self.remote_connect(parsed_url['host'], parsed_url['owner'], parsed_url['workspace'], dir_to_share, True)
             return
 
         if not G.AUTH:
@@ -504,12 +509,8 @@ class EmacsHandler(base.BaseHandler):
                 return msg.error("Couldn't create directory %s" % dir_to_make)
             prompt = '%s is not a directory. Create it? ' % d
             return self.get_input(prompt, '', self.join_workspace, host, owner, workspace, dir_to_make=d, y_or_n=True)
-        try:
-            G.PROJECT_PATH = d
-            utils.mkdir(os.path.dirname(G.PROJECT_PATH))
-            self.remote_connect(host, owner, workspace)
-        except Exception as e:
-            return msg.error("Couldn't create directory %s: %s" % (G.PROJECT_PATH, str_e(e)))
+
+        self.remote_connect(host, owner, workspace, d)
 
     def _on_join_workspace(self, data):
         workspace = data['workspace']
