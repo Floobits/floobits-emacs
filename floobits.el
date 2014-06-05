@@ -321,6 +321,7 @@ See floobits-share-dir to create one or visit floobits.com."
   "set an element in an alist"
   (list 'add-to-list alist (list 'cons key value)))
 
+; TODO: Don't check this json stuff here. Send this error from python-land.
 (defun floobits-load-floorc-json ()
   (condition-case nil
     (with-temp-buffer

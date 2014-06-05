@@ -7,8 +7,8 @@ from floo.common import msg, utils, shared as G
 
 class AgentConnection(floo_handler.FlooHandler):
 
-    def __init__(self, owner, workspace, emacs_handler, get_bufs=True):
-        super(AgentConnection, self).__init__(owner, workspace, get_bufs)
+    def __init__(self, owner, workspace, emacs_handler, auth, get_bufs=True):
+        super(AgentConnection, self).__init__(owner, workspace, auth, get_bufs)
         self.emacs_handler = emacs_handler
 
     def stop(self):
