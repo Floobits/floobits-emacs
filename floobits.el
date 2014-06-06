@@ -62,7 +62,6 @@
 (defvar floobits-python-path (concat floobits-plugin-dir "floobits.py"))
 (defvar floobits-python-agent)
 
-(defvar floobits-change-set)
 (defvar floobits-agent-buffer)
 (defvar floobits-conn)
 (defvar floobits-current-position)
@@ -75,11 +74,12 @@
 (defvar floobits-last-highlight)
 (defvar floobits-username)
 (defvar floobits-secret)
+(defvar floobits-user-input-events)
 
 
 (defun floobits-initialize ()
-  (setq floobits-change-set ())
   (setq floobits-agent-buffer "")
+  (setq floobits-user-input-events nil)
   (setq floobits-conn nil)
   (setq floobits-current-position '((mark . 1) (point . 1) (name . "")))
   (setq floobits-open-buffers nil)
@@ -111,6 +111,7 @@
       (add-hook 'buffer-list-update-hook 'floobits-buffer-list-change nil nil))
     (add-hook 'post-command-hook 'floobits-post-command-func nil nil))
   (add-hook 'after-save-hook 'floobits-after-save-hook nil nil)
+  (add-hook 'minibuffer-exit-hook 'floobits-minibuffer-exit-hook nil nil)
   ; (add-hook 'buffer-list-update-hook 'floobits-buffer-list-change nil nil)
   (ad-enable-advice 'delete-file 'before 'floobits-delete-file)
   (ad-enable-advice 'rename-file 'before 'floobits-rename-file)
@@ -127,6 +128,7 @@
     (remove-hook 'post-command-hook 'floobits-post-command-func))
 
   (remove-hook 'after-save-hook 'floobits-after-save-hook)
+  (remove-hook 'minibuffer-exit-hook 'floobits-minibuffer-exit-hook)
   (ad-disable-advice 'delete-file 'before 'floobits-delete-file)
   (ad-disable-advice 'rename-file 'before 'floobits-rename-file))
 
@@ -426,16 +428,20 @@ See floobits-share-dir to create one or visit floobits.com."
       (floobits-destroy-connection))))
 
 (defun floobits-event-user_input (req)
-  (let* ((choices (floo-get-item req 'choices))
+  ; (minibufferp (current-buffer))
+  (if (active-minibuffer-window)
+    (push req floobits-user-input-events)
+    (let*
+        ((choices (floo-get-item req 'choices))
         (choices (and choices (mapcar (lambda (x) (append x nil)) choices)))
         (prompt (floo-get-item req 'prompt))
         (initial (floo-get-item req 'initial)))
-    (floo-set-item 'req 'response
-      (cond
-        (choices (completing-read prompt choices nil t initial))
-        ((floo-get-item req 'y_or_n) (yes-or-no-p prompt))
-        (t (read-from-minibuffer prompt initial))))
-  (floobits-send-to-agent req 'user_input)))
+      (floo-set-item 'req 'response
+        (cond
+          (choices (completing-read prompt choices nil t initial))
+          ((floo-get-item req 'y_or_n) (yes-or-no-p prompt))
+          (t (read-from-minibuffer prompt initial))))
+      (floobits-send-to-agent req 'user_input))))
 
 (defun floobits-event-rename_buf (req)
   (let* ((old-path (floo-get-item req 'old_path))
@@ -701,6 +707,17 @@ See floobits-share-dir to create one or visit floobits.com."
             (cons 'added added-text)
             (cons 'deleted deleted))))
         (floobits-send-to-agent req 'buffer_list_change)))))
+
+  ; (run-at-time 2 nil (lambda () (floobits-event-user_input '(("id" . 1) ("name" . "user_input") ("prompt" . ": ") ("initial" . "overwrite-") ("choices" . [["overwrite-remote" 0] ["overwrite-local" 1] ["cancel" 2]])))))
+(defun floobits-minibuffer-exit-hook ()
+  (when floobits-user-input-events
+    (run-at-time 0 nil
+      (lambda ()
+        (while floobits-user-input-events
+          (let ((req (car floobits-user-input-events)))
+            (setq floobits-user-input-events (cdr floobits-user-input-events))
+            (floobits-event-user_input req)))))))
+
 
 (defun floobits-get-line-endings ()
   (symbol-name buffer-file-coding-system))
