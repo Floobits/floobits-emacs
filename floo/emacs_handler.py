@@ -21,6 +21,7 @@ try:
     from .common.exc_fmt import str_e
     from .common.handlers import base
     from .emacs_protocol import EmacsProtocol
+    from .floo.common.handlers.credentials import RequestCredentialsHandler
 except (ImportError, ValueError):
     import agent_connection
     import editor
@@ -29,6 +30,7 @@ except (ImportError, ValueError):
     from common.exc_fmt import str_e
     from common.handlers import base
     from emacs_protocol import EmacsProtocol
+    from floo.common.handlers.credentials import RequestCredentialsHandler
 
 
 try:
@@ -107,6 +109,9 @@ class EmacsHandler(base.BaseHandler):
             buf['md5'] = hashlib.md5(patch.current.encode('utf-8')).hexdigest()
             self.send_to_floobits(patch.to_json())
 
+    def get_input_reorder(self, prompt, initial, args, kwargs, cb):
+        return self.get_input(prompt, initial, cb, *args, **kwargs)
+
     def get_input(self, prompt, initial, cb, *args, **kwargs):
         self.user_input_count += 1
         event = {
@@ -127,15 +132,35 @@ class EmacsHandler(base.BaseHandler):
     def on_connect(self):
         msg.log("have an emacs!")
 
+    @utils.inlined_callbacks
     def link_account(self, host, cb):
-        raise Exception("Finish writing me")
+        data = yield self.get_input_reorder, 'No credentials found in ~/.floorc.json for %s.\n\n' \
+                                             'Would you like to link the account (opens a browser)?.' % host, '', [], {"y_or_n": True}
+        if not data.get("response"):
+            return
 
+        token = binascii.b2a_hex(uuid.uuid4().bytes).decode('utf-8')
+        agent = RequestCredentialsHandler(token)
+        if not agent:
+            self.error_message('''A configuration error occured earlier. Please go to %s and sign up to use this plugin.\n
+    We're really sorry. This should never happen.''' % host)
+            return
+
+        agent.once('end', cb)
+
+        try:
+            reactor.connect(agent, host, G.DEFAULT_PORT, True)
+        except Exception as e:
+            print(str_e(e))
+
+    @utils.inlined_callbacks
     def remote_connect(self, host, owner, workspace, d, get_bufs=True):
         G.PROJECT_PATH = os.path.realpath(d)
         try:
             utils.mkdir(os.path.dirname(G.PROJECT_PATH))
         except Exception as e:
-            return msg.error("Couldn't create directory %s: %s" % (G.PROJECT_PATH, str_e(e)))
+            msg.error("Couldn't create directory %s: %s" % (G.PROJECT_PATH, str_e(e)))
+            return
 
         auth = G.AUTH.get(host)
         if not auth:
@@ -143,9 +168,8 @@ class EmacsHandler(base.BaseHandler):
             if not success:
                 return
             auth = G.AUTH.get(host)
-        self.agent = agent_connection.AgentConnection(owner, workspace, self, auth, get_bufs)
+        self.agent = agent_connection.AgentConnection(owner, workspace, self, auth, get_bufs and d)
         reactor.reactor.connect(self.agent, host, G.DEFAULT_PORT, True)
-        return self.agent
 
     def create_view(self, buf, emacs_buf=None):
         v = View(self, buf, emacs_buf)
