@@ -519,56 +519,6 @@ class EmacsHandler(base.BaseHandler):
             else:
                 prompt = 'Workspace %s/%s already exists. Choose another name:' % (owner, workspace_name)
 
-    def _on_create_workspace(self, data, workspace_name, dir_to_share, owner=None, perms=None, host=None):
-        owner = owner or G.USERNAME
-        workspace_name = data.get('response', workspace_name)
-
-        try:
-            api_args = {
-                'name': workspace_name,
-                'owner': owner,
-            }
-            if perms:
-                api_args['perms'] = perms
-            msg.debug(str(api_args))
-            r = api.create_workspace(host, api_args)
-        except Exception as e:
-            msg.error('Unable to create workspace: %s' % unicode(e))
-            return editor.error_message('Unable to create workspace: %s' % unicode(e))
-
-        workspace_url = 'https://%s/%s/%s' % (host, owner, workspace_name)
-
-        if r.code < 400:
-            msg.log('Created workspace %s' % workspace_url)
-            utils.add_workspace_to_persistent_json(owner, workspace_name, workspace_url, dir_to_share)
-            G.PROJECT_PATH = dir_to_share
-            self.remote_connect(host, owner, workspace_name, dir_to_share)
-            return
-
-        msg.error('Unable to create workspace: %s' % r.body)
-        if r.code not in [400, 402, 409]:
-            try:
-                r.body = r.body['detail']
-            except Exception:
-                pass
-            return editor.error_message('Unable to create workspace: %s' % r.body)
-
-        if r.code == 400:
-            workspace_name = re.sub('[^A-Za-z0-9_\-\.]', '-', workspace_name)
-            prompt = 'Invalid name. Workspace names must match the regex [A-Za-z0-9_\-\.]. Choose another name:'
-        elif r.code == 402:
-            try:
-                r.body = r.body['detail']
-            except Exception:
-                pass
-            cb = lambda data: data['response'] and webbrowser.open('https://%s/%s/settings#billing' % (host, owner))
-            self.get_input('%s Open billing settings?' % r.body, '', cb, y_or_n=True)
-            return
-        else:
-            prompt = 'Workspace %s/%s already exists. Choose another name:' % (owner, workspace_name)
-
-        return self.get_input(prompt, workspace_name, self._on_create_workspace, workspace_name, dir_to_share, owner, perms, host)
-
     @utils.inlined_callbacks
     def _on_join_workspace(self, data):
         workspace = data['workspace']
