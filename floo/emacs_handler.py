@@ -538,7 +538,7 @@ class EmacsHandler(base.BaseHandler):
 
         while True:
             d = d or '~/floobits/share/%s/%s' % (owner, workspace)
-            response = yield self.get_input_reorder, 'Save workspace files to: ', d
+            response = yield self.get_input_reorder, 'Save workspace files to: ', d, (), {}
             d = response.get("response")
             if not d:
                 return
