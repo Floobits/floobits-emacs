@@ -32,7 +32,7 @@ class AgentConnection(floo_handler.FlooHandler):
         prompt = 'The workspace is out of sync.\n\n'
         choices = [['overwrite-remote', 0], ['overwrite-local', 1], ['cancel', 2]]
 
-        def handle_choice(choice, *args, **kwargs):
+        def handle_choice(choice):
             for c in choices:
                 if c[0] == choice:
                     return cb(c[1])
@@ -78,7 +78,7 @@ class AgentConnection(floo_handler.FlooHandler):
         prompt += 'cancel: Disconnect and resolve conflict manually.\n\n'
         prompt += 'Action: '
 
-        self.emacs_handler.get_input(prompt, 'overwrite-', cb=handle_choice, choices=choices, timeout=60*1000)
+        self.emacs_handler.choose(prompt, 'overwrite-', choices, handle_choice)
 
     @utils.inlined_callbacks
     def prompt_join_hangout(self, hangout_url):

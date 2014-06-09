@@ -116,9 +116,30 @@ class EmacsHandler(base.BaseHandler):
             self.send_to_floobits(patch.to_json())
 
     def y_or_n(self, prompt, initial, cb):
-        return self.get_input(prompt, initial, cb, y_or_n=True)
+        self.user_input_count += 1
+        event = {
+            'name': 'user_input',
+            'id': self.user_input_count,
+            'prompt': prompt.replace('\n', ', ').replace(", ,", "") + '? ',
+            'initial': initial,
+            'y_or_n': True
+        }
+        self.user_inputs[self.user_input_count] = cb
+        self.send(event)
 
-    def get_input(self, prompt, initial, cb, *args, **kwargs):
+    def choose(self, prompt, initial, choices, cb):
+        self.user_input_count += 1
+        event = {
+            'name': 'user_input',
+            'id': self.user_input_count,
+            'prompt': prompt,
+            'initial': initial,
+            'choices': choices
+        }
+        self.user_inputs[self.user_input_count] = cb
+        self.send(event)
+
+    def get_input(self, prompt, initial, cb):
         self.user_input_count += 1
         event = {
             'name': 'user_input',
@@ -126,13 +147,7 @@ class EmacsHandler(base.BaseHandler):
             'prompt': prompt,
             'initial': initial,
         }
-        if 'choices' in kwargs:
-            event['choices'] = kwargs['choices']
-        elif 'y_or_n' in kwargs:
-            event['y_or_n'] = True
-            del kwargs['y_or_n']
-            event['prompt'] = prompt.replace('\n', ', ').replace(", ,", "") + '? '
-        self.user_inputs[self.user_input_count] = lambda x: cb(x, *args, **kwargs)
+        self.user_inputs[self.user_input_count] = cb
         self.send(event)
 
     def on_connect(self):
@@ -406,7 +421,7 @@ class EmacsHandler(base.BaseHandler):
                 parsed_url = api.prejoin_workspace(workspace_url, dir_to_share, {'perms': perms})
             except ValueError as e:
                 pass
-            else:
+            if parsed_url:
                 # TODO: make sure we create_flooignore
                 # utils.add_workspace_to_persistent_json(parsed_url['owner'], parsed_url['workspace'], workspace_url, dir_to_share)
                 self.remote_connect(parsed_url['host'], parsed_url['owner'], parsed_url['workspace'], dir_to_share)
@@ -437,7 +452,8 @@ class EmacsHandler(base.BaseHandler):
                 a['host'] = h
                 i += 1
                 choices.append([h, i])
-            host = yield self.get_input, 'Connect as (%s) ' % " ".join([x[0] for x in choices]), ''
+            print(choices)
+            host = yield self.choose, 'Connect as (%s) ' % " ".join([x[0] for x in choices]), '', choices
             if not host:
                 return
 
@@ -458,7 +474,7 @@ class EmacsHandler(base.BaseHandler):
             i += 1
             choices.append([org['name'], i])
 
-        owner = yield self.get_input, 'Create workspace owned by (%s) ' % " ".join([x[0] for x in choices]), ''
+        owner = yield self.choose, 'Create workspace owned by (%s) ' % " ".join([x[0] for x in choices]), '', choices
 
         prompt = 'Workspace name:'
 
