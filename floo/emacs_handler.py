@@ -405,10 +405,8 @@ class EmacsHandler(base.BaseHandler):
             try:
                 parsed_url = api.prejoin_workspace(workspace_url, dir_to_share, {'perms': perms})
             except ValueError as e:
-                self.error_message(str_e(e))
-                return
-
-            if parsed_url:
+                pass
+            else:
                 # TODO: make sure we create_flooignore
                 # utils.add_workspace_to_persistent_json(parsed_url['owner'], parsed_url['workspace'], workspace_url, dir_to_share)
                 self.remote_connect(parsed_url['host'], parsed_url['owner'], parsed_url['workspace'], dir_to_share)
@@ -482,9 +480,8 @@ class EmacsHandler(base.BaseHandler):
                 editor.error_message('Unable to create workspace: %s' % unicode(e))
                 return
 
-            workspace_url = 'https://%s/%s/%s' % (host, owner, workspace_name)
-
             if r.code < 400:
+                workspace_url = 'https://%s/%s/%s' % (host, owner, workspace_name)
                 msg.log('Created workspace %s' % workspace_url)
                 self.remote_connect(host, owner, workspace_name, dir_to_share, True)
                 return
@@ -513,8 +510,9 @@ class EmacsHandler(base.BaseHandler):
             if r.code == 400:
                 workspace_name = re.sub('[^A-Za-z0-9_\-\.]', '-', workspace_name)
                 prompt = 'Invalid name. Workspace names must match the regex [A-Za-z0-9_\-\.]. Choose another name:'
-            else:
-                prompt = 'Workspace %s/%s already exists. Choose another name:' % (owner, workspace_name)
+                continue
+
+            prompt = 'Workspace %s/%s already exists. Choose another name:' % (owner, workspace_name)
 
     @utils.inlined_callbacks
     def _on_join_workspace(self, data):

@@ -693,7 +693,6 @@ See floobits-share-dir to create one or visit floobits.com."
             (setq floobits-user-input-events (cdr floobits-user-input-events))
             (floobits-event-user_input req)))))))
 
-
 (defun floobits-get-line-endings ()
   (symbol-name buffer-file-coding-system))
 
