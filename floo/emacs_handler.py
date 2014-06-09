@@ -74,7 +74,6 @@ class EmacsHandler(base.BaseHandler):
         emacs_buf = self.emacs_bufs.get(full_path)
         if emacs_buf:
             return emacs_buf[0]
-        return ""
 
     def error_message(self, *args, **kwargs):
         print(args, kwargs)
