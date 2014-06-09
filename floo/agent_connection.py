@@ -11,6 +11,9 @@ class AgentConnection(floo_handler.FlooHandler):
         super(AgentConnection, self).__init__(owner, workspace, auth, upload)
         self.emacs_handler = emacs_handler
 
+    def get_view_text_by_path(self, rel_path):
+        return self.emacs_handler.get_view_text_by_path(rel_path)
+
     def stop(self):
         super(AgentConnection, self).stop()
         self.emacs_handler.stop()
