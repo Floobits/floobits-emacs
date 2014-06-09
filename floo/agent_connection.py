@@ -22,7 +22,7 @@ class AgentConnection(floo_handler.FlooHandler):
         return self.emacs_handler.get_view(buf_id)
 
     def ok_cancel_dialog(self, prompt, cb):
-        return self.emacs_handler.get_input(prompt, "", cb=lambda data: cb(data['response']), y_or_n=True)
+        return self.emacs_handler.y_or_n(prompt, "", cb)
 
     def to_emacs(self, name, data):
         data['name'] = name
@@ -32,9 +32,9 @@ class AgentConnection(floo_handler.FlooHandler):
         prompt = 'The workspace is out of sync.\n\n'
         choices = [['overwrite-remote', 0], ['overwrite-local', 1], ['cancel', 2]]
 
-        def handle_choice(data, *args, **kwargs):
+        def handle_choice(choice, *args, **kwargs):
             for c in choices:
-                if c[0] == data.get('response'):
+                if c[0] == choice:
                     return cb(c[1])
             return cb(-1)
 

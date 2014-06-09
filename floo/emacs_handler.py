@@ -115,6 +115,9 @@ class EmacsHandler(base.BaseHandler):
             buf['md5'] = hashlib.md5(patch.current.encode('utf-8')).hexdigest()
             self.send_to_floobits(patch.to_json())
 
+    def y_or_n(self, prompt, initial, cb):
+        return self.get_input(prompt, initial, cb, y_or_n=True)
+
     def get_input_reorder(self, prompt, initial, args, kwargs, cb):
         return self.get_input(prompt, initial, cb, *args, **kwargs)
 
@@ -140,9 +143,9 @@ class EmacsHandler(base.BaseHandler):
 
     @utils.inlined_callbacks
     def link_account(self, host, cb):
-        data = yield self.get_input_reorder, 'No credentials found in ~/.floorc.json for %s.\n\n' \
-                                             'Would you like to link the account (opens a browser)?.' % host, '', [], {"y_or_n": True}
-        if not data.get("response"):
+        yes = yield self.y_or_n, 'No credentials found in ~/.floorc.json for %s.\n\n' \
+                                 'Would you like to link the account (opens a browser)?.' % host, ''
+        if not yes:
             return
 
         token = binascii.b2a_hex(uuid.uuid4().bytes).decode('utf-8')
@@ -219,7 +222,7 @@ class EmacsHandler(base.BaseHandler):
         if cb is None:
             msg.error('cb for input %s is none' % cb_id)
             return
-        cb(data)
+        cb(data.get('response'))
         del self.user_inputs[cb_id]
 
     def _on_set_follow_mode(self, req):
@@ -439,8 +442,7 @@ class EmacsHandler(base.BaseHandler):
                 a['host'] = h
                 i += 1
                 choices.append([h, i])
-            data = yield self.get_input, 'Connect as (%s) ' % " ".join([x[0] for x in choices]), ''
-            host = data.get('response')
+            host = yield self.get_input, 'Connect as (%s) ' % " ".join([x[0] for x in choices]), ''
             if not host:
                 return
 
@@ -461,8 +463,7 @@ class EmacsHandler(base.BaseHandler):
             i += 1
             choices.append([org['name'], i])
 
-        data = yield self.get_input, 'Create workspace owned by (%s) ' % " ".join([x[0] for x in choices]), ''
-        owner = data.get('response')
+        owner = yield self.get_input, 'Create workspace owned by (%s) ' % " ".join([x[0] for x in choices]), ''
 
         prompt = 'Workspace name:'
 
@@ -474,8 +475,7 @@ class EmacsHandler(base.BaseHandler):
             api_args['perms'] = perms
 
         while True:
-            data = yield self.get_input, prompt, workspace_name
-            workspace_name = data.get('response', workspace_name)
+            workspace_name = (yield self.get_input, prompt, workspace_name) or workspace_name
             try:
                 api_args['name'] = workspace_name
                 msg.debug(str(api_args))
@@ -508,8 +508,8 @@ class EmacsHandler(base.BaseHandler):
                 except Exception:
                     pass
 
-                yield self.get_input_reorder, '%s Open billing settings?' % r.body, '', (), {"y_or_n": True}
-                if data['response']:
+                yes = yield self.y_or_n, '%s Open billing settings?' % r.body, ''
+                if yes:
                     webbrowser.open('https://%s/%s/settings#billing' % (host, owner))
                 return
 
@@ -550,15 +550,13 @@ class EmacsHandler(base.BaseHandler):
 
         d = d or os.path.join(G.SHARE_DIR or G.BASE_DIR, owner, workspace)
         while True:
-            response = yield self.get_input_reorder, 'Save workspace files to: ', d, (), {}
-            d = response.get("response")
+            d = yield self.get_input_reorder, 'Save workspace files to: ', d, (), {}
             if not d:
                 return
             d = os.path.realpath(os.path.expanduser(d))
             if not os.path.isdir(d):
-                prompt = '%s is not a directory. Create it? ' % d
-                response = yield self.get_input_reorder, prompt, '', (), {"y_or_n": True}
-                if not response or not response['response']:
+                y_or_n = yield self.y_or_n, '%s is not a directory. Create it? ' % d, ''
+                if not y_or_n:
                     return
                 utils.mkdir(d)
                 if not os.path.isdir(d):

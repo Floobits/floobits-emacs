@@ -192,7 +192,6 @@
 If the directory corresponds to an existing floobits workspace, you will instead join the workspace.
 "
   (interactive "DDirectory to share: ")
-  (floobits-load-floorc-json)
   (floobits-destroy-connection)
   (lexical-let* ((req (list
                 (cons 'perms '((AnonymousUser . ["view_room"])))
@@ -207,7 +206,6 @@ If the directory corresponds to an existing floobits workspace, you will instead
 If the directory corresponds to an existing floobits workspace, you will instead join the workspace.
 "
   (interactive "DDirectory to share: ")
-  (floobits-load-floorc-json)
   (floobits-destroy-connection)
   (lexical-let* (
       (req (list
@@ -248,7 +246,6 @@ See floobits-share-dir to create one or visit floobits.com."
     (let ((histories (_floobits-read-persistent)))
       (read-from-minibuffer "Floobits workspace URL (owner/workspace): " 
         (_floobits-get-url-from-dot-floo) nil nil 'histories))))
-  (floobits-load-floorc-json)
   (let* ((url-struct (url-generic-parse-url floourl))
         (domain (url-host url-struct))
         (port (url-port url-struct))
