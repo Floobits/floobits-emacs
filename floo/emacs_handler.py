@@ -176,6 +176,7 @@ class EmacsHandler(base.BaseHandler):
             auth = G.AUTH.get(host)
         self.agent = agent_connection.AgentConnection(owner, workspace, self, auth, get_bufs and d)
         reactor.reactor.connect(self.agent, host, G.DEFAULT_PORT, True)
+        utils.add_workspace_to_persistent_json(owner, workspace, self.agent.workspace_url, d)
 
     def create_view(self, buf, emacs_buf=None):
         v = View(self, buf, emacs_buf)
@@ -410,7 +411,7 @@ class EmacsHandler(base.BaseHandler):
             if parsed_url:
                 # TODO: make sure we create_flooignore
                 # utils.add_workspace_to_persistent_json(parsed_url['owner'], parsed_url['workspace'], workspace_url, dir_to_share)
-                self.remote_connect(parsed_url['host'], parsed_url['owner'], parsed_url['workspace'], dir_to_share, True)
+                self.remote_connect(parsed_url['host'], parsed_url['owner'], parsed_url['workspace'], dir_to_share)
                 return
 
         def prejoin(workspace_url):
@@ -421,7 +422,7 @@ class EmacsHandler(base.BaseHandler):
 
         parsed_url = utils.get_workspace_by_path(dir_to_share, prejoin)
         if parsed_url:
-            self.remote_connect(parsed_url['host'], parsed_url['owner'], parsed_url['workspace'], dir_to_share, True)
+            self.remote_connect(parsed_url['host'], parsed_url['owner'], parsed_url['workspace'], dir_to_share)
             return
 
         if not G.AUTH:
@@ -455,15 +456,68 @@ class EmacsHandler(base.BaseHandler):
 
         i = 0
         choices = []
-        choices.append([G.USERNAME, i])
+        choices.append([G.AUTH[host]['username'], i])
         for org in r.body:
             i += 1
             choices.append([org['name'], i])
 
         data = yield self.get_input, 'Create workspace owned by (%s) ' % " ".join([x[0] for x in choices]), ''
+        owner = data.get('response')
 
-        self.get_input('Workspace name:', workspace_name, self._on_create_workspace, workspace_name, dir_to_share,
-                       owner=data.get('response'), perms=perms, host=host)
+        prompt = 'Workspace name:'
+
+        api_args = {
+            'name': workspace_name,
+            'owner': owner,
+        }
+        if perms:
+            api_args['perms'] = perms
+
+        while True:
+            data = yield self.get_input, prompt, workspace_name
+            workspace_name = data.get('response', workspace_name)
+            try:
+                api_args['name'] = workspace_name
+                msg.debug(str(api_args))
+                r = api.create_workspace(host, api_args)
+            except Exception as e:
+                msg.error('Unable to create workspace: %s' % unicode(e))
+                editor.error_message('Unable to create workspace: %s' % unicode(e))
+                return
+
+            workspace_url = 'https://%s/%s/%s' % (host, owner, workspace_name)
+
+            if r.code < 400:
+                msg.log('Created workspace %s' % workspace_url)
+                self.remote_connect(host, owner, workspace_name, dir_to_share, True)
+                return
+
+            msg.error('Unable to create workspace: %s' % r.body)
+
+            if r.code not in (400, 402, 409):
+                try:
+                    r.body = r.body['detail']
+                except Exception:
+                    pass
+                editor.error_message('Unable to create workspace: %s' % r.body)
+                return
+
+            if r.code == 402:
+                try:
+                    r.body = r.body['detail']
+                except Exception:
+                    pass
+
+                yield self.get_input_reorder, '%s Open billing settings?' % r.body, '', (), {"y_or_n": True}
+                if data['response']:
+                    webbrowser.open('https://%s/%s/settings#billing' % (host, owner))
+                return
+
+            if r.code == 400:
+                workspace_name = re.sub('[^A-Za-z0-9_\-\.]', '-', workspace_name)
+                prompt = 'Invalid name. Workspace names must match the regex [A-Za-z0-9_\-\.]. Choose another name:'
+            else:
+                prompt = 'Workspace %s/%s already exists. Choose another name:' % (owner, workspace_name)
 
     def _on_create_workspace(self, data, workspace_name, dir_to_share, owner=None, perms=None, host=None):
         owner = owner or G.USERNAME
