@@ -51,7 +51,6 @@ class RequestCredentialsHandler(base.BaseHandler):
         })
 
     def on_data(self, name, data):
-        print(data)
         if name == 'credentials':
             s = utils.load_floorc_json()
             auth = s.get('AUTH', {})
