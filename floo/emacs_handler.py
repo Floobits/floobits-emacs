@@ -6,7 +6,6 @@ except NameError:
     unicode = str
 
 import os
-import json
 import re
 import hashlib
 import webbrowser
@@ -149,7 +148,7 @@ class EmacsHandler(base.BaseHandler):
         agent.once('end', cb)
 
         try:
-            reactor.connect(agent, host, G.DEFAULT_PORT, True)
+            reactor.reactor.connect(agent, host, G.DEFAULT_PORT, True)
         except Exception as e:
             print(str_e(e))
 
@@ -391,16 +390,7 @@ class EmacsHandler(base.BaseHandler):
             msg.error("The directory %s doesn't exist and I can't create it." % dir_to_share)
             return
 
-        floo_file = os.path.join(dir_to_share, '.floo')
-
-        info = {}
-        try:
-            floo_info = open(floo_file, 'rb').read().decode('utf-8')
-            info = json.loads(floo_info)
-        except (IOError, OSError):
-            pass
-        except Exception as e:
-            msg.warn("Couldn't read .floo file: %s: %s" % (floo_file, str_e(e)))
+        info = utils.read_floo_file(dir_to_share)
 
         workspace_url = info.get('url')
         if workspace_url:
@@ -518,41 +508,52 @@ class EmacsHandler(base.BaseHandler):
 
         return self.get_input(prompt, workspace_name, self._on_create_workspace, workspace_name, dir_to_share, owner, perms, host)
 
-    def join_workspace(self, data, host, owner, workspace, dir_to_make=None):
-        d = data['response']
-        if dir_to_make:
-            if d:
-                d = dir_to_make
-                utils.mkdir(d)
-            else:
-                d = ''
-        if d == '':
-            return self.get_input('Save workspace files to: ', G.PROJECT_PATH, self.join_workspace, host, owner, workspace)
-        d = os.path.realpath(os.path.expanduser(d))
-        if not os.path.isdir(d):
-            if dir_to_make:
-                return msg.error("Couldn't create directory %s" % dir_to_make)
-            prompt = '%s is not a directory. Create it? ' % d
-            return self.get_input(prompt, '', self.join_workspace, host, owner, workspace, dir_to_make=d, y_or_n=True)
-
-        self.remote_connect(host, owner, workspace, d)
-
+    @utils.inlined_callbacks
     def _on_join_workspace(self, data):
         workspace = data['workspace']
         owner = data['workspace_owner']
         host = data['host']
+        current_directory = data['current_directory']
         editor.line_endings = data['line_endings'].find("unix") >= 0 and "\n" or "\r\n"
         utils.reload_settings()
+
+        info = utils.read_floo_file(current_directory)
+        dot_floo_url = info and info.get('url')
         try:
-            G.PROJECT_PATH = utils.get_persistent_data()['workspaces'][owner][workspace]['path']
+            parsed_url = utils.parse_url(dot_floo_url)
+        except ValueError:
+            pass
+
+        if parsed_url and parsed_url['host'] == host and parsed_url['workspace'] == workspace and parsed_url['owner'] == owner:
+            self.remote_connect(host, owner, workspace, current_directory)
+            return
+
+        try:
+            d = utils.get_persistent_data()['workspaces'][owner][workspace]['path']
         except Exception:
-            G.PROJECT_PATH = ''
+            d = ''
+        if os.path.isdir(d):
+            self.remote_connect(host, owner, workspace, d)
+            return
 
-        if G.PROJECT_PATH and os.path.isdir(G.PROJECT_PATH):
-            return self.remote_connect(host, owner, workspace)
-
-        G.PROJECT_PATH = '~/floobits/share/%s/%s' % (owner, workspace)
-        self.get_input('Save workspace files to: ', G.PROJECT_PATH, self.join_workspace, host, owner, workspace)
+        while True:
+            d = d or '~/floobits/share/%s/%s' % (owner, workspace)
+            response = yield self.get_input_reorder, 'Save workspace files to: ', d
+            d = response.get("response")
+            if not d:
+                return
+            d = os.path.realpath(os.path.expanduser(d))
+            if not os.path.isdir(d):
+                prompt = '%s is not a directory. Create it? ' % d
+                response = yield self.get_input_reorder, prompt, '', (), {"y_or_n": True}
+                if not response or not response['response']:
+                    return
+                utils.mkdir(d)
+                if not os.path.isdir(d):
+                    msg.error("Couldn't create directory %s" % d)
+            if os.path.isdir(d):
+                self.remote_connect(host, owner, workspace, d)
+                return
 
     def _on_setting(self, data):
         setattr(G, data['name'], data['value'])

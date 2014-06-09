@@ -259,6 +259,20 @@ def update_floo_file(path, data):
         floo_fd.write(json.dumps(floo_json, indent=4, sort_keys=True))
 
 
+def read_floo_file(path):
+    floo_file = os.path.join(path, '.floo')
+
+    info = {}
+    try:
+        floo_info = open(floo_file, 'rb').read().decode('utf-8')
+        info = json.loads(floo_info)
+    except (IOError, OSError):
+        pass
+    except Exception as e:
+        msg.warn("Couldn't read .floo file: %s: %s" % (floo_file, str_e(e)))
+    return info
+
+
 def get_persistent_data(per_path=None):
     per_data = {'recent_workspaces': [], 'workspaces': {}}
     per_path = per_path or os.path.join(G.BASE_DIR, 'persistent.json')

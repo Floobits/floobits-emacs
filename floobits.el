@@ -263,13 +263,14 @@ See floobits-share-dir to create one or visit floobits.com."
     (if (and path workspace owner)
       (progn
         (floobits-destroy-connection)
-        (lexical-let* ((req (list
-          (cons 'host domain)
-          (cons 'workspace workspace)
-          (cons 'line_endings (floobits-get-line-endings))
-          (cons 'workspace_owner owner)))
-          (func (lambda () (floobits-send-to-agent req 'join_workspace))))
-          (floobits-create-connection func)))
+        (lexical-let* ((req 
+          (list
+            (cons 'host domain)
+            (cons 'workspace workspace)
+            (cons 'line_endings (floobits-get-line-endings))
+            (cons 'workspace_owner owner)
+            (cons 'current_directory default-directory))))
+        (floobits-create-connection (lambda () (floobits-send-to-agent req 'join_workspace)))))
       (message "Invalid url! I should look like: https://floobits.com/owner/workspace/"))))
 
 ;;;###autoload
@@ -704,7 +705,6 @@ See floobits-share-dir to create one or visit floobits.com."
             (cons 'deleted deleted))))
         (floobits-send-to-agent req 'buffer_list_change)))))
 
-  ; (run-at-time 2 nil (lambda () (floobits-event-user_input '(("id" . 1) ("name" . "user_input") ("prompt" . ": ") ("initial" . "overwrite-") ("choices" . [["overwrite-remote" 0] ["overwrite-local" 1] ["cancel" 2]])))))
 (defun floobits-minibuffer-exit-hook ()
   (when floobits-user-input-events
     (run-at-time 0 nil

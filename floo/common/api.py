@@ -160,7 +160,7 @@ def get_orgs_can_admin(host):
 def send_error(description=None, exception=None):
     G.ERROR_COUNT += 1
     if G.ERRORS_SENT >= G.MAX_ERROR_REPORTS:
-        msg.warn('Already sent %s errors this session. Not sending any more.' % G.ERRORS_SENT)
+        msg.warn('Already sent %s errors this session. Not sending any more.\n%s %s' % (G.ERRORS_SENT, description, exception))
         return
     data = {
         'jsondump': {
@@ -170,9 +170,9 @@ def send_error(description=None, exception=None):
         'dir': G.COLAB_DIR,
     }
     if G.AGENT:
-        data['owner'] = G.AGENT.owner
-        data['username'] = G.AGENT.username
-        data['workspace'] = G.AGENT.workspace
+        data['owner'] = getattr(G.AGENT, "owner", None)
+        data['username'] = getattr(G.AGENT, "username", None)
+        data['workspace'] = getattr(G.AGENT, "workspace", None)
     if exception:
         data['message'] = {
             'description': str(exception),
