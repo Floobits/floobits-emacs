@@ -118,9 +118,6 @@ class EmacsHandler(base.BaseHandler):
     def y_or_n(self, prompt, initial, cb):
         return self.get_input(prompt, initial, cb, y_or_n=True)
 
-    def get_input_reorder(self, prompt, initial, args, kwargs, cb):
-        return self.get_input(prompt, initial, cb, *args, **kwargs)
-
     def get_input(self, prompt, initial, cb, *args, **kwargs):
         self.user_input_count += 1
         event = {
@@ -135,8 +132,8 @@ class EmacsHandler(base.BaseHandler):
             event['y_or_n'] = True
             del kwargs['y_or_n']
             event['prompt'] = prompt.replace('\n', ', ').replace(", ,", "") + '? '
-        self.send(event)
         self.user_inputs[self.user_input_count] = lambda x: cb(x, *args, **kwargs)
+        self.send(event)
 
     def on_connect(self):
         msg.log("have an emacs!")
@@ -550,7 +547,7 @@ class EmacsHandler(base.BaseHandler):
 
         d = d or os.path.join(G.SHARE_DIR or G.BASE_DIR, owner, workspace)
         while True:
-            d = yield self.get_input_reorder, 'Save workspace files to: ', d, (), {}
+            d = yield self.get_input, 'Save workspace files to: ', d
             if not d:
                 return
             d = os.path.realpath(os.path.expanduser(d))
