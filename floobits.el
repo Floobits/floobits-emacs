@@ -322,24 +322,6 @@ See floobits-share-dir to create one or visit floobits.com."
   "set an element in an alist"
   (list 'add-to-list alist (list 'cons key value)))
 
-; TODO: Don't check this json stuff here. Send this error from python-land.
-(defun floobits-load-floorc-json ()
-  (condition-case nil
-    (with-temp-buffer
-      (insert-file-contents "~/.floorc.json")
-      (let*
-          ((json-key-type 'string)
-          (data (json-read-from-string (buffer-string))))
-        (loop for (key . value) in data do
-          (set (intern (concat "floobits-" key)) value))))
-    (error '("")))
-  (let ((ok nil))
-    (loop for (key . value) in floobits-auth do
-      (when (and (floo-get-item value 'username) (floo-get-item value 'secret))
-        (setq ok t)))
-    (unless ok
-      (error "Floobits credentials not found. Please define a username and secret in ~/.floorc"))))
-
 (defun floobits-listener (process response)
   (setq floobits-agent-buffer (concat floobits-agent-buffer response))
   (let ((position (search "\n" floobits-agent-buffer)))
