@@ -338,7 +338,7 @@ class EmacsHandler(base.BaseHandler):
                 self.emacs_bufs[path][0] = text
             if not buf:
                 msg.debug('no buf for path %s' % path)
-                if 'create_buf' in G.PERMS and not ignore.is_ignored(path):
+                if 'create_buf' in G.PERMS and G.IGNORE and not G.IGNORE.is_ignored(path):
                     self.agent._upload(path, text=text)
                 elif path in self.emacs_bufs:
                     del self.emacs_bufs[path]
