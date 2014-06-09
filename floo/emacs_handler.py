@@ -451,8 +451,7 @@ class EmacsHandler(base.BaseHandler):
                 a['host'] = h
                 i += 1
                 choices.append([h, i])
-            print(choices)
-            host = yield self.choose, 'Connect as (%s) ' % " ".join([x[0] for x in choices]), '', choices
+            host = yield self.choose, 'Connect as (%s) ' % ", ".join([x[0] for x in choices]), '', choices
             if not host:
                 return
 
