@@ -532,12 +532,13 @@ class EmacsHandler(base.BaseHandler):
             d = utils.get_persistent_data()['workspaces'][owner][workspace]['path']
         except Exception:
             d = ''
+
         if os.path.isdir(d):
             self.remote_connect(host, owner, workspace, d)
             return
 
+        d = d or os.path.join(G.SHARE_DIR or G.BASE_DIR, owner, workspace)
         while True:
-            d = d or '~/floobits/share/%s/%s' % (owner, workspace)
             response = yield self.get_input_reorder, 'Save workspace files to: ', d, (), {}
             d = response.get("response")
             if not d:
@@ -551,6 +552,7 @@ class EmacsHandler(base.BaseHandler):
                 utils.mkdir(d)
                 if not os.path.isdir(d):
                     msg.error("Couldn't create directory %s" % d)
+                    continue
             if os.path.isdir(d):
                 self.remote_connect(host, owner, workspace, d)
                 return
