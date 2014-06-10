@@ -16,10 +16,6 @@ except (ImportError, ValueError):
     from floo.common.protocols import no_reconnect
     from .. import api, shared as G, utils
 
-WELCOME_MSG = """Welcome %s!\n\nYou are all set to collaborate.
-
-You may want to check out our docs at https://%s/help/plugins/sublime#usage"""
-
 
 class RequestCredentialsHandler(base.BaseHandler):
     PROTOCOL = no_reconnect.NoReconnectProto
@@ -66,7 +62,8 @@ class RequestCredentialsHandler(base.BaseHandler):
         else:
             p = os.path.join(G.BASE_DIR, 'welcome.md')
             with open(p, 'w') as fd:
-                text = WELCOME_MSG % (G.AUTH.get(self.proto.host, {}).get('username'), self.proto.host)
+                username = G.AUTH.get(self.proto.host, {}).get('username')
+                text = editor.LINKED_ACCOUNT_TXT.format(username=username, host=self.proto.host)
                 fd.write(text)
             editor.open_file(p)
         try:

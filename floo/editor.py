@@ -13,7 +13,15 @@ timeouts = defaultdict(list)
 top_timeout_id = 0
 cancelled_timeouts = set()
 calling_timeouts = False
-welcome_text = ''
+
+
+NEW_ACCOUNT_TXT = 'Welcome {username}!\n\nYou\'re all set to collaborate. You should check out our docs at https://{host}/help/plugins/emacs#usage. \
+You must run \'Floobits - Complete Sign Up\' so you can log in to the website.'
+
+LINKED_ACCOUNT_TXT = """Welcome {username}!\n\nYou are all set to collaborate.
+
+You may want to check out our docs at https://{host}/help/plugins/emacs#usage"""
+
 line_endings = os.linesep
 
 

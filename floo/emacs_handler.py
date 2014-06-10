@@ -94,16 +94,10 @@ class EmacsHandler(base.BaseHandler):
             self.link_account(host, cb)
             return
 
-        disable_account_creation = utils.get_persistent_data().get('disable_account_creation')
-        if disable_account_creation:
-            self.error_message('We could not automatically create or link your floobits account. Please go to floobits.com and sign up to use this plugin.')
-            cb(None)
-            return
-
         choices = [
             ['1. Use an existing Floobits account', 1],
             ['2. Create a new Floobits account', 2],
-            ['3. Cancel', 3],
+            ['3. Cancel (see https://floobits.com/help/floorc)', 3],
         ]
         prompt = 'Let\'s set up your editor to work with Floobits:\n\n%s\n\nPlease select an option: ' % "\n".join([x[0] for x in choices])
         choice = yield self.choose, prompt, '', choices

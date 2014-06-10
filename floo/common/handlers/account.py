@@ -35,7 +35,7 @@ class CreateAccountHandler(base.BaseHandler):
             'version': G.__VERSION__
         })
 
-    def _on_create_user(self, name, data):
+    def _on_create_user(self, data):
         try:
             del data['name']
             floorc_json = {
@@ -47,7 +47,8 @@ class CreateAccountHandler(base.BaseHandler):
             if utils.can_auth():
                 p = os.path.join(G.BASE_DIR, 'welcome.md')
                 with open(p, 'w') as fd:
-                    text = editor.welcome_text % (G.AUTH.get(self.proto.host, {}).get('username'), self.proto.host)
+                    username = G.AUTH.get(self.proto.host, {}).get('username')
+                    text = editor.NEW_ACCOUNT_TXT.format(username=username, host=self.proto.host)
                     fd.write(text)
                 d = utils.get_persistent_data()
                 d['auto_generated_account'] = True
