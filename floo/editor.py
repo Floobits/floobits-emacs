@@ -99,7 +99,6 @@ def message_dialog(msg):
 
 def open_file(f):
     emacs = getattr(G, 'emacs', None)
-    print(f)
     if not emacs:
         return
     event = {

@@ -228,10 +228,15 @@ class EmacsHandler(base.BaseHandler):
             if not success:
                 return
             auth = G.AUTH.get(host)
-        print(d)
+            if not auth:
+                msg.error("Something went really wrong.")
+                return
+
         self.agent = agent_connection.AgentConnection(owner, workspace, self, auth, get_bufs and d)
         reactor.reactor.connect(self.agent, host, G.DEFAULT_PORT, True)
-        utils.add_workspace_to_persistent_json(owner, workspace, self.agent.workspace_url, d)
+        url = self.agent.workspace_url
+        utils.add_workspace_to_persistent_json(owner, workspace, url, d)
+        utils.update_recent_workspaces(url)
 
     def create_view(self, buf, emacs_buf=None):
         v = View(self, buf, emacs_buf)
