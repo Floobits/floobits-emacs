@@ -67,4 +67,7 @@ class RequestCredentialsHandler(base.BaseHandler):
                 text = WELCOME_MSG % (G.AUTH.get(self.proto.host, {}).get('username'), self.proto.host)
                 fd.write(text)
             editor.open_file(p)
-        self.stop()
+        try:
+            self.stop()
+        except Exception as e:
+            print e

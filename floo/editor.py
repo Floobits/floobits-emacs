@@ -97,8 +97,16 @@ def message_dialog(msg):
         print(msg)
 
 
-def open_file(file):
-    raise NotImplementedError('open_file')
+def open_file(f):
+    editor = getattr(G, 'editor', None)
+    print(f)
+    if not editor:
+        return
+    event = {
+        'name': 'open_file',
+        'filename': f
+    }
+    editor.send(event)
 
 
 def platform():

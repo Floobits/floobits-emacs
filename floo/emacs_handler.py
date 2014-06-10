@@ -72,7 +72,7 @@ class EmacsHandler(base.BaseHandler):
         self.bufs_changed = []
 
     @utils.inlined_callbacks
-    def create_or_link_account(self, cb):
+    def create_or_link_account(self, host, cb):
         disable_account_creation = utils.get_persistent_data().get('disable_account_creation')
         if disable_account_creation:
             print('We could not automatically create or link your floobits account. Please go to floobits.com and sign up to use this plugin.')
@@ -89,10 +89,10 @@ class EmacsHandler(base.BaseHandler):
         index = int(choice[0])
 
         agent = None
-        if index == 0:
+        if index == 1:
             token = binascii.b2a_hex(uuid.uuid4().bytes).decode('utf-8')
             agent = RequestCredentialsHandler(token)
-        elif index == 1:
+        elif index == 2:
             agent = CreateAccountHandler()
         else:
             d = utils.get_persistent_data()
@@ -106,7 +106,7 @@ class EmacsHandler(base.BaseHandler):
         agent.once('end', cb)
 
         try:
-            reactor.reactor.connect(agent, G.DEFAULT_HOST, G.DEFAULT_PORT, True)
+            reactor.reactor.connect(agent, host, G.DEFAULT_PORT, True)
         except Exception as e:
             print(str_e(e))
 
@@ -444,9 +444,10 @@ class EmacsHandler(base.BaseHandler):
         msg.debug('%s %s' % (workspace_name, dir_to_share))
 
         if not utils.can_auth():
-            success = yield self.create_or_link_account
+            success = yield self.create_or_link_account, G.DEFAULT_HOST
             if not success:
                 return
+            utils.reload_settings()
 
         if os.path.isfile(dir_to_share):
             # file_to_share = dir_to_share
@@ -582,10 +583,12 @@ class EmacsHandler(base.BaseHandler):
         current_directory = data['current_directory']
         editor.line_endings = data['line_endings'].find("unix") >= 0 and "\n" or "\r\n"
         utils.reload_settings()
+
         if not utils.can_auth():
-            success = yield self.create_or_link_account
+            success = yield self.create_or_link_account, host
             if not success:
                 return
+            utils.reload_settings()
 
         info = utils.read_floo_file(current_directory)
         dot_floo_url = info and info.get('url')

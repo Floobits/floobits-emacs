@@ -609,6 +609,9 @@ See floobits-share-dir to create one or visit floobits.com."
             (delete-region 1 (+ 1 (buffer-size)))
             (insert (floo-get-item req "buf"))))))))
 
+(defun floobits-event-open_file (req)
+  (find-file (floo-get-item req "filename")))
+
 (defun floobits-event-message (req)
   (message "%s" (floo-get-item req "message")))
 
