@@ -73,9 +73,13 @@ class EmacsHandler(base.BaseHandler):
 
     @utils.inlined_callbacks
     def create_or_link_account(self, host, cb):
+        if host != "floobits.com":
+            self.link_account(host, cb)
+            return
+
         disable_account_creation = utils.get_persistent_data().get('disable_account_creation')
         if disable_account_creation:
-            print('We could not automatically create or link your floobits account. Please go to floobits.com and sign up to use this plugin.')
+            self.error_message('We could not automatically create or link your floobits account. Please go to floobits.com and sign up to use this plugin.')
             cb(None)
             return
 
@@ -195,8 +199,7 @@ class EmacsHandler(base.BaseHandler):
 
     @utils.inlined_callbacks
     def link_account(self, host, cb):
-        yes = yield self.y_or_n, 'No credentials found in ~/.floorc.json for %s.\n\n' \
-                                 'Would you like to link the account (opens a browser)?.' % host, ''
+        yes = yield self.y_or_n, 'No credentials found in ~/.floorc.json for %s.  Would you like to download them (opens a browser)?.' % host, ''
         if not yes:
             return
 
