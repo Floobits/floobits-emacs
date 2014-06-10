@@ -28,9 +28,68 @@ class AgentConnection(floo_handler.FlooHandler):
         data['name'] = name
         self.emacs_handler.send(data)
 
-    def stomp_prompt(self, changed_bufs, missing_bufs, cb):
-        prompt = 'The workspace is out of sync.\n\n'
-        choices = [['overwrite-remote', 0], ['overwrite-local', 1], ['cancel', 2]]
+    def stomp_prompt(self, changed_bufs, missing_bufs, new_files, ignored, cb):
+
+        def pluralize(arg):
+            return arg != 1 and 's' or ''
+
+        overwrite_local = ''
+        overwrite_remote = ''
+        missing = [buf['path'] for buf in missing_bufs]
+        changed = [buf['path'] for buf in changed_bufs]
+
+        to_upload = set(new_files + changed).difference(set(ignored))
+        to_remove = missing + ignored
+        to_fetch = changed + missing
+        to_upload_len = len(to_upload)
+        to_remove_len = len(to_remove)
+        remote_len = to_remove_len + to_upload_len
+        to_fetch_len = len(to_fetch)
+
+        msg.log('To fetch: %s' % ', '.join(to_fetch))
+        msg.log('To upload: %s' % ', '.join(to_upload))
+        msg.log('To remove: %s' % ', '.join(to_remove))
+
+        if not to_fetch:
+            overwrite_local = 'Fetch nothing'
+        elif to_fetch_len < 5:
+            overwrite_local = 'Fetch %s' % ', '.join(to_fetch)
+        else:
+            overwrite_local = 'Fetch %s file%s' % (to_fetch_len, pluralize(to_fetch_len))
+
+        if to_upload_len < 5:
+            to_upload_str = 'upload %s' % ', '.join(to_upload)
+        else:
+            to_upload_str = 'upload %s' % to_upload_len
+
+        if to_remove_len < 5:
+            to_remove_str = 'remove %s' % ', '.join(to_remove)
+        else:
+            to_remove_str = 'remove %s' % to_remove_len
+
+        if to_upload:
+            overwrite_remote += to_upload_str
+            if to_remove:
+                overwrite_remote += ' and '
+        if to_remove:
+            overwrite_remote += to_remove_str
+
+        if remote_len >= 5 and overwrite_remote:
+            overwrite_remote += ' files'
+
+        overwrite_remote = overwrite_remote.capitalize()
+
+        action = 'Overwrite'
+        # TODO: change action based on numbers of stuff
+        choices = [
+            ['1. %s %s remote file%s (%s).' % (action, remote_len, pluralize(remote_len), overwrite_remote), 0],
+            ['2. %s %s local file%s (%s).' % (action, to_fetch_len, pluralize(to_fetch_len), overwrite_local), 1],
+            ['3. Cancel', 2],
+        ]
+
+        # TODO: sublime text doesn't let us focus a window. so use the active window. super lame
+        # G.WORKSPACE_WINDOW.show_quick_panel(choices, cb)
+        prompt = 'Your copy of %s/%s is out of sync.\n\n%s\n\nPlease select an option: ' % (self.owner, self.workspace, "\n".join([x[0] for x in choices]))
 
         def handle_choice(choice):
             for c in choices:
@@ -38,47 +97,7 @@ class AgentConnection(floo_handler.FlooHandler):
                     return cb(c[1])
             return cb(-1)
 
-        def pluralize(arg):
-            return len(arg) > 1 and 's' or ''
-
-        diffs = changed_bufs + missing_bufs
-        overwrite_local = ''
-        overwrite_remote = ''
-
-        if changed_bufs:
-            if len(diffs) < 5:
-                changed = ', '.join([buf['path'] for buf in changed_bufs])
-            else:
-                changed = len(changed_bufs)
-            overwrite_local += 'Overwrite %s' % changed
-            overwrite_remote += 'Upload %s' % changed
-
-            if missing_bufs:
-                if len(diffs) < 5:
-                    missing = ', '.join([buf['path'] for buf in missing_bufs])
-                    overwrite_local += ' and create %s' % missing
-                    overwrite_remote += ' and remove %s' % missing
-                else:
-                    overwrite_local += ' and create %s local file%s.' % (len(missing_bufs), pluralize(missing_bufs))
-                    overwrite_remote += ' and remove %s remote file%s.' % (len(missing_bufs), pluralize(missing_bufs))
-            elif len(diffs) >= 5:
-                overwrite_local += ' local file%s.' % pluralize(changed_bufs)
-                overwrite_remote += ' file%s.' % pluralize(changed_bufs)
-        elif missing_bufs:
-            if len(diffs) < 5:
-                missing = ', '.join([buf['path'] for buf in missing_bufs])
-                overwrite_local += 'Create %s.' % missing
-                overwrite_remote += 'Remove %s.' % missing
-            else:
-                overwrite_local += 'Create %s local file%s.' % (len(missing_bufs), pluralize(missing_bufs))
-                overwrite_remote += 'Remove %s remote file%s.' % (len(missing_bufs), pluralize(missing_bufs))
-
-        prompt += 'overwrite-remote: %s\n' % overwrite_remote
-        prompt += 'overwrite-local: %s\n' % overwrite_local
-        prompt += 'cancel: Disconnect and resolve conflict manually.\n\n'
-        prompt += 'Action: '
-
-        self.emacs_handler.choose(prompt, 'overwrite-', choices, handle_choice)
+        self.emacs_handler.choose(prompt, '', choices, handle_choice)
 
     @utils.inlined_callbacks
     def prompt_join_hangout(self, hangout_url):
