@@ -519,9 +519,9 @@ class EmacsHandler(base.BaseHandler):
             i += 1
             choices.append([org['name'], i])
 
-        owner = yield self.choose, 'Create workspace owned by (%s) ' % " ".join([x[0] for x in choices]), '', choices
+        owner = yield self.choose, 'Create workspace owned by (%s): ' % " ".join([x[0] for x in choices]), '', choices
 
-        prompt = 'Workspace name:'
+        prompt = 'Workspace name: '
 
         api_args = {
             'name': workspace_name,
@@ -570,10 +570,10 @@ class EmacsHandler(base.BaseHandler):
 
             if r.code == 400:
                 workspace_name = re.sub('[^A-Za-z0-9_\-\.]', '-', workspace_name)
-                prompt = 'Invalid name. Workspace names must match the regex [A-Za-z0-9_\-\.]. Choose another name:'
+                prompt = 'Invalid name. Workspace names must match the regex [A-Za-z0-9_\-\.]. Choose another name: '
                 continue
 
-            prompt = 'Workspace %s/%s already exists. Choose another name:' % (owner, workspace_name)
+            prompt = 'Workspace %s/%s already exists. Choose another name: ' % (owner, workspace_name)
 
     @utils.inlined_callbacks
     def _on_join_workspace(self, data):
