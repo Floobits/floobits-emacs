@@ -594,8 +594,8 @@ class EmacsHandler(base.BaseHandler):
         dot_floo_url = info and info.get('url')
         try:
             parsed_url = utils.parse_url(dot_floo_url)
-        except ValueError:
-            pass
+        except Exception:
+            parsed_url = None
 
         if parsed_url and parsed_url['host'] == host and parsed_url['workspace'] == workspace and parsed_url['owner'] == owner:
             self.remote_connect(host, owner, workspace, current_directory)
