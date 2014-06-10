@@ -118,9 +118,12 @@ def save_floorc_json(s):
 
 
 def can_auth(host=None):
-    auth = G.AUTH.get(host or G.DEFAULT_HOST, {})
-    can_auth = (auth.get('username') or auth.get('api_key')) and auth.get('secret')
-    return can_auth
+    if host is None:
+        host = len(G.AUTH) and list(G.AUTH.keys())[0] or G.DEFAULT_HOST
+    auth = G.AUTH.get(host)
+    if not auth:
+        return False
+    return (auth.get('username') or auth.get('api_key')) and auth.get('secret')
 
 
 cancelled_timeouts = set()

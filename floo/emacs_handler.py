@@ -218,7 +218,7 @@ class EmacsHandler(base.BaseHandler):
             print(str_e(e))
 
     @utils.inlined_callbacks
-    def remote_connect(self, host, owner, workspace, d, get_bufs=True):
+    def remote_connect(self, host, owner, workspace, d, get_bufs=False):
         G.PROJECT_PATH = os.path.realpath(d)
         try:
             utils.mkdir(os.path.dirname(G.PROJECT_PATH))
@@ -232,6 +232,7 @@ class EmacsHandler(base.BaseHandler):
             if not success:
                 return
             auth = G.AUTH.get(host)
+        print(d)
         self.agent = agent_connection.AgentConnection(owner, workspace, self, auth, get_bufs and d)
         reactor.reactor.connect(self.agent, host, G.DEFAULT_PORT, True)
         utils.add_workspace_to_persistent_json(owner, workspace, self.agent.workspace_url, d)
@@ -383,6 +384,7 @@ class EmacsHandler(base.BaseHandler):
             if not buf:
                 msg.debug('no buf for path %s' % path)
                 if 'create_buf' in G.PERMS and G.IGNORE and not G.IGNORE.is_ignored(path):
+                    print('uproad', path)
                     self.agent._upload(path, text=text)
                 elif path in self.emacs_bufs:
                     del self.emacs_bufs[path]

@@ -74,39 +74,39 @@ def call_timeouts():
 
 
 def error_message(*args, **kwargs):
-    editor = getattr(G, 'editor', None)
-    if editor:
-        editor.error_message(*args, **kwargs)
+    emacs = getattr(G, 'emacs', None)
+    if emacs:
+        emacs.error_message(*args, **kwargs)
     else:
         print(args, kwargs)
 
 
 def status_message(msg):
-    editor = getattr(G, 'editor', None)
-    if editor:
-        editor.status_message(msg)
+    emacs = getattr(G, 'emacs', None)
+    if emacs:
+        emacs.status_message(msg)
     else:
         print(msg)
 
 
 def message_dialog(msg):
-    editor = getattr(G, 'editor', None)
-    if editor:
-        editor.status_message(msg)
+    emacs = getattr(G, 'emacs', None)
+    if emacs:
+        emacs.status_message(msg)
     else:
         print(msg)
 
 
 def open_file(f):
-    editor = getattr(G, 'editor', None)
+    emacs = getattr(G, 'emacs', None)
     print(f)
-    if not editor:
+    if not emacs:
         return
     event = {
         'name': 'open_file',
         'filename': f
     }
-    editor.send(event)
+    emacs.send(event)
 
 
 def platform():
