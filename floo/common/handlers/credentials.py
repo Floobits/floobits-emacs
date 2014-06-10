@@ -50,22 +50,21 @@ class RequestCredentialsHandler(base.BaseHandler):
             'version': G.__VERSION__
         })
 
-    def on_data(self, name, data):
-        if name == 'credentials':
-            s = utils.load_floorc_json()
-            auth = s.get('AUTH', {})
-            auth[self.proto.host] = data['credentials']
-            s['AUTH'] = auth
-            utils.save_floorc_json(s)
-            utils.reload_settings()
-            self.success = utils.can_auth(self.proto.host)
-            if not self.success:
-                editor.error_message('Something went wrong. See https://%s/help/floorc to complete the installation.' % self.proto.host)
-                api.send_error('No username or secret')
-            else:
-                p = os.path.join(G.BASE_DIR, 'welcome.md')
-                with open(p, 'w') as fd:
-                    text = WELCOME_MSG % (G.AUTH.get(self.proto.host, {}).get('username'), self.proto.host)
-                    fd.write(text)
-                editor.open_file(p)
-            self.stop()
+    def _on_credentials(self, data):
+        s = utils.load_floorc_json()
+        auth = s.get('AUTH', {})
+        auth[self.proto.host] = data['credentials']
+        s['AUTH'] = auth
+        utils.save_floorc_json(s)
+        utils.reload_settings()
+        self.success = utils.can_auth(self.proto.host)
+        if not self.success:
+            editor.error_message('Something went wrong. See https://%s/help/floorc to complete the installation.' % self.proto.host)
+            api.send_error('No username or secret')
+        else:
+            p = os.path.join(G.BASE_DIR, 'welcome.md')
+            with open(p, 'w') as fd:
+                text = WELCOME_MSG % (G.AUTH.get(self.proto.host, {}).get('username'), self.proto.host)
+                fd.write(text)
+            editor.open_file(p)
+        self.stop()

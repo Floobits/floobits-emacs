@@ -24,7 +24,11 @@ def main():
 
     migrations.rename_floobits_dir()
     migrations.migrate_symlinks()
-    utils.normalize_persistent_data()
+
+    try:
+        utils.normalize_persistent_data()
+    except Exception:
+        pass
 
     emacs = emacs_handler.EmacsHandler()
     G.emacs = emacs

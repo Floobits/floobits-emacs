@@ -150,10 +150,10 @@
 
 (defun floobits-send-debug ()
   (when floobits-conn
-  (floobits-send-to-agent
-    (list
-      (cons 'name 'debug)
-      (cons 'value floobits-debug)) 'setting)))
+    (floobits-send-to-agent
+      (list
+        (cons 'name 'debug)
+        (cons 'value floobits-debug)) 'setting)))
 
 ;;;###autoload
 (defun floobits-debug ()

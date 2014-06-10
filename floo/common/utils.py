@@ -419,6 +419,7 @@ def _unwind_generator(gen_expr, cb=None, res=None):
         while True:
             maybe_func = res
             args = []
+            # if the first arg is callable, we need to call it (and assume the last argument is a callback)
             if type(res) == tuple:
                 maybe_func = len(res) and res[0]
 
@@ -434,10 +435,17 @@ def _unwind_generator(gen_expr, cb=None, res=None):
 
             def f(*args):
                 return _unwind_generator(gen_expr, cb, args)
-            args = list(res)[1:]
+
+            try:
+                args = list(res)[1:]
+            except:
+                # assume not iterable
+                args = []
+
             args.append(f)
             return maybe_func(*args)
-        # TODO: probably shouldn't catch StopIteration to return since that can occur by accident...
+
+    # TODO: probably shouldn't catch StopIteration to return since that can occur by accident...
     except StopIteration:
         pass
     except __StopUnwindingException as e:

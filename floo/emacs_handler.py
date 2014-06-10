@@ -15,21 +15,23 @@ from collections import defaultdict
 
 try:
     from . import agent_connection, editor
-    from .common import api, msg, shared as G, utils, reactor, ignore
+    from .common import api, msg, shared as G, utils, reactor
     from .view import View
     from .common.exc_fmt import str_e
     from .common.handlers import base
     from .emacs_protocol import EmacsProtocol
     from .floo.common.handlers.credentials import RequestCredentialsHandler
+    from .floo.common.handlers.account import CreateAccountHandler
 except (ImportError, ValueError):
     import agent_connection
     import editor
-    from common import api, msg, shared as G, utils, reactor, ignore
+    from common import api, msg, shared as G, utils, reactor
     from view import View
     from common.exc_fmt import str_e
     from common.handlers import base
     from emacs_protocol import EmacsProtocol
     from floo.common.handlers.credentials import RequestCredentialsHandler
+    from floo.common.handlers.account import CreateAccountHandler
 
 
 try:
@@ -68,6 +70,45 @@ class EmacsHandler(base.BaseHandler):
         self.user_input_count = 0
         self.emacs_bufs = defaultdict(lambda: [""])
         self.bufs_changed = []
+
+    @utils.inlined_callbacks
+    def create_or_link_account(self, cb):
+        disable_account_creation = utils.get_persistent_data().get('disable_account_creation')
+        if disable_account_creation:
+            print('We could not automatically create or link your floobits account. Please go to floobits.com and sign up to use this plugin.')
+            cb(None)
+            return
+
+        choices = [
+            ['1. Use an existing Floobits account', 1],
+            ['2. Create a new Floobits account', 2],
+            ['3. Cancel', 3],
+        ]
+        prompt = 'Let\'s set up your editor to work with Floobits:\n\n%s\n\nPlease select an option: ' % "\n".join([x[0] for x in choices])
+        choice = yield self.choose, prompt, '', choices
+        index = int(choice[0])
+
+        agent = None
+        if index == 0:
+            token = binascii.b2a_hex(uuid.uuid4().bytes).decode('utf-8')
+            agent = RequestCredentialsHandler(token)
+        elif index == 1:
+            agent = CreateAccountHandler()
+        else:
+            d = utils.get_persistent_data()
+            if not d.get('disable_account_creation'):
+                d['disable_account_creation'] = True
+                utils.update_persistent_data(d)
+                print('''You can set up a Floobits account at any time under\n\nTools -> Floobits -> Setup''')
+            cb(None)
+            return
+
+        agent.once('end', cb)
+
+        try:
+            reactor.reactor.connect(agent, G.DEFAULT_HOST, G.DEFAULT_PORT, True)
+        except Exception as e:
+            print(str_e(e))
 
     def get_view_text_by_path(self, rel_path):
         full_path = utils.get_full_path(rel_path)
@@ -402,6 +443,11 @@ class EmacsHandler(base.BaseHandler):
         dir_to_share = os.path.realpath(dir_to_share)
         msg.debug('%s %s' % (workspace_name, dir_to_share))
 
+        if not utils.can_auth():
+            success = yield self.create_or_link_account
+            if not success:
+                return
+
         if os.path.isfile(dir_to_share):
             # file_to_share = dir_to_share
             dir_to_share = os.path.dirname(dir_to_share)
@@ -536,6 +582,10 @@ class EmacsHandler(base.BaseHandler):
         current_directory = data['current_directory']
         editor.line_endings = data['line_endings'].find("unix") >= 0 and "\n" or "\r\n"
         utils.reload_settings()
+        if not utils.can_auth():
+            success = yield self.create_or_link_account
+            if not success:
+                return
 
         info = utils.read_floo_file(current_directory)
         dot_floo_url = info and info.get('url')
