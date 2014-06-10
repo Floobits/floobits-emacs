@@ -95,18 +95,18 @@ class EmacsHandler(base.BaseHandler):
             return
 
         choices = [
-            ['1. Use an existing Floobits account', 1],
-            ['2. Create a new Floobits account', 2],
-            ['3. Cancel (see https://floobits.com/help/floorc)', 3],
+            'Use an existing Floobits account',
+            'Create a new Floobits account',
+            'Cancel (see https://floobits.com/help/floorc)'
         ]
-        prompt = 'Let\'s set up your editor to work with Floobits:\n\n%s\n\nPlease select an option: ' % "\n".join([x[0] for x in choices])
-        choice = yield self.choose, prompt, '', choices
-        index = int(choice[0])
+
+        choice = yield self.choose, 'You need a Floobits account to use Floobits! Do you want to:', choices
+        index = choices.index(choice)
 
         agent = None
-        if index == 1:
+        if index == 0:
             agent = RequestCredentialsHandler()
-        elif index == 2:
+        elif index == 1:
             agent = CreateAccountHandler()
         else:
             d = utils.get_persistent_data()
@@ -181,16 +181,17 @@ class EmacsHandler(base.BaseHandler):
         self.user_inputs[self.user_input_count] = cb
         self.send(event)
 
-    def choose(self, prompt, initial, choices, cb):
+    def choose(self, prompt, choices, cb):
         self.user_input_count += 1
+        choices = [["%d. %s" % (i + 1, v), i] for i, v in enumerate(choices)]
         event = {
             'name': 'user_input',
             'id': self.user_input_count,
-            'prompt': prompt,
-            'initial': initial,
+            'prompt': prompt + "\n\n%s\n\nPlease select an option: " % "\n".join([c[0] for c in choices]),
+            'initial': "",
             'choices': choices
         }
-        self.user_inputs[self.user_input_count] = cb
+        self.user_inputs[self.user_input_count] = lambda choice: cb(choice[3:])
         self.send(event)
 
     def get_input(self, prompt, initial, cb):
@@ -488,17 +489,11 @@ class EmacsHandler(base.BaseHandler):
             return
 
         auths = dict(G.AUTH)
-
-        if len(auths) == 1:
-            host = list(auths.keys())[0]
+        hosts = list(auths.keys())
+        if hosts == 1:
+            host = hosts[0]
         else:
-            i = 0
-            choices = []
-            for h, a in auths.items():
-                a['host'] = h
-                i += 1
-                choices.append([h, i])
-            host = yield self.choose, 'Connect as (%s) ' % ", ".join([x[0] for x in choices]), '', choices
+            host = yield self.choose, 'Which Floobits account should be used?', hosts
             if not host:
                 return
 
@@ -512,14 +507,9 @@ class EmacsHandler(base.BaseHandler):
             editor.error_message('Error getting org list: %s' % str_e(e))
             return
 
-        i = 0
-        choices = []
-        choices.append([G.AUTH[host]['username'], i])
-        for org in r.body:
-            i += 1
-            choices.append([org['name'], i])
+        choices = [G.AUTH[host]['username']] + [org['name'] for org in r.body]
 
-        owner = yield self.choose, 'Create workspace owned by (%s): ' % " ".join([x[0] for x in choices]), '', choices
+        owner = yield self.choose, 'Create workspace owned by', choices
 
         prompt = 'Workspace name: '
 
@@ -527,6 +517,7 @@ class EmacsHandler(base.BaseHandler):
             'name': workspace_name,
             'owner': owner,
         }
+
         if perms:
             api_args['perms'] = perms
 

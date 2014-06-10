@@ -82,22 +82,14 @@ class AgentConnection(floo_handler.FlooHandler):
         action = 'Overwrite'
         # TODO: change action based on numbers of stuff
         choices = [
-            ['1. %s %s remote file%s (%s).' % (action, remote_len, pluralize(remote_len), overwrite_remote), 0],
-            ['2. %s %s local file%s (%s).' % (action, to_fetch_len, pluralize(to_fetch_len), overwrite_local), 1],
-            ['3. Cancel', 2],
+            '%s %s remote file%s (%s).' % (action, remote_len, pluralize(remote_len), overwrite_remote),
+            '%s %s local file%s (%s).' % (action, to_fetch_len, pluralize(to_fetch_len), overwrite_local),
+            'Cancel',
         ]
 
-        # TODO: sublime text doesn't let us focus a window. so use the active window. super lame
-        # G.WORKSPACE_WINDOW.show_quick_panel(choices, cb)
-        prompt = 'Your copy of %s/%s is out of sync.\n\n%s\n\nPlease select an option: ' % (self.owner, self.workspace, "\n".join([x[0] for x in choices]))
+        prompt = 'Your copy of %s/%s is out of sync. Do you want to:' % (self.owner, self.workspace)
 
-        def handle_choice(choice):
-            for c in choices:
-                if c[0] == choice:
-                    return cb(c[1])
-            return cb(-1)
-
-        self.emacs_handler.choose(prompt, '', choices, handle_choice)
+        self.emacs_handler.choose(prompt, choices, lambda c: cb(choices.index(c)))
 
     @utils.inlined_callbacks
     def prompt_join_hangout(self, hangout_url):
