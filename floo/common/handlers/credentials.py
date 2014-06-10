@@ -1,5 +1,7 @@
 import os
 import sys
+import uuid
+import binascii
 import webbrowser
 
 try:
@@ -22,9 +24,9 @@ You may want to check out our docs at https://%s/help/plugins/sublime#usage"""
 class RequestCredentialsHandler(base.BaseHandler):
     PROTOCOL = no_reconnect.NoReconnectProto
 
-    def __init__(self, token):
+    def __init__(self):
         super(RequestCredentialsHandler, self).__init__()
-        self.token = token
+        self.token = binascii.b2a_hex(uuid.uuid4().bytes).decode('utf-8')
         self.success = False
 
     def build_protocol(self, *args):

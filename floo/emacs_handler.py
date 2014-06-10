@@ -9,8 +9,6 @@ import os
 import re
 import hashlib
 import webbrowser
-import uuid
-import binascii
 from collections import defaultdict
 
 try:
@@ -72,6 +70,25 @@ class EmacsHandler(base.BaseHandler):
         self.bufs_changed = []
 
     @utils.inlined_callbacks
+    def link_account(self, host, cb):
+        yes = yield self.y_or_n, 'No credentials found in ~/.floorc.json for %s.  Would you like to download them (opens a browser)?.' % host, ''
+        if not yes:
+            return
+
+        agent = RequestCredentialsHandler()
+        if not agent:
+            self.error_message('''A configuration error occured earlier. Please go to %s and sign up to use this plugin.\n
+    We're really sorry. This should never happen.''' % host)
+            return
+
+        agent.once('end', cb)
+
+        try:
+            reactor.reactor.connect(agent, host, G.DEFAULT_PORT, True)
+        except Exception as e:
+            print(str_e(e))
+
+    @utils.inlined_callbacks
     def create_or_link_account(self, host, cb):
         if host != "floobits.com":
             self.link_account(host, cb)
@@ -94,8 +111,7 @@ class EmacsHandler(base.BaseHandler):
 
         agent = None
         if index == 1:
-            token = binascii.b2a_hex(uuid.uuid4().bytes).decode('utf-8')
-            agent = RequestCredentialsHandler(token)
+            agent = RequestCredentialsHandler()
         elif index == 2:
             agent = CreateAccountHandler()
         else:
@@ -196,26 +212,6 @@ class EmacsHandler(base.BaseHandler):
 
     def on_connect(self):
         msg.log("have an emacs!")
-
-    @utils.inlined_callbacks
-    def link_account(self, host, cb):
-        yes = yield self.y_or_n, 'No credentials found in ~/.floorc.json for %s.  Would you like to download them (opens a browser)?.' % host, ''
-        if not yes:
-            return
-
-        token = binascii.b2a_hex(uuid.uuid4().bytes).decode('utf-8')
-        agent = RequestCredentialsHandler(token)
-        if not agent:
-            self.error_message('''A configuration error occured earlier. Please go to %s and sign up to use this plugin.\n
-    We're really sorry. This should never happen.''' % host)
-            return
-
-        agent.once('end', cb)
-
-        try:
-            reactor.reactor.connect(agent, host, G.DEFAULT_PORT, True)
-        except Exception as e:
-            print(str_e(e))
 
     @utils.inlined_callbacks
     def remote_connect(self, host, owner, workspace, d, get_bufs=False):
