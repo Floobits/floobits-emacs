@@ -66,6 +66,7 @@
 (defvar floobits-conn)
 (defvar floobits-current-position)
 (defvar floobits-open-buffers)
+(defvar floobits-complete-signup)
 (defvar floobits-follow-mode)
 (defvar floobits-perms)
 (defvar floobits-share-dir)
@@ -185,6 +186,14 @@
   "leaves the current workspace"
   (interactive)
   (floobits-destroy-connection))
+
+;;;###autoload
+(defun floobits-complete-signup ()
+  "If you created an Floobits account via emacs, you must call this command before you can login to
+  the website."
+  (interactive)
+  (floobits-destroy-connection)
+  (floobits-create-connection (lambda () (floobits-send-to-agent () 'pinocchio))))
 
 ;;;###autoload
 (defun floobits-share-dir-public (dir-to-share)

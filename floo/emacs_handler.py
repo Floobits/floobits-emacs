@@ -632,3 +632,12 @@ class EmacsHandler(base.BaseHandler):
         setattr(G, data['name'], data['value'])
         if data['name'] == 'debug':
             utils.update_log_level()
+
+    def _on_pinocchio(self, data):
+        floorc = utils.load_floorc_json()
+        auth = floorc.get('AUTH', {}).get(G.DEFAULT_HOST, {})
+        username = auth.get('username')
+        secret = auth.get('secret')
+        if not (username and secret):
+            return self.error_message('You don\'t seem to have a Floobits account of any sort')
+        webbrowser.open('https://%s/%s/pinocchio/%s' % (G.DEFAULT_HOST, username, secret))
