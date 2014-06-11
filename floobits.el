@@ -225,7 +225,7 @@ If the directory corresponds to an existing floobits workspace, you will instead
     (floobits-create-connection func)))
 
 (defun floobits-event-error (req)
-  (message-box (floo-get-item req 'msg)))
+  (display-message-or-buffer (floo-get-item req 'msg)))
 
 (defun _floobits-read-persistent ()
   (condition-case nil

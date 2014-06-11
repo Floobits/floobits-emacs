@@ -109,6 +109,7 @@ class AgentConnection(floo_handler.FlooHandler):
                 'workspace_name': data['room_name']
             })
         self.once('room_info', send_room_info)
+        self.emacs_handler.error_message("ohsadfsafd")
         super(AgentConnection, self)._on_room_info(data)
 
     def _on_create_buf(self, data):

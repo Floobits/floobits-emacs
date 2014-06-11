@@ -7,6 +7,7 @@ except NameError:
 
 import os
 import re
+import sys
 import hashlib
 import webbrowser
 from collections import defaultdict
@@ -124,14 +125,18 @@ class EmacsHandler(base.BaseHandler):
         except Exception as e:
             print(str_e(e))
 
+    def stop(self):
+        sys.exit()
+
     def get_view_text_by_path(self, rel_path):
         full_path = utils.get_full_path(rel_path)
         emacs_buf = self.emacs_bufs.get(full_path)
         if emacs_buf:
             return emacs_buf[0]
 
-    def error_message(self, *args, **kwargs):
-        print(args, kwargs)
+    def error_message(self, msg):
+        print(msg)
+        self.send({'name': 'error', 'msg': msg})
 
     def status_message(self, *args, **kwargs):
         print(args, kwargs)

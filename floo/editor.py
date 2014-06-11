@@ -81,12 +81,12 @@ def call_timeouts():
     calling_timeouts = False
 
 
-def error_message(*args, **kwargs):
+def error_message(msg):
     emacs = getattr(G, 'emacs', None)
     if emacs:
-        emacs.error_message(*args, **kwargs)
+        emacs.error_message(msg)
     else:
-        print(args, kwargs)
+        print(msg)
 
 
 def status_message(msg):
