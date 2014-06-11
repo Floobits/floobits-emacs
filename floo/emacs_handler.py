@@ -1,10 +1,4 @@
 # coding: utf-8
-
-try:
-    unicode()
-except NameError:
-    unicode = str
-
 import os
 import re
 import sys
@@ -533,8 +527,8 @@ class EmacsHandler(base.BaseHandler):
                 msg.debug(str(api_args))
                 r = api.create_workspace(host, api_args)
             except Exception as e:
-                msg.error('Unable to create workspace: %s' % unicode(e))
-                editor.error_message('Unable to create workspace: %s' % unicode(e))
+                msg.error('Unable to create workspace: %s' % str_e(e))
+                editor.error_message('Unable to create workspace: %s' % str_e(e))
                 return
 
             if r.code < 400:
