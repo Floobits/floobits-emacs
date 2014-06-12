@@ -8,12 +8,14 @@ try:
     from . import base
     from .. import api, shared as G, utils
     from ... import editor
+    from ..exc_fmt import str_e
     from ..protocols import no_reconnect
     assert api and G and utils
 except (ImportError, ValueError):
     import base
     from floo import editor
     from floo.common.protocols import no_reconnect
+    from floo.common.exc_fmt import str_e
     from .. import api, shared as G, utils
 
 
@@ -69,4 +71,4 @@ class RequestCredentialsHandler(base.BaseHandler):
         try:
             self.stop()
         except Exception as e:
-            print e
+            print(str_e(e))
