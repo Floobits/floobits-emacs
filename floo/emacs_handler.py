@@ -488,7 +488,7 @@ class EmacsHandler(base.BaseHandler):
 
         auths = dict(G.AUTH)
         hosts = list(auths.keys())
-        if hosts == 1:
+        if len(hosts) == 1:
             host = hosts[0]
         else:
             host = yield self.choose, 'Which Floobits account should be used?', hosts
@@ -507,7 +507,10 @@ class EmacsHandler(base.BaseHandler):
         elif r.body:
             choices += [org['name'] for org in r.body]
 
-        owner = yield self.choose, 'Create workspace owned by', choices
+        if len(choices) == 1:
+            owner = choices[0]
+        else:
+            owner = yield self.choose, 'Create workspace owned by', choices
 
         prompt = 'Workspace name: '
 
