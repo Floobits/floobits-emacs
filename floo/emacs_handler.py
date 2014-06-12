@@ -225,7 +225,6 @@ class EmacsHandler(base.BaseHandler):
             if not auth:
                 msg.error("Something went really wrong.")
                 return
-
         self.agent = agent_connection.AgentConnection(owner, workspace, self, auth, get_bufs and d)
         reactor.reactor.connect(self.agent, host, G.DEFAULT_PORT, True)
         url = self.agent.workspace_url
@@ -521,10 +520,10 @@ class EmacsHandler(base.BaseHandler):
             api_args['perms'] = perms
 
         while True:
-            workspace_name = (yield self.get_input, prompt, workspace_name) or workspace_name
+            new_name = yield self.get_input, prompt, workspace_name
+            workspace_name = new_name or workspace_name
             try:
                 api_args['name'] = workspace_name
-                msg.debug(str(api_args))
                 r = api.create_workspace(host, api_args)
             except Exception as e:
                 msg.error('Unable to create workspace: %s' % str_e(e))

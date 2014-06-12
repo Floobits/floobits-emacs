@@ -98,6 +98,7 @@ def status_message(msg):
 
 
 def message_dialog(msg):
+    # TODO: make this a modal thing. probably need to open a new buffer
     emacs = getattr(G, 'emacs', None)
     if emacs:
         emacs.status_message(msg)
