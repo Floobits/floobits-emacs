@@ -501,11 +501,11 @@ class EmacsHandler(base.BaseHandler):
             editor.error_message('Error getting org list: %s' % str_e(e))
             return
 
-        if r.code >= 400 or len(r.body) == 0:
-            editor.error_message('Error getting org list: %s' % str_e(e))
-            return
-
-        choices = [G.AUTH[host]['username']] + [org['name'] for org in r.body]
+        choices = [G.AUTH[host]['username']]
+        if r.code >= 400:
+            editor.error_message('Error getting org list: %s' % r.body)
+        elif r.body:
+            choices += [org['name'] for org in r.body]
 
         owner = yield self.choose, 'Create workspace owned by', choices
 
