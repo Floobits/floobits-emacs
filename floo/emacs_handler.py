@@ -361,7 +361,8 @@ class EmacsHandler(base.BaseHandler):
         view = self.get_view_by_path(path)
         self.emacs_bufs[path][0] = req['buf']
         if not view:
-            # TODO: send a create_buf?
+            if 'create_buf' in G.PERMS and utils.is_shared(path) and G.IGNORE and not G.IGNORE.is_ignored(path):
+                self.agent._upload(path, text=req['buf'])
             return
         self.bufs_changed.append(view.buf['id'])
 
