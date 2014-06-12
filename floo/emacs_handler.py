@@ -1,30 +1,30 @@
 # coding: utf-8
-
-try:
-    unicode()
-except NameError:
-    unicode = str
-
 import os
-import json
 import re
+import sys
 import hashlib
 import webbrowser
 from collections import defaultdict
 
 try:
     from . import agent_connection, editor
-    from .common import api, msg, shared as G, utils, reactor, ignore
+    from .common import api, msg, shared as G, utils, reactor
     from .view import View
+    from .common.exc_fmt import str_e
     from .common.handlers import base
     from .emacs_protocol import EmacsProtocol
+    from .floo.common.handlers.credentials import RequestCredentialsHandler
+    from .floo.common.handlers.account import CreateAccountHandler
 except (ImportError, ValueError):
     import agent_connection
     import editor
-    from common import api, msg, shared as G, utils, reactor, ignore
+    from common import api, msg, shared as G, utils, reactor
     from view import View
+    from common.exc_fmt import str_e
     from common.handlers import base
     from emacs_protocol import EmacsProtocol
+    from floo.common.handlers.credentials import RequestCredentialsHandler
+    from floo.common.handlers.account import CreateAccountHandler
 
 
 try:
@@ -64,8 +64,73 @@ class EmacsHandler(base.BaseHandler):
         self.emacs_bufs = defaultdict(lambda: [""])
         self.bufs_changed = []
 
-    def error_message(self, *args, **kwargs):
-        print(args, kwargs)
+    @utils.inlined_callbacks
+    def link_account(self, host, cb):
+        yes = yield self.y_or_n, 'No credentials found in ~/.floorc.json for %s.  Would you like to download them (opens a browser)?.' % host, ''
+        if not yes:
+            return
+
+        agent = RequestCredentialsHandler()
+        if not agent:
+            self.error_message('''A configuration error occured earlier. Please go to %s and sign up to use this plugin.\n
+    We're really sorry. This should never happen.''' % host)
+            return
+
+        agent.once('end', cb)
+
+        try:
+            reactor.reactor.connect(agent, host, G.DEFAULT_PORT, True)
+        except Exception as e:
+            print(str_e(e))
+
+    @utils.inlined_callbacks
+    def create_or_link_account(self, host, cb):
+        if host != "floobits.com":
+            self.link_account(host, cb)
+            return
+
+        choices = [
+            'Use an existing Floobits account',
+            'Create a new Floobits account',
+            'Cancel (see https://floobits.com/help/floorc)'
+        ]
+
+        choice = yield self.choose, 'You need a Floobits account to use Floobits! Do you want to:', choices
+        index = choices.index(choice)
+
+        agent = None
+        if index == 0:
+            agent = RequestCredentialsHandler()
+        elif index == 1:
+            agent = CreateAccountHandler()
+        else:
+            d = utils.get_persistent_data()
+            if not d.get('disable_account_creation'):
+                d['disable_account_creation'] = True
+                utils.update_persistent_data(d)
+                print('''You can set up a Floobits account at any time under\n\nTools -> Floobits -> Setup''')
+            cb(None)
+            return
+
+        agent.once('end', cb)
+
+        try:
+            reactor.reactor.connect(agent, host, G.DEFAULT_PORT, True)
+        except Exception as e:
+            print(str_e(e))
+
+    def stop(self):
+        sys.exit()
+
+    def get_view_text_by_path(self, rel_path):
+        full_path = utils.get_full_path(rel_path)
+        emacs_buf = self.emacs_bufs.get(full_path)
+        if emacs_buf:
+            return emacs_buf[0]
+
+    def error_message(self, msg):
+        print(msg)
+        self.send({'name': 'error', 'msg': msg})
 
     def status_message(self, *args, **kwargs):
         print(args, kwargs)
@@ -103,7 +168,32 @@ class EmacsHandler(base.BaseHandler):
             buf['md5'] = hashlib.md5(patch.current.encode('utf-8')).hexdigest()
             self.send_to_floobits(patch.to_json())
 
-    def get_input(self, prompt, initial, cb, *args, **kwargs):
+    def y_or_n(self, prompt, initial, cb):
+        self.user_input_count += 1
+        event = {
+            'name': 'user_input',
+            'id': self.user_input_count,
+            'prompt': prompt.replace('\n', ', ').replace(", ,", "") + '? ',
+            'initial': initial,
+            'y_or_n': True
+        }
+        self.user_inputs[self.user_input_count] = cb
+        self.send(event)
+
+    def choose(self, prompt, choices, cb):
+        self.user_input_count += 1
+        choices = [["%d. %s" % (i + 1, v), i] for i, v in enumerate(choices)]
+        event = {
+            'name': 'user_input',
+            'id': self.user_input_count,
+            'prompt': prompt + "\n\n%s\n\nPlease select an option: " % "\n".join([c[0] for c in choices]),
+            'initial': "",
+            'choices': choices
+        }
+        self.user_inputs[self.user_input_count] = lambda choice: cb(choice[3:])
+        self.send(event)
+
+    def get_input(self, prompt, initial, cb):
         self.user_input_count += 1
         event = {
             'name': 'user_input',
@@ -111,23 +201,35 @@ class EmacsHandler(base.BaseHandler):
             'prompt': prompt,
             'initial': initial,
         }
-        if 'choices' in kwargs:
-            event['choices'] = kwargs['choices']
-        elif 'y_or_n' in kwargs:
-            event['y_or_n'] = True
-            del kwargs['y_or_n']
-            event['prompt'] = prompt.replace('\n', ', ').replace(", ,", "") + '? '
+        self.user_inputs[self.user_input_count] = cb
         self.send(event)
-        self.user_inputs[self.user_input_count] = lambda x: cb(x, *args, **kwargs)
 
     def on_connect(self):
         msg.log("have an emacs!")
 
-    def remote_connect(self, owner, workspace, get_bufs=True):
-        G.PROJECT_PATH = os.path.realpath(G.PROJECT_PATH)
-        self.agent = agent_connection.AgentConnection(owner, workspace, self, get_bufs)
-        reactor.reactor.connect(self.agent, G.DEFAULT_HOST, G.DEFAULT_PORT, True)
-        return self.agent
+    @utils.inlined_callbacks
+    def remote_connect(self, host, owner, workspace, d, get_bufs=False):
+        G.PROJECT_PATH = os.path.realpath(d)
+        try:
+            utils.mkdir(os.path.dirname(G.PROJECT_PATH))
+        except Exception as e:
+            msg.error("Couldn't create directory %s: %s" % (G.PROJECT_PATH, str_e(e)))
+            return
+
+        auth = G.AUTH.get(host)
+        if not auth:
+            success = yield self.link_account, host
+            if not success:
+                return
+            auth = G.AUTH.get(host)
+            if not auth:
+                msg.error("Something went really wrong.")
+                return
+        self.agent = agent_connection.AgentConnection(owner, workspace, self, auth, get_bufs and d)
+        reactor.reactor.connect(self.agent, host, G.DEFAULT_PORT, True)
+        url = self.agent.workspace_url
+        utils.add_workspace_to_persistent_json(owner, workspace, url, d)
+        utils.update_recent_workspaces(url)
 
     def create_view(self, buf, emacs_buf=None):
         v = View(self, buf, emacs_buf)
@@ -170,7 +272,7 @@ class EmacsHandler(base.BaseHandler):
         if cb is None:
             msg.error('cb for input %s is none' % cb_id)
             return
-        cb(data)
+        cb(data.get('response'))
         del self.user_inputs[cb_id]
 
     def _on_set_follow_mode(self, req):
@@ -275,7 +377,7 @@ class EmacsHandler(base.BaseHandler):
                 self.emacs_bufs[path][0] = text
             if not buf:
                 msg.debug('no buf for path %s' % path)
-                if 'create_buf' in G.PERMS and not ignore.is_ignored(path):
+                if 'create_buf' in G.PERMS and utils.is_shared(path) and G.IGNORE and not G.IGNORE.is_ignored(path):
                     self.agent._upload(path, text=text)
                 elif path in self.emacs_bufs:
                     del self.emacs_bufs[path]
@@ -318,179 +420,212 @@ class EmacsHandler(base.BaseHandler):
         try:
             webbrowser.open(self.agent.workspace_url, new=2, autoraise=True)
         except Exception as e:
-            msg.error("Couldn't open a browser: %s" % (str(e)))
+            msg.error("Couldn't open a browser: %s" % (str_e(e)))
 
     def _on_open_workspace_settings(self, req):
         try:
             webbrowser.open(self.agent.workspace_url + '/settings', new=2, autoraise=True)
         except Exception as e:
-            msg.error("Couldn't open a browser: %s" % (str(e)))
+            msg.error("Couldn't open a browser: %s" % (str_e(e)))
 
+    @utils.inlined_callbacks
     def _on_share_dir(self, data):
-        file_to_share = None
+        # file_to_share = None
         utils.reload_settings()
-        G.USERNAME = data['username']
-        G.SECRET = data['secret']
         dir_to_share = data['dir_to_share']
         perms = data['perms']
         editor.line_endings = data['line_endings'].find("unix") >= 0 and "\n" or "\r\n"
         dir_to_share = os.path.expanduser(dir_to_share)
         dir_to_share = utils.unfuck_path(dir_to_share)
         workspace_name = os.path.basename(dir_to_share)
-        G.PROJECT_PATH = os.path.realpath(dir_to_share)
-        msg.debug('%s %s %s' % (G.USERNAME, workspace_name, G.PROJECT_PATH))
+        dir_to_share = os.path.realpath(dir_to_share)
+        msg.debug('%s %s' % (workspace_name, dir_to_share))
+
+        if not utils.can_auth():
+            success = yield self.create_or_link_account, G.DEFAULT_HOST
+            if not success:
+                return
+            utils.reload_settings()
 
         if os.path.isfile(dir_to_share):
-            file_to_share = dir_to_share
+            # file_to_share = dir_to_share
             dir_to_share = os.path.dirname(dir_to_share)
 
         try:
             utils.mkdir(dir_to_share)
         except Exception:
-            return msg.error("The directory %s doesn't exist and I can't create it." % dir_to_share)
+            msg.error("The directory %s doesn't exist and I can't create it." % dir_to_share)
+            return
 
-        floo_file = os.path.join(dir_to_share, '.floo')
-
-        info = {}
-        try:
-            floo_info = open(floo_file, 'rb').read().decode('utf-8')
-            info = json.loads(floo_info)
-        except (IOError, OSError):
-            pass
-        except Exception as e:
-            msg.warn("Couldn't read .floo file: %s: %s" % (floo_file, str(e)))
+        info = utils.read_floo_file(dir_to_share)
 
         workspace_url = info.get('url')
         if workspace_url:
-            parsed_url = api.prejoin_workspace(workspace_url, dir_to_share, {'perms': perms})
+            try:
+                parsed_url = api.prejoin_workspace(workspace_url, dir_to_share, {'perms': perms})
+            except ValueError as e:
+                pass
             if parsed_url:
                 # TODO: make sure we create_flooignore
                 # utils.add_workspace_to_persistent_json(parsed_url['owner'], parsed_url['workspace'], workspace_url, dir_to_share)
-                agent = self.remote_connect(parsed_url['owner'], parsed_url['workspace'], False)
-                return agent.once("room_info", lambda: agent.upload(file_to_share or dir_to_share))
+                self.remote_connect(parsed_url['host'], parsed_url['owner'], parsed_url['workspace'], dir_to_share)
+                return
 
-        parsed_url = utils.get_workspace_by_path(dir_to_share,
-                                                 lambda workspace_url: api.prejoin_workspace(workspace_url, dir_to_share, {'perms': perms}))
+        def prejoin(workspace_url):
+            try:
+                return api.prejoin_workspace(workspace_url, dir_to_share, {'perms': perms})
+            except ValueError:
+                pass
+
+        parsed_url = utils.get_workspace_by_path(dir_to_share, prejoin)
         if parsed_url:
-            agent = self.remote_connect(parsed_url['owner'], parsed_url['workspace'], False)
-            return agent.once("room_info", lambda: agent.upload(file_to_share or dir_to_share))
-
-        def on_done(data, choices=None):
-            self.get_input('Workspace name:',
-                           workspace_name,
-                           self._on_create_workspace,
-                           workspace_name,
-                           dir_to_share,
-                           owner=data.get('response'),
-                           perms=perms)
-
-        try:
-            r = api.get_orgs_can_admin()
-        except IOError as e:
-            return editor.error_message('Error getting org list: %s' % str(e))
-        if r.code >= 400 or len(r.body) == 0:
-            return on_done({'response': G.USERNAME})
-        i = 0
-        choices = []
-        choices.append([G.USERNAME, i])
-        for org in r.body:
-            i += 1
-            choices.append([org['name'], i])
-
-        self.get_input('Create workspace owned by (%s) ' % " ".join([x[0] for x in choices]), '', on_done, choices=choices)
-
-    def _on_create_workspace(self, data, workspace_name, dir_to_share, owner=None, perms=None):
-        owner = owner or G.USERNAME
-        workspace_name = data.get('response', workspace_name)
-
-        try:
-            api_args = {
-                'name': workspace_name,
-                'owner': owner,
-            }
-            if perms:
-                api_args['perms'] = perms
-            msg.debug(str(api_args))
-            r = api.create_workspace(api_args)
-        except Exception as e:
-            msg.error('Unable to create workspace: %s' % unicode(e))
-            return editor.error_message('Unable to create workspace: %s' % unicode(e))
-
-        workspace_url = 'https://%s/%s/%s' % (G.DEFAULT_HOST, owner, workspace_name)
-
-        if r.code < 400:
-            msg.log('Created workspace %s' % workspace_url)
-            utils.add_workspace_to_persistent_json(owner, workspace_name, workspace_url, dir_to_share)
-            G.PROJECT_PATH = dir_to_share
-            agent = self.remote_connect(owner, workspace_name, False)
-            return agent.once("room_info", lambda: agent.upload(dir_to_share))
-
-        msg.error('Unable to create workspace: %s' % r.body)
-        if r.code not in [400, 402, 409]:
-            try:
-                r.body = r.body['detail']
-            except Exception:
-                pass
-            return editor.error_message('Unable to create workspace: %s' % r.body)
-
-        if r.code == 400:
-            workspace_name = re.sub('[^A-Za-z0-9_\-\.]', '-', workspace_name)
-            prompt = 'Invalid name. Workspace names must match the regex [A-Za-z0-9_\-\.]. Choose another name:'
-        elif r.code == 402:
-            try:
-                r.body = r.body['detail']
-            except Exception:
-                pass
-            cb = lambda data: data['response'] and webbrowser.open('https://%s/%s/settings#billing' % (G.DEFAULT_HOST, owner))
-            self.get_input('%s Open billing settings?' % r.body, '', cb, y_or_n=True)
+            self.remote_connect(parsed_url['host'], parsed_url['owner'], parsed_url['workspace'], dir_to_share)
             return
+
+        if not G.AUTH:
+            return
+
+        auths = dict(G.AUTH)
+        hosts = list(auths.keys())
+        if hosts == 1:
+            host = hosts[0]
         else:
-            prompt = 'Workspace %s/%s already exists. Choose another name:' % (owner, workspace_name)
+            host = yield self.choose, 'Which Floobits account should be used?', hosts
+            if not host:
+                return
 
-        return self.get_input(prompt, workspace_name, self._on_create_workspace, workspace_name, dir_to_share, owner, perms)
-
-    def join_workspace(self, data, owner, workspace, dir_to_make=None):
-        d = data['response']
-        if dir_to_make:
-            if d:
-                d = dir_to_make
-                utils.mkdir(d)
-            else:
-                d = ''
-        if d == '':
-            return self.get_input('Save workspace files to: ', G.PROJECT_PATH, self.join_workspace, owner, workspace)
-        d = os.path.realpath(os.path.expanduser(d))
-        if not os.path.isdir(d):
-            if dir_to_make:
-                return msg.error("Couldn't create directory %s" % dir_to_make)
-            prompt = '%s is not a directory. Create it? ' % d
-            return self.get_input(prompt, '', self.join_workspace, owner, workspace, dir_to_make=d, y_or_n=True)
         try:
-            G.PROJECT_PATH = d
-            utils.mkdir(os.path.dirname(G.PROJECT_PATH))
-            self.remote_connect(owner, workspace)
-        except Exception as e:
-            return msg.error("Couldn't create directory %s: %s" % (G.PROJECT_PATH, str(e)))
+            r = api.get_orgs_can_admin(host)
+        except IOError as e:
+            editor.error_message('Error getting org list: %s' % str_e(e))
+            return
 
+        if r.code >= 400 or len(r.body) == 0:
+            editor.error_message('Error getting org list: %s' % str_e(e))
+            return
+
+        choices = [G.AUTH[host]['username']] + [org['name'] for org in r.body]
+
+        owner = yield self.choose, 'Create workspace owned by', choices
+
+        prompt = 'Workspace name: '
+
+        api_args = {
+            'name': workspace_name,
+            'owner': owner,
+        }
+
+        if perms:
+            api_args['perms'] = perms
+
+        while True:
+            new_name = yield self.get_input, prompt, workspace_name
+            workspace_name = new_name or workspace_name
+            try:
+                api_args['name'] = workspace_name
+                r = api.create_workspace(host, api_args)
+            except Exception as e:
+                msg.error('Unable to create workspace: %s' % str_e(e))
+                editor.error_message('Unable to create workspace: %s' % str_e(e))
+                return
+
+            if r.code < 400:
+                workspace_url = 'https://%s/%s/%s' % (host, owner, workspace_name)
+                msg.log('Created workspace %s' % workspace_url)
+                self.remote_connect(host, owner, workspace_name, dir_to_share, True)
+                return
+
+            msg.error('Unable to create workspace: %s' % r.body)
+
+            if r.code not in (400, 402, 409):
+                try:
+                    r.body = r.body['detail']
+                except Exception:
+                    pass
+                editor.error_message('Unable to create workspace: %s' % r.body)
+                return
+
+            if r.code == 402:
+                try:
+                    r.body = r.body['detail']
+                except Exception:
+                    pass
+
+                yes = yield self.y_or_n, '%s Open billing settings?' % r.body, ''
+                if yes:
+                    webbrowser.open('https://%s/%s/settings#billing' % (host, owner))
+                return
+
+            if r.code == 400:
+                workspace_name = re.sub('[^A-Za-z0-9_\-\.]', '-', workspace_name)
+                prompt = 'Invalid name. Workspace names must match the regex [A-Za-z0-9_\-\.]. Choose another name: '
+                continue
+
+            prompt = 'Workspace %s/%s already exists. Choose another name: ' % (owner, workspace_name)
+
+    @utils.inlined_callbacks
     def _on_join_workspace(self, data):
         workspace = data['workspace']
         owner = data['workspace_owner']
-        G.USERNAME = data['username']
-        G.SECRET = data['secret']
+        host = data['host']
+        current_directory = data['current_directory']
         editor.line_endings = data['line_endings'].find("unix") >= 0 and "\n" or "\r\n"
         utils.reload_settings()
+
+        if not utils.can_auth():
+            success = yield self.create_or_link_account, host
+            if not success:
+                return
+            utils.reload_settings()
+
+        info = utils.read_floo_file(current_directory)
+        dot_floo_url = info and info.get('url')
         try:
-            G.PROJECT_PATH = utils.get_persistent_data()['workspaces'][owner][workspace]['path']
+            parsed_url = utils.parse_url(dot_floo_url)
         except Exception:
-            G.PROJECT_PATH = ''
+            parsed_url = None
 
-        if G.PROJECT_PATH and os.path.isdir(G.PROJECT_PATH):
-            return self.remote_connect(owner, workspace)
+        if parsed_url and parsed_url['host'] == host and parsed_url['workspace'] == workspace and parsed_url['owner'] == owner:
+            self.remote_connect(host, owner, workspace, current_directory)
+            return
 
-        G.PROJECT_PATH = '~/floobits/share/%s/%s' % (owner, workspace)
-        self.get_input('Save workspace files to: ', G.PROJECT_PATH, self.join_workspace, owner, workspace)
+        try:
+            d = utils.get_persistent_data()['workspaces'][owner][workspace]['path']
+        except Exception:
+            d = ''
+
+        if os.path.isdir(d):
+            self.remote_connect(host, owner, workspace, d)
+            return
+
+        d = d or os.path.join(G.SHARE_DIR or G.BASE_DIR, owner, workspace)
+        while True:
+            d = yield self.get_input, 'Save workspace files to: ', d
+            if not d:
+                return
+            d = os.path.realpath(os.path.expanduser(d))
+            if not os.path.isdir(d):
+                y_or_n = yield self.y_or_n, '%s is not a directory. Create it? ' % d, ''
+                if not y_or_n:
+                    return
+                utils.mkdir(d)
+                if not os.path.isdir(d):
+                    msg.error("Couldn't create directory %s" % d)
+                    continue
+            if os.path.isdir(d):
+                self.remote_connect(host, owner, workspace, d)
+                return
 
     def _on_setting(self, data):
         setattr(G, data['name'], data['value'])
         if data['name'] == 'debug':
             utils.update_log_level()
+
+    def _on_pinocchio(self, data):
+        floorc = utils.load_floorc_json()
+        auth = floorc.get('AUTH', {}).get(G.DEFAULT_HOST, {})
+        username = auth.get('username')
+        secret = auth.get('secret')
+        if not (username and secret):
+            return self.error_message('You don\'t seem to have a Floobits account of any sort')
+        webbrowser.open('https://%s/%s/pinocchio/%s' % (G.DEFAULT_HOST, username, secret))

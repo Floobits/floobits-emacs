@@ -13,7 +13,15 @@ timeouts = defaultdict(list)
 top_timeout_id = 0
 cancelled_timeouts = set()
 calling_timeouts = False
-welcome_text = ''
+
+
+NEW_ACCOUNT_TXT = 'Welcome {username}!\n\nYou\'re all set to collaborate. You should check out our docs at https://{host}/help/plugins/emacs#usage. \
+You must run \'Floobits - Complete Sign Up\' so you can log in to the website.'
+
+LINKED_ACCOUNT_TXT = """Welcome {username}!\n\nYou are all set to collaborate.
+
+You may want to check out our docs at https://{host}/help/plugins/emacs#usage"""
+
 line_endings = os.linesep
 
 
@@ -73,32 +81,40 @@ def call_timeouts():
     calling_timeouts = False
 
 
-def error_message(*args, **kwargs):
-    editor = getattr(G, 'editor', None)
-    if editor:
-        editor.error_message(*args, **kwargs)
+def error_message(msg):
+    emacs = getattr(G, 'emacs', None)
+    if emacs:
+        emacs.error_message(msg)
     else:
-        print(args, kwargs)
+        print(msg)
 
 
 def status_message(msg):
-    editor = getattr(G, 'editor', None)
-    if editor:
-        editor.status_message(msg)
+    emacs = getattr(G, 'emacs', None)
+    if emacs:
+        emacs.status_message(msg)
     else:
         print(msg)
 
 
 def message_dialog(msg):
-    editor = getattr(G, 'editor', None)
-    if editor:
-        editor.status_message(msg)
+    # TODO: make this a modal thing. probably need to open a new buffer
+    emacs = getattr(G, 'emacs', None)
+    if emacs:
+        emacs.status_message(msg)
     else:
         print(msg)
 
 
-def open_file(file):
-    raise NotImplementedError('open_file')
+def open_file(f):
+    emacs = getattr(G, 'emacs', None)
+    if not emacs:
+        return
+    event = {
+        'name': 'open_file',
+        'filename': f
+    }
+    emacs.send(event)
 
 
 def platform():

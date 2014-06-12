@@ -66,14 +66,15 @@
 (defvar floobits-conn)
 (defvar floobits-current-position)
 (defvar floobits-open-buffers)
+(defvar floobits-complete-signup)
 (defvar floobits-follow-mode)
 (defvar floobits-perms)
 (defvar floobits-share-dir)
 (defvar floobits-user-highlights)
 (defvar floobits-on-connect)
 (defvar floobits-last-highlight)
-(defvar floobits-username)
-(defvar floobits-secret)
+(defvar floobits-auth)
+(defvar floobits-default-host)
 (defvar floobits-user-input-events)
 
 
@@ -150,10 +151,10 @@
 
 (defun floobits-send-debug ()
   (when floobits-conn
-  (floobits-send-to-agent
-    (list
-      (cons 'name 'debug)
-      (cons 'value floobits-debug)) 'setting)))
+    (floobits-send-to-agent
+      (list
+        (cons 'name 'debug)
+        (cons 'value floobits-debug)) 'setting)))
 
 ;;;###autoload
 (defun floobits-debug ()
@@ -187,16 +188,21 @@
   (floobits-destroy-connection))
 
 ;;;###autoload
+(defun floobits-complete-signup ()
+  "If you created an Floobits account via emacs, you must call this command before you can login to
+  the website."
+  (interactive)
+  (floobits-destroy-connection)
+  (floobits-create-connection (lambda () (floobits-send-to-agent () 'pinocchio))))
+
+;;;###autoload
 (defun floobits-share-dir-public (dir-to-share)
   "Create a workspace and populate it with the contents of the directory, dir-to-share, or make it.
 If the directory corresponds to an existing floobits workspace, you will instead join the workspace.
 "
   (interactive "DDirectory to share: ")
-  (floobits-load-floorc)
   (floobits-destroy-connection)
   (lexical-let* ((req (list
-                (cons 'username floobits-username)
-                (cons 'secret floobits-secret)
                 (cons 'perms '((AnonymousUser . ["view_room"])))
                 (cons 'line_endings (floobits-get-line-endings))
                 (cons 'dir_to_share dir-to-share)))
@@ -209,12 +215,9 @@ If the directory corresponds to an existing floobits workspace, you will instead
 If the directory corresponds to an existing floobits workspace, you will instead join the workspace.
 "
   (interactive "DDirectory to share: ")
-  (floobits-load-floorc)
   (floobits-destroy-connection)
   (lexical-let* (
       (req (list
-        (cons 'username floobits-username)
-        (cons 'secret floobits-secret)
         (cons 'perms '((AnonymousUser . [])))
         (cons 'line_endings (floobits-get-line-endings))
         (cons 'dir_to_share dir-to-share)))
@@ -222,7 +225,7 @@ If the directory corresponds to an existing floobits workspace, you will instead
     (floobits-create-connection func)))
 
 (defun floobits-event-error (req)
-  (message-box (floo-get-item req 'msg)))
+  (display-message-or-buffer (floo-get-item req 'msg)))
 
 (defun _floobits-read-persistent ()
   (condition-case nil
@@ -252,7 +255,6 @@ See floobits-share-dir to create one or visit floobits.com."
     (let ((histories (_floobits-read-persistent)))
       (read-from-minibuffer "Floobits workspace URL (owner/workspace): " 
         (_floobits-get-url-from-dot-floo) nil nil 'histories))))
-  (floobits-load-floorc)
   (let* ((url-struct (url-generic-parse-url floourl))
         (domain (url-host url-struct))
         (port (url-port url-struct))
@@ -267,14 +269,14 @@ See floobits-share-dir to create one or visit floobits.com."
     (if (and path workspace owner)
       (progn
         (floobits-destroy-connection)
-        (lexical-let* ((req (list
-          (cons 'username floobits-username)
-          (cons 'workspace workspace)
-          (cons 'secret floobits-secret)
-          (cons 'line_endings (floobits-get-line-endings))
-          (cons 'workspace_owner owner)))
-          (func (lambda () (floobits-send-to-agent req 'join_workspace))))
-          (floobits-create-connection func)))
+        (lexical-let* ((req 
+          (list
+            (cons 'host domain)
+            (cons 'workspace workspace)
+            (cons 'line_endings (floobits-get-line-endings))
+            (cons 'workspace_owner owner)
+            (cons 'current_directory default-directory))))
+        (floobits-create-connection (lambda () (floobits-send-to-agent req 'join_workspace)))))
       (message "Invalid url! I should look like: https://floobits.com/owner/workspace/"))))
 
 ;;;###autoload
@@ -328,23 +330,6 @@ See floobits-share-dir to create one or visit floobits.com."
 (defmacro floo-set-item (alist key value)
   "set an element in an alist"
   (list 'add-to-list alist (list 'cons key value)))
-
-(defun floobits-load-floorc ()
-  "loads floorc file vars"
-  (condition-case nil
-    (progn
-      (with-temp-buffer
-        (insert-file-contents "~/.floorc")
-        (goto-char 1)
-        (let ((strings (split-string (buffer-string) "\n" t)))
-          (loop for s in strings do
-            (let ((substrings (split-string s " " t)))
-              (set (intern (concat "floobits-" (car substrings))) (cadr substrings)))))))
-  (error nil))
-  (if (or (not (boundp 'floobits-username)) (string= "" floobits-username))
-    (error "Floobits username not found. Please define a username and secret in ~/.floorc"))
-  (if (or (not (boundp 'floobits-secret)) (string= "" floobits-secret))
-    (error "Floobits secret not found. Please define a username and secret in ~/.floorc")))
 
 (defun floobits-listener (process response)
   (setq floobits-agent-buffer (concat floobits-agent-buffer response))
@@ -620,7 +605,8 @@ See floobits-share-dir to create one or visit floobits.com."
 (defun floobits-event-delete_buf (req)
   (let ((filename (floo-get-item req "path" ))
         (username (floo-get-item req "username")))
-    (message "User %s deleted buffer %s" username filename)))
+    (unless (string= filename "FLOOBITS_README.md")
+      (message "User %s deleted buffer %s" username filename))))
 
 (defun floobits-event-get_buf (req)
   (let* ((filename (floo-get-item req "full_path"))
@@ -631,6 +617,9 @@ See floobits-share-dir to create one or visit floobits.com."
           (atomic-change-group
             (delete-region 1 (+ 1 (buffer-size)))
             (insert (floo-get-item req "buf"))))))))
+
+(defun floobits-event-open_file (req)
+  (find-file (floo-get-item req "filename")))
 
 (defun floobits-event-message (req)
   (message "%s" (floo-get-item req "message")))
@@ -708,7 +697,6 @@ See floobits-share-dir to create one or visit floobits.com."
             (cons 'deleted deleted))))
         (floobits-send-to-agent req 'buffer_list_change)))))
 
-  ; (run-at-time 2 nil (lambda () (floobits-event-user_input '(("id" . 1) ("name" . "user_input") ("prompt" . ": ") ("initial" . "overwrite-") ("choices" . [["overwrite-remote" 0] ["overwrite-local" 1] ["cancel" 2]])))))
 (defun floobits-minibuffer-exit-hook ()
   (when floobits-user-input-events
     (run-at-time 0 nil
@@ -717,7 +705,6 @@ See floobits-share-dir to create one or visit floobits.com."
           (let ((req (car floobits-user-input-events)))
             (setq floobits-user-input-events (cdr floobits-user-input-events))
             (floobits-event-user_input req)))))))
-
 
 (defun floobits-get-line-endings ()
   (symbol-name buffer-file-coding-system))
