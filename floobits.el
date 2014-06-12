@@ -177,7 +177,7 @@
   (when floobits-conn
     (setq floobits-follow-mode (not floobits-follow-mode))
     (floobits-send-to-agent (list (cons 'follow_mode floobits-follow-mode)) 'set_follow_mode)
-    (when floobits-follow-mode
+    (when (and floobits-follow-mode floobits-last-highlight)
       (floobits-event-highlight floobits-last-highlight))
     (message "Follow mode %s." (if floobits-follow-mode "enabled" "disabled"))))
 
