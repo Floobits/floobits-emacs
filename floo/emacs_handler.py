@@ -371,7 +371,7 @@ class EmacsHandler(base.BaseHandler):
         for path, text in added.items():
             buf = self.get_buf_by_path(path)
             buf_id = buf and int(buf.get('id'))
-            d = buf and self.agent.on_load.get(buf_id)
+            d = buf and 'buf' in buf and self.agent.on_load.get(buf_id)
             if d:
                 self.emacs_bufs[path][0] = buf['buf']
             else:
