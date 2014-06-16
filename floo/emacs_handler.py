@@ -13,8 +13,8 @@ try:
     from .common.exc_fmt import str_e
     from .common.handlers import base
     from .emacs_protocol import EmacsProtocol
-    from .floo.common.handlers.credentials import RequestCredentialsHandler
-    from .floo.common.handlers.account import CreateAccountHandler
+    from .common.handlers.credentials import RequestCredentialsHandler
+    from .common.handlers.account import CreateAccountHandler
 except (ImportError, ValueError):
     import agent_connection
     import editor
