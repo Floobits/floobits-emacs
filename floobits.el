@@ -51,6 +51,17 @@
 (require 'url)
 (require 'bookmark)
 
+(defgroup floobits nil
+  "Floobits"
+  :prefix "floobits-"
+  :group 'editing
+  :link '(url-link :tag "Description" "https://github.com/Floobits/floobits-emacs"))
+
+(defcustom floobits-python-executable "python"
+  "Python executable to use when running Floobits"
+  :type 'string
+  :group 'floobits)
+
 (defvar floobits-plugin-dir (file-name-directory load-file-name))
 (add-to-list 'load-path floobits-plugin-dir)
 (require 'highlight)
@@ -76,7 +87,6 @@
 (defvar floobits-auth)
 (defvar floobits-default-host)
 (defvar floobits-user-input-events)
-
 
 (defun floobits-initialize ()
   (setq floobits-agent-buffer "")
@@ -392,7 +402,7 @@ See floobits-share-dir to create one or visit floobits.com."
       (delete-process floobits-python-agent))
     (error nil))
   (message "Launching Floobits python agent...")
-  (setq floobits-python-agent (start-process "" "*Floobits*" "python" floobits-python-path))
+  (setq floobits-python-agent (start-process "" "*Floobits*" floobits-python-executable floobits-python-path))
   (switch-to-buffer "*Floobits*")
   (set-process-filter floobits-python-agent 'floobits-agent-listener)
   (accept-process-output floobits-python-agent 5)
