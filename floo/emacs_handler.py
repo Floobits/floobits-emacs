@@ -148,6 +148,9 @@ class EmacsHandler(base.BaseHandler):
         while self.bufs_changed:
             buf_id = self.bufs_changed.pop()
             view = self.get_view(buf_id)
+            if view is None:
+                msg.debug('View for buf %s no longer exists. Ignoring change event' % buf_id)
+                continue
             buf = view.buf
             if view.is_loading():
                 msg.debug('View for buf %s is not ready. Ignoring change event' % buf['id'])
