@@ -69,7 +69,7 @@ def proxy_api_request(host, url, data, method):
         args += ["--data", json.dumps(data)]
     if method:
         args += ["--method", method]
-    msg.log('Running %s (%s)' % (' '.join(args), G.PLUGIN_PATH))
+    msg.log('Running ', ' '.join(args), ' (', G.PLUGIN_PATH, ')')
     proc = subprocess.Popen(args, cwd=G.PLUGIN_PATH, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     (stdout, stderr) = proc.communicate()
     if stderr:
@@ -160,7 +160,7 @@ def get_orgs_can_admin(host):
 def send_error(description=None, exception=None):
     G.ERROR_COUNT += 1
     if G.ERRORS_SENT >= G.MAX_ERROR_REPORTS:
-        msg.warn('Already sent %s errors this session. Not sending any more.' % G.ERRORS_SENT)
+        msg.warn('Already sent ', G.ERRORS_SENT, ' errors this session. Not sending any more.\n', description, exception)
         return
     data = {
         'jsondump': {
@@ -170,15 +170,15 @@ def send_error(description=None, exception=None):
         'dir': G.COLAB_DIR,
     }
     if G.AGENT:
-        data['owner'] = G.AGENT.owner
-        data['username'] = G.AGENT.username
-        data['workspace'] = G.AGENT.workspace
+        data['owner'] = getattr(G.AGENT, "owner", None)
+        data['username'] = getattr(G.AGENT, "username", None)
+        data['workspace'] = getattr(G.AGENT, "workspace", None)
     if exception:
         data['message'] = {
             'description': str(exception),
             'stack': traceback.format_exc(exception)
         }
-    msg.log('Floobits plugin error! Sending exception report: %s' % data['message'])
+    msg.log('Floobits plugin error! Sending exception report: ', data['message'])
     if description:
         data['message']['description'] = description
     try:
@@ -208,6 +208,11 @@ def prejoin_workspace(workspace_url, dir_to_share, api_args):
     except Exception as e:
         msg.error(str_e(e))
         return False
+
+    host = result.get('host')
+    if not get_basic_auth(host):
+        raise ValueError('No auth credentials for %s. Please add a username and secret for %s in your ~/.floorc.json' % (host, host))
+
     try:
         w = get_workspace_by_url(workspace_url)
     except Exception as e:
@@ -230,9 +235,9 @@ def prejoin_workspace(workspace_url, dir_to_share, api_args):
             msg.debug(str_e(e))
         return False
 
-    msg.debug('workspace: %s', json.dumps(w.body))
+    msg.debug('workspace: ', json.dumps(w.body))
     anon_perms = w.body.get('perms', {}).get('AnonymousUser', [])
-    msg.debug('api args: %s' % api_args)
+    msg.debug('api args: ', api_args)
     new_anon_perms = api_args.get('perms', {}).get('AnonymousUser', [])
     # TODO: prompt/alert user if going from private to public
     if set(anon_perms) != set(new_anon_perms):

@@ -112,15 +112,18 @@ def save_floorc_json(s):
     floorc_json = {}
     for k, v in s.items():
         floorc_json[k.lower()] = v
-    msg.log('Writing %s' % floorc_json)
+    msg.log('Writing ', floorc_json)
     with open(G.FLOORC_JSON_PATH, 'w') as fd:
         fd.write(json.dumps(floorc_json, indent=4, sort_keys=True))
 
 
 def can_auth(host=None):
-    auth = G.AUTH.get(host or G.DEFAULT_HOST, {})
-    can_auth = (auth.get('username') or auth.get('api_key')) and auth.get('secret')
-    return can_auth
+    if host is None:
+        host = len(G.AUTH) and list(G.AUTH.keys())[0] or G.DEFAULT_HOST
+    auth = G.AUTH.get(host)
+    if not auth:
+        return False
+    return (auth.get('username') or auth.get('api_key')) and auth.get('secret')
 
 
 cancelled_timeouts = set()
@@ -259,19 +262,33 @@ def update_floo_file(path, data):
         floo_fd.write(json.dumps(floo_json, indent=4, sort_keys=True))
 
 
+def read_floo_file(path):
+    floo_file = os.path.join(path, '.floo')
+
+    info = {}
+    try:
+        floo_info = open(floo_file, 'rb').read().decode('utf-8')
+        info = json.loads(floo_info)
+    except (IOError, OSError):
+        pass
+    except Exception as e:
+        msg.warn('Couldn\'t read .floo file: ', floo_file, ': ', str_e(e))
+    return info
+
+
 def get_persistent_data(per_path=None):
     per_data = {'recent_workspaces': [], 'workspaces': {}}
     per_path = per_path or os.path.join(G.BASE_DIR, 'persistent.json')
     try:
         per = open(per_path, 'rb')
     except (IOError, OSError):
-        msg.debug('Failed to open %s. Recent workspace list will be empty.' % per_path)
+        msg.debug('Failed to open ', per_path, '. Recent workspace list will be empty.')
         return per_data
     try:
         data = per.read().decode('utf-8')
         persistent_data = json.loads(data)
     except Exception as e:
-        msg.debug('Failed to parse %s. Recent workspace list will be empty.' % per_path)
+        msg.debug('Failed to parse ', per_path, '. Recent workspace list will be empty.')
         msg.debug(str_e(e))
         msg.debug(data)
         return per_data
@@ -397,7 +414,7 @@ def save_buf(buf):
             else:
                 fd.write(buf['buf'])
     except Exception as e:
-        msg.error('Error saving buf: %s' % str_e(e))
+        msg.error('Error saving buf: ', str_e(e))
 
 
 def _unwind_generator(gen_expr, cb=None, res=None):
@@ -405,6 +422,7 @@ def _unwind_generator(gen_expr, cb=None, res=None):
         while True:
             maybe_func = res
             args = []
+            # if the first arg is callable, we need to call it (and assume the last argument is a callback)
             if type(res) == tuple:
                 maybe_func = len(res) and res[0]
 
@@ -420,10 +438,17 @@ def _unwind_generator(gen_expr, cb=None, res=None):
 
             def f(*args):
                 return _unwind_generator(gen_expr, cb, args)
-            args = list(res)[1:]
+
+            try:
+                args = list(res)[1:]
+            except:
+                # assume not iterable
+                args = []
+
             args.append(f)
             return maybe_func(*args)
-        # TODO: probably shouldn't catch StopIteration to return since that can occur by accident...
+
+    # TODO: probably shouldn't catch StopIteration to return since that can occur by accident...
     except StopIteration:
         pass
     except __StopUnwindingException as e:
