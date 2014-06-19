@@ -3,21 +3,23 @@ import webbrowser
 import re
 
 try:
-    from . import api, msg, utils, reactor, shared as G
+    from . import api, msg, utils, reactor, shared as G, event_emitter
     from .handlers import account, credentials
     from .. import editor
     from ..common.exc_fmt import str_e
 except (ImportError, ValueError):
     from floo.common.exc_fmt import str_e
     from floo.common.handlers import account, credentials
-    from floo.common import api, msg, utils, reactor, shared as G
+    from floo.common import api, msg, utils, reactor, shared as G, event_emitter
     from floo import editor
 
 
-class FlooUI(object):
-    agent = None
+class FlooUI(event_emitter.EventEmitter):
+    def __init__(self):
+        super(FlooUI, self).__init__()
+        self.agent = None
 
-    def _make_agent(self, owner, workspace, auth, created_workspace, d):
+    def _make_agent(self, context, owner, workspace, auth, created_workspace, d):
         """@returns new Agent()"""
         raise NotImplemented()
 
@@ -100,6 +102,31 @@ class FlooUI(object):
         except Exception as e:
             print(str_e(e))
 
+    def open_workspace(self):
+        if not self.agent:
+            return
+        try:
+            webbrowser.open(self.agent.workspace_url, new=2, autoraise=True)
+        except Exception as e:
+            msg.error("Couldn't open a browser: %s" % (str_e(e)))
+
+    def open_workspace_settings(self):
+        if not self.agent:
+            return
+        try:
+            webbrowser.open(self.agent.workspace_url + '/settings', new=2, autoraise=True)
+        except Exception as e:
+            msg.error("Couldn't open a browser: %s" % (str_e(e)))
+
+    def pinocchio(self, host=None):
+        floorc = utils.load_floorc_json()
+        auth = floorc.get('AUTH', {}).get(host or G.DEFAULT_HOST, {})
+        username = auth.get('username')
+        secret = auth.get('secret')
+        if not (username and secret):
+            return self.error_message('You don\'t seem to have a Floobits account of any sort')
+        webbrowser.open('https://%s/%s/pinocchio/%s' % (G.DEFAULT_HOST, username, secret))
+
     @utils.inlined_callbacks
     def remote_connect(self, context, host, owner, workspace, d, get_bufs=False):
         G.PROJECT_PATH = os.path.realpath(d)
@@ -125,14 +152,16 @@ class FlooUI(object):
                 pass
 
         G.WORKSPACE_WINDOW = yield self.get_a_window, d
-        self.agent = self._make_agent(owner, workspace, auth, get_bufs, d)
+        self.agent = self._make_agent(context, owner, workspace, auth, get_bufs, d)
+        print("emitting")
+        self.emit("agent", self.agent)
         reactor.reactor.connect(self.agent, host, G.DEFAULT_PORT, True)
         url = self.agent.workspace_url
         utils.add_workspace_to_persistent_json(owner, workspace, url, d)
         utils.update_recent_workspaces(url)
 
     @utils.inlined_callbacks
-    def create_workspace(self, context, host, owner, name, api_args, dir_to_share, cb):
+    def create_workspace(self, context, host, owner, name, api_args, dir_to_share):
         prompt = 'Workspace name: '
 
         api_args['name'] = name

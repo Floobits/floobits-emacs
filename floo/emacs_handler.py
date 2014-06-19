@@ -1,31 +1,23 @@
 # coding: utf-8
-import os
-import re
 import sys
 import hashlib
-import webbrowser
 from collections import defaultdict
 
 try:
-    from . import agent_connection, editor, emui
-    from .common import api, msg, shared as G, utils, reactor
+    from . import editor, emui
+    from .common import msg, shared as G, utils
     from .view import View
-    from .common.exc_fmt import str_e
+    # from .common.exc_fmt import str_e
     from .common.handlers import base
     from .emacs_protocol import EmacsProtocol
-    from .common.handlers.credentials import RequestCredentialsHandler
-    from .common.handlers.account import CreateAccountHandler
 except (ImportError, ValueError):
-    import agent_connection
     import editor
     import emui
-    from common import api, msg, shared as G, utils, reactor
+    from common import msg, shared as G, utils
     from view import View
-    from common.exc_fmt import str_e
+    # from common.exc_fmt import str_e
     from common.handlers import base
     from emacs_protocol import EmacsProtocol
-    from floo.common.handlers.credentials import RequestCredentialsHandler
-    from floo.common.handlers.account import CreateAccountHandler
 
 
 try:
@@ -62,7 +54,12 @@ class EmacsHandler(base.BaseHandler):
         self.views = {}
         self.emacs_bufs = defaultdict(lambda: [""])
         self.bufs_changed = []
-        self.ui = emui.Emui()
+        self.ui = emui.Emui(self)
+
+        def set_agent(a):
+            print('got a')
+            self.agent = a
+        self.ui.on("agent", set_agent)
 
     def stop(self):
         sys.exit()
@@ -301,30 +298,21 @@ class EmacsHandler(base.BaseHandler):
                 msg.debug('We should not have buffer %s in our views but we do.' % view.buf['path'])
 
     def _on_open_workspace(self, req):
-        try:
-            webbrowser.open(self.agent.workspace_url, new=2, autoraise=True)
-        except Exception as e:
-            msg.error("Couldn't open a browser: %s" % (str_e(e)))
+        self.ui.open_workspace()
 
     def _on_open_workspace_settings(self, req):
-        try:
-            webbrowser.open(self.agent.workspace_url + '/settings', new=2, autoraise=True)
-        except Exception as e:
-            msg.error("Couldn't open a browser: %s" % (str_e(e)))
+        self.ui.open_workspace_settings()
 
-    @utils.inlined_callbacks
     def _on_share_dir(self, data):
         editor.line_endings = data['line_endings'].find("unix") >= 0 and "\n" or "\r\n"
         self.ui.share_dir(self, data['dir_to_share'], data['perms'])
 
-    @utils.inlined_callbacks
     def _on_join_workspace(self, data):
         workspace = data['workspace']
         owner = data['workspace_owner']
         host = data['host']
         current_directory = data['current_directory']
         editor.line_endings = data['line_endings'].find("unix") >= 0 and "\n" or "\r\n"
-
         self.ui.join_workspace(self, host, workspace, owner, [current_directory])
 
     def _on_setting(self, data):
@@ -333,10 +321,4 @@ class EmacsHandler(base.BaseHandler):
             utils.update_log_level()
 
     def _on_pinocchio(self, data):
-        floorc = utils.load_floorc_json()
-        auth = floorc.get('AUTH', {}).get(G.DEFAULT_HOST, {})
-        username = auth.get('username')
-        secret = auth.get('secret')
-        if not (username and secret):
-            return self.error_message('You don\'t seem to have a Floobits account of any sort')
-        webbrowser.open('https://%s/%s/pinocchio/%s' % (G.DEFAULT_HOST, username, secret))
+        self.ui.pinocchio()

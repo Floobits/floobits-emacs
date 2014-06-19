@@ -9,13 +9,15 @@ except (ImportError, ValueError):
 
 
 class Emui(flooui.FlooUI):
-    user_inputs = {}
-    user_input_count = 0
+    def __init__(self, emacs):
+        super(Emui, self).__init__()
+        self.emacs = emacs
+        self.user_inputs = {}
+        self.user_input_count = 0
 
-    def _make_agent(self, owner, workspace, auth, created_workspace, d):
+    def _make_agent(self, context, owner, workspace, auth, created_workspace, d):
         """@returns new Agent()"""
-        self.agent = agent_connection.AgentConnection(owner, workspace, self, auth, created_workspace and d)
-        return self.agent
+        return agent_connection.AgentConnection(owner, workspace, context, auth, created_workspace and d)
 
     def user_y_or_n(self, context, prompt, affirmation_txt, cb):
         """@returns True/False"""
