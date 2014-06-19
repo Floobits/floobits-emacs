@@ -7,7 +7,7 @@ import webbrowser
 from collections import defaultdict
 
 try:
-    from . import agent_connection, editor
+    from . import agent_connection, editor, emui
     from .common import api, msg, shared as G, utils, reactor
     from .view import View
     from .common.exc_fmt import str_e
@@ -18,6 +18,7 @@ try:
 except (ImportError, ValueError):
     import agent_connection
     import editor
+    import emui
     from common import api, msg, shared as G, utils, reactor
     from view import View
     from common.exc_fmt import str_e
@@ -59,65 +60,9 @@ class EmacsHandler(base.BaseHandler):
         super(EmacsHandler, self).__init__(*args, **kwargs)
         self.agent = None  # agent handler (to the backend connection)
         self.views = {}
-        self.user_inputs = {}
-        self.user_input_count = 0
         self.emacs_bufs = defaultdict(lambda: [""])
         self.bufs_changed = []
-
-    @utils.inlined_callbacks
-    def link_account(self, host, cb):
-        yes = yield self.y_or_n, 'No credentials found in ~/.floorc.json for %s.  Would you like to download them (opens a browser)?.' % host, ''
-        if not yes:
-            return
-
-        agent = RequestCredentialsHandler()
-        if not agent:
-            self.error_message('''A configuration error occured earlier. Please go to %s and sign up to use this plugin.\n
-    We're really sorry. This should never happen.''' % host)
-            return
-
-        agent.once('end', cb)
-
-        try:
-            reactor.reactor.connect(agent, host, G.DEFAULT_PORT, True)
-        except Exception as e:
-            print(str_e(e))
-
-    @utils.inlined_callbacks
-    def create_or_link_account(self, host, cb):
-        if host != "floobits.com":
-            self.link_account(host, cb)
-            return
-
-        choices = [
-            'Use an existing Floobits account',
-            'Create a new Floobits account',
-            'Cancel (see https://floobits.com/help/floorc)'
-        ]
-
-        choice = yield self.choose, 'You need a Floobits account to use Floobits! Do you want to:', choices
-        index = choices.index(choice)
-
-        agent = None
-        if index == 0:
-            agent = RequestCredentialsHandler()
-        elif index == 1:
-            agent = CreateAccountHandler()
-        else:
-            d = utils.get_persistent_data()
-            if not d.get('disable_account_creation'):
-                d['disable_account_creation'] = True
-                utils.update_persistent_data(d)
-                print('''You can set up a Floobits account at any time under\n\nTools -> Floobits -> Setup''')
-            cb(None)
-            return
-
-        agent.once('end', cb)
-
-        try:
-            reactor.reactor.connect(agent, host, G.DEFAULT_PORT, True)
-        except Exception as e:
-            print(str_e(e))
+        self.ui = emui.Emui()
 
     def stop(self):
         sys.exit()
@@ -171,68 +116,8 @@ class EmacsHandler(base.BaseHandler):
             buf['md5'] = hashlib.md5(patch.current.encode('utf-8')).hexdigest()
             self.send_to_floobits(patch.to_json())
 
-    def y_or_n(self, prompt, initial, cb):
-        self.user_input_count += 1
-        event = {
-            'name': 'user_input',
-            'id': self.user_input_count,
-            'prompt': prompt.replace('\n', ', ').replace(", ,", "") + '? ',
-            'initial': initial,
-            'y_or_n': True
-        }
-        self.user_inputs[self.user_input_count] = cb
-        self.send(event)
-
-    def choose(self, prompt, choices, cb):
-        self.user_input_count += 1
-        choices = [["%d. %s" % (i + 1, v), i] for i, v in enumerate(choices)]
-        event = {
-            'name': 'user_input',
-            'id': self.user_input_count,
-            'prompt': prompt + "\n\n%s\n\nPlease select an option: " % "\n".join([c[0] for c in choices]),
-            'initial': "",
-            'choices': choices
-        }
-        self.user_inputs[self.user_input_count] = lambda choice: cb(choice[3:])
-        self.send(event)
-
-    def get_input(self, prompt, initial, cb):
-        self.user_input_count += 1
-        event = {
-            'name': 'user_input',
-            'id': self.user_input_count,
-            'prompt': prompt,
-            'initial': initial,
-        }
-        self.user_inputs[self.user_input_count] = cb
-        self.send(event)
-
     def on_connect(self):
         msg.log("have an emacs!")
-
-    @utils.inlined_callbacks
-    def remote_connect(self, host, owner, workspace, d, get_bufs=False):
-        G.PROJECT_PATH = os.path.realpath(d)
-        try:
-            utils.mkdir(os.path.dirname(G.PROJECT_PATH))
-        except Exception as e:
-            msg.error("Couldn't create directory %s: %s" % (G.PROJECT_PATH, str_e(e)))
-            return
-
-        auth = G.AUTH.get(host)
-        if not auth:
-            success = yield self.link_account, host
-            if not success:
-                return
-            auth = G.AUTH.get(host)
-            if not auth:
-                msg.error("Something went really wrong.")
-                return
-        self.agent = agent_connection.AgentConnection(owner, workspace, self, auth, get_bufs and d)
-        reactor.reactor.connect(self.agent, host, G.DEFAULT_PORT, True)
-        url = self.agent.workspace_url
-        utils.add_workspace_to_persistent_json(owner, workspace, url, d)
-        utils.update_recent_workspaces(url)
 
     def create_view(self, buf, emacs_buf=None):
         v = View(self, buf, emacs_buf)
@@ -271,12 +156,7 @@ class EmacsHandler(base.BaseHandler):
 
     def _on_user_input(self, data):
         cb_id = int(data['id'])
-        cb = self.user_inputs.get(cb_id)
-        if cb is None:
-            msg.error('cb for input %s is none' % cb_id)
-            return
-        cb(data.get('response'))
-        del self.user_inputs[cb_id]
+        self.ui.on_user_input(cb_id, data.get("response"))
 
     def _on_set_follow_mode(self, req):
         msg.log('follow mode is %s' % ((req.get('follow_mode') and 'enabled') or 'disabled'))
@@ -434,141 +314,8 @@ class EmacsHandler(base.BaseHandler):
 
     @utils.inlined_callbacks
     def _on_share_dir(self, data):
-        # file_to_share = None
-        utils.reload_settings()
-        dir_to_share = data['dir_to_share']
-        perms = data['perms']
         editor.line_endings = data['line_endings'].find("unix") >= 0 and "\n" or "\r\n"
-        dir_to_share = os.path.expanduser(dir_to_share)
-        dir_to_share = utils.unfuck_path(dir_to_share)
-        workspace_name = os.path.basename(dir_to_share)
-        dir_to_share = os.path.realpath(dir_to_share)
-        msg.debug('%s %s' % (workspace_name, dir_to_share))
-
-        if not utils.can_auth():
-            success = yield self.create_or_link_account, G.DEFAULT_HOST
-            if not success:
-                return
-            utils.reload_settings()
-
-        if os.path.isfile(dir_to_share):
-            # file_to_share = dir_to_share
-            dir_to_share = os.path.dirname(dir_to_share)
-
-        try:
-            utils.mkdir(dir_to_share)
-        except Exception:
-            msg.error("The directory %s doesn't exist and I can't create it." % dir_to_share)
-            return
-
-        info = utils.read_floo_file(dir_to_share)
-
-        workspace_url = info.get('url')
-        if workspace_url:
-            try:
-                parsed_url = api.prejoin_workspace(workspace_url, dir_to_share, {'perms': perms})
-            except ValueError as e:
-                pass
-            if parsed_url:
-                # TODO: make sure we create_flooignore
-                # utils.add_workspace_to_persistent_json(parsed_url['owner'], parsed_url['workspace'], workspace_url, dir_to_share)
-                self.remote_connect(parsed_url['host'], parsed_url['owner'], parsed_url['workspace'], dir_to_share)
-                return
-
-        def prejoin(workspace_url):
-            try:
-                return api.prejoin_workspace(workspace_url, dir_to_share, {'perms': perms})
-            except ValueError:
-                pass
-
-        parsed_url = utils.get_workspace_by_path(dir_to_share, prejoin)
-        if parsed_url:
-            self.remote_connect(parsed_url['host'], parsed_url['owner'], parsed_url['workspace'], dir_to_share)
-            return
-
-        if not G.AUTH:
-            return
-
-        auths = dict(G.AUTH)
-        hosts = list(auths.keys())
-        if len(hosts) == 1:
-            host = hosts[0]
-        else:
-            host = yield self.choose, 'Which Floobits account should be used?', hosts
-            if not host:
-                return
-
-        try:
-            r = api.get_orgs_can_admin(host)
-        except IOError as e:
-            editor.error_message('Error getting org list: %s' % str_e(e))
-            return
-
-        choices = [G.AUTH[host]['username']]
-        if r.code >= 400:
-            editor.error_message('Error getting org list: %s' % r.body)
-        elif r.body:
-            choices += [org['name'] for org in r.body]
-
-        if len(choices) == 1:
-            owner = choices[0]
-        else:
-            owner = yield self.choose, 'Create workspace owned by', choices
-
-        prompt = 'Workspace name: '
-
-        api_args = {
-            'name': workspace_name,
-            'owner': owner,
-        }
-
-        if perms:
-            api_args['perms'] = perms
-
-        while True:
-            new_name = yield self.get_input, prompt, workspace_name
-            workspace_name = new_name or workspace_name
-            try:
-                api_args['name'] = workspace_name
-                r = api.create_workspace(host, api_args)
-            except Exception as e:
-                msg.error('Unable to create workspace: %s' % str_e(e))
-                editor.error_message('Unable to create workspace: %s' % str_e(e))
-                return
-
-            if r.code < 400:
-                workspace_url = 'https://%s/%s/%s' % (host, owner, workspace_name)
-                msg.log('Created workspace %s' % workspace_url)
-                self.remote_connect(host, owner, workspace_name, dir_to_share, True)
-                return
-
-            msg.error('Unable to create workspace: %s' % r.body)
-
-            if r.code not in (400, 402, 409):
-                try:
-                    r.body = r.body['detail']
-                except Exception:
-                    pass
-                editor.error_message('Unable to create workspace: %s' % r.body)
-                return
-
-            if r.code == 402:
-                try:
-                    r.body = r.body['detail']
-                except Exception:
-                    pass
-
-                yes = yield self.y_or_n, '%s Open billing settings?' % r.body, ''
-                if yes:
-                    webbrowser.open('https://%s/%s/settings#billing' % (host, owner))
-                return
-
-            if r.code == 400:
-                workspace_name = re.sub('[^A-Za-z0-9_\-\.]', '-', workspace_name)
-                prompt = 'Invalid name. Workspace names must match the regex [A-Za-z0-9_\-\.]. Choose another name: '
-                continue
-
-            prompt = 'Workspace %s/%s already exists. Choose another name: ' % (owner, workspace_name)
+        self.ui.share_dir(self, data['dir_to_share'], data['perms'])
 
     @utils.inlined_callbacks
     def _on_join_workspace(self, data):
@@ -577,51 +324,8 @@ class EmacsHandler(base.BaseHandler):
         host = data['host']
         current_directory = data['current_directory']
         editor.line_endings = data['line_endings'].find("unix") >= 0 and "\n" or "\r\n"
-        utils.reload_settings()
 
-        if not utils.can_auth():
-            success = yield self.create_or_link_account, host
-            if not success:
-                return
-            utils.reload_settings()
-
-        info = utils.read_floo_file(current_directory)
-        dot_floo_url = info and info.get('url')
-        try:
-            parsed_url = utils.parse_url(dot_floo_url)
-        except Exception:
-            parsed_url = None
-
-        if parsed_url and parsed_url['host'] == host and parsed_url['workspace'] == workspace and parsed_url['owner'] == owner:
-            self.remote_connect(host, owner, workspace, current_directory)
-            return
-
-        try:
-            d = utils.get_persistent_data()['workspaces'][owner][workspace]['path']
-        except Exception:
-            d = ''
-
-        if os.path.isdir(d):
-            self.remote_connect(host, owner, workspace, d)
-            return
-
-        d = d or os.path.join(G.SHARE_DIR or G.BASE_DIR, owner, workspace)
-        while True:
-            d = yield self.get_input, 'Save workspace files to: ', d
-            if not d:
-                return
-            d = os.path.realpath(os.path.expanduser(d))
-            if not os.path.isdir(d):
-                y_or_n = yield self.y_or_n, '%s is not a directory. Create it? ' % d, ''
-                if not y_or_n:
-                    return
-                utils.mkdir(d)
-                if not os.path.isdir(d):
-                    msg.error("Couldn't create directory %s" % d)
-                    continue
-            if os.path.isdir(d):
-                self.remote_connect(host, owner, workspace, d)
-                return
+        self.ui.join_workspace(self, host, workspace, owner, [current_directory])
 
     def _on_setting(self, data):
         setattr(G, data['name'], data['value'])

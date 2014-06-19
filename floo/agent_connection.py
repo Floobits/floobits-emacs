@@ -22,7 +22,7 @@ class AgentConnection(floo_handler.FlooHandler):
         return self.emacs_handler.get_view(buf_id)
 
     def ok_cancel_dialog(self, prompt, cb):
-        return self.emacs_handler.y_or_n(prompt, "", cb)
+        return self.emacs_handler.ui.y_or_n(prompt, "", cb)
 
     def to_emacs(self, name, data):
         data['name'] = name
@@ -89,7 +89,7 @@ class AgentConnection(floo_handler.FlooHandler):
 
         prompt = 'Your copy of %s/%s is out of sync. Do you want to:' % (self.owner, self.workspace)
 
-        self.emacs_handler.choose(prompt, choices, lambda c: cb(choices.index(c)))
+        self.emacs_handler.ui.choose(prompt, choices, lambda c: cb(choices.index(c)))
 
     @utils.inlined_callbacks
     def prompt_join_hangout(self, hangout_url):
