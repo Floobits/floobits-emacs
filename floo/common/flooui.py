@@ -1,6 +1,7 @@
 import os.path
 import webbrowser
 import re
+import json
 
 try:
     from . import api, msg, utils, reactor, shared as G, event_emitter
@@ -130,6 +131,52 @@ class FlooUI(event_emitter.EventEmitter):
         if not (username and secret):
             return self.error_message('You don\'t seem to have a Floobits account of any sort')
         webbrowser.open('https://%s/%s/pinocchio/%s' % (G.DEFAULT_HOST, username, secret))
+
+    def prejoin_workspace(self, workspace_url, dir_to_share, api_args):
+        try:
+            result = utils.parse_url(workspace_url)
+        except Exception as e:
+            msg.error(str_e(e))
+            return False
+
+        host = result.get('host')
+        if not api.get_basic_auth(host):
+            raise ValueError('No auth credentials for %s. Please add a username and secret for %s in your ~/.floorc.json' % (host, host))
+
+        try:
+            w = api.get_workspace_by_url(workspace_url)
+        except Exception as e:
+            editor.error_message('Error opening url %s: %s' % (workspace_url, str_e(e)))
+            return False
+
+        if w.code >= 400:
+            try:
+                d = utils.get_persistent_data()
+                try:
+                    del d['workspaces'][result['owner']][result['name']]
+                except Exception:
+                    pass
+                try:
+                    del d['recent_workspaces'][workspace_url]
+                except Exception:
+                    pass
+                utils.update_persistent_data(d)
+            except Exception as e:
+                msg.debug(str_e(e))
+            return False
+
+        msg.debug('workspace: ', json.dumps(w.body))
+        anon_perms = w.body.get('perms', {}).get('AnonymousUser', [])
+        msg.debug('api args: ', api_args)
+        new_anon_perms = api_args.get('perms', {}).get('AnonymousUser', [])
+        # TODO: prompt/alert user if going from private to public
+        if set(anon_perms) != set(new_anon_perms):
+            msg.debug(str(anon_perms), str(new_anon_perms))
+            w.body['perms']['AnonymousUser'] = new_anon_perms
+            response = utils.update_workspace(workspace_url, w.body)
+            msg.debug(str(response.body))
+        utils.add_workspace_to_persistent_json(w.body['owner'], w.body['name'], workspace_url, dir_to_share)
+        return result
 
     @utils.inlined_callbacks
     def remote_connect(self, context, host, owner, workspace, d, get_bufs=False):
@@ -322,7 +369,7 @@ class FlooUI(event_emitter.EventEmitter):
 
         def prejoin(workspace_url):
             try:
-                return api.prejoin_workspace(workspace_url, dir_to_share, api_args)
+                return self.prejoin_workspace(workspace_url, dir_to_share, api_args)
             except ValueError:
                 pass
 
