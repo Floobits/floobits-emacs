@@ -433,15 +433,14 @@ See floobits-share-dir to create one or visit floobits.com."
   ; (minibufferp (current-buffer))
   (if (active-minibuffer-window)
     (push req floobits-user-input-events)
-    (let*
-        ((choices (floo-get-item req 'choices))
-        (choices (and choices (mapcar (lambda (x) (append x nil)) choices)))
-        (prompt (floo-get-item req 'prompt))
+    (let
+        ((prompt (floo-get-item req 'prompt))
         (initial (floo-get-item req 'initial))
+        (choices (floo-get-item req 'choices))
         (dir (floo-get-item req 'dir)))
       (floo-set-item 'req 'response
         (cond
-          (choices (completing-read prompt choices nil t initial))
+          (choices (completing-read prompt (mapcar (lambda (x) (append x nil)) choices) nil t initial))
           ((floo-get-item req 'y_or_n) (yes-or-no-p prompt))
           (dir (read-directory-name prompt nil initial))
           (t (read-from-minibuffer prompt initial))))

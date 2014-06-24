@@ -369,4 +369,4 @@ class FlooUI(event_emitter.EventEmitter):
             little = ['Create workspace owned by %s' % s for s in choices]
             (owner, index) = yield self.user_select, context, 'Create workspace owned by', choices, little
 
-        yield self.create_workspace, context, host, owner, workspace_name, api_args, dir_to_share
+        self.create_workspace(context, host, owner, workspace_name, api_args, dir_to_share)

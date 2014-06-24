@@ -39,7 +39,7 @@ class Emui(flooui.FlooUI):
         event = {
             'choices': choices,
             'initial': '',
-            'prompt': prompt + "\n\n%s\n\nPlease select an option: " % "\n".join([c for c in choices_big])
+            'prompt': prompt + "\n\n%s\n\nPlease select an option: " % "\n".join([c[0] for c in choices])
         }
 
         def _cb(choice):
@@ -48,7 +48,7 @@ class Emui(flooui.FlooUI):
             c = choice[3:]
             return cb(c, choices_big.index(c))
 
-        self._send_input(context, event, cb)
+        self._send_input(context, event, _cb)
 
     def user_charfield(self, context, prompt, initial, cb):
         """@returns String"""
