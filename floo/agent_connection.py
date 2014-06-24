@@ -89,7 +89,7 @@ class AgentConnection(floo_handler.FlooHandler):
 
         prompt = 'Your copy of %s/%s is out of sync. Do you want to:' % (self.owner, self.workspace)
 
-        self.emacs_handler.ui.choose(prompt, choices, lambda c: cb(choices.index(c)))
+        self.emacs_handler.ui.user_select(self.emacs_handler, prompt, choices, None, lambda c, i: cb(i))
 
     @utils.inlined_callbacks
     def prompt_join_hangout(self, hangout_url):
