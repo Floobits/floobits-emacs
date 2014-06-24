@@ -18,44 +18,41 @@ class Emui(flooui.FlooUI):
         """@returns new Agent()"""
         return agent_connection.AgentConnection(owner, workspace, context, auth, created_workspace and d)
 
+    def _send_input(self, context, event, cb):
+        self.user_input_count += 1
+        self.user_inputs[self.user_input_count] = cb
+        event['id'] = self.user_input_count
+        event['name'] = 'user_input'
+        context.send(event)
+
+    def user_dir(self, context, prompt, initial, cb):
+        self._send_input(context, {'prompt': prompt, 'initial': initial, 'dir': True}, cb)
+
     def user_y_or_n(self, context, prompt, affirmation_txt, cb):
         """@returns True/False"""
-        self.user_input_count += 1
-        event = {
-            'name': 'user_input',
-            'id': self.user_input_count,
-            'prompt': prompt.replace('\n', ', ').replace(", ,", "") + '? ',
-            'initial': "",
-            'y_or_n': True
-        }
-        self.user_inputs[self.user_input_count] = cb
-        context.send(event)
+        event = {'prompt': prompt.replace('\n', ', ').replace(", ,", "") + '? ', 'initial': "", 'y_or_n': True}
+        self._send_input(context, event, cb)
 
     def user_select(self, context, prompt, choices_big, choices_small, cb):
         """@returns (choice, index)"""
-        self.user_input_count += 1
         choices = [["%d. %s" % (i + 1, v), i] for i, v in enumerate(choices_big)]
         event = {
-            'name': 'user_input',
-            'id': self.user_input_count,
-            'prompt': prompt + "\n\n%s\n\nPlease select an option: " % "\n".join([c for c in choices_big]),
-            'initial': "",
-            'choices': choices
+            'choices': choices,
+            'initial': '',
+            'prompt': prompt + "\n\n%s\n\nPlease select an option: " % "\n".join([c for c in choices_big])
         }
-        self.user_inputs[self.user_input_count] = lambda choice: cb(choice[3:], )
-        context.send(event)
+
+        def _cb(choice):
+            if not choice:
+                return cb(None, -1)
+            c = choice[3:]
+            return cb(c, choices_big.index(c))
+
+        self._send_input(context, event, cb)
 
     def user_charfield(self, context, prompt, initial, cb):
         """@returns String"""
-        self.user_input_count += 1
-        event = {
-            'name': 'user_input',
-            'id': self.user_input_count,
-            'prompt': prompt,
-            'initial': initial,
-        }
-        self.user_inputs[self.user_input_count] = cb
-        context.send(event)
+        self._send_input(context, {'prompt': prompt, 'initial': initial}, cb)
 
     def get_a_window(self, abs_path, cb):
         """opens a project in a window or something"""

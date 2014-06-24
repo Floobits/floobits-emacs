@@ -159,6 +159,22 @@
         (floobits-send-to-agent req 'rename_buf))
       (message "You don't have permission to rename buffers in this workspace."))))
 
+(defmacro floo-get-item (alist key)
+  "just grab an element from an alist"
+  (list 'cdr (list 'assoc-string key alist)))
+
+(defmacro floo-set-item (alist key value)
+  "set an element in an alist"
+  (list 'add-to-list alist (list 'cons key value)))
+
+(defmacro floo-when-buf (buf body)
+  "save excursion and widen"
+  (list 'when buf
+    (list 'save-excursion
+      (list 'save-restriction
+        (list 'widen)
+        (cons 'progn body)))))
+
 (defun floobits-send-debug ()
   (when floobits-conn
     (floobits-send-to-agent
@@ -315,9 +331,8 @@ See floobits-share-dir to create one or visit floobits.com."
   (interactive)
   (maphash
     (lambda (key highlight)
-      (with-current-buffer (get-file-buffer (cadr key))
-        (save-excursion
-          (hlt-unhighlight-region 0 (buffer-size)))))
+      (floo-when-buf (get-file-buffer (cadr key))
+        (hlt-unhighlight-region 0 (buffer-size))))
     floobits-user-highlights))
 
 ;;;###autoload
@@ -332,14 +347,6 @@ See floobits-share-dir to create one or visit floobits.com."
   `listen', `connect' or `stop'."
   (memq (process-status process)
     '(run open listen connect stop)))
-
-(defmacro floo-get-item (alist key)
-  "just grab an element from an alist"
-  (list 'cdr (list 'assoc-string key alist)))
-
-(defmacro floo-set-item (alist key value)
-  "set an element in an alist"
-  (list 'add-to-list alist (list 'cons key value)))
 
 (defun floobits-listener (process response)
   (setq floobits-agent-buffer (concat floobits-agent-buffer response))
@@ -430,11 +437,13 @@ See floobits-share-dir to create one or visit floobits.com."
         ((choices (floo-get-item req 'choices))
         (choices (and choices (mapcar (lambda (x) (append x nil)) choices)))
         (prompt (floo-get-item req 'prompt))
-        (initial (floo-get-item req 'initial)))
+        (initial (floo-get-item req 'initial))
+        (dir (floo-get-item req 'dir)))
       (floo-set-item 'req 'response
         (cond
           (choices (completing-read prompt choices nil t initial))
           ((floo-get-item req 'y_or_n) (yes-or-no-p prompt))
+          (dir (read-directory-name prompt nil initial))
           (t (read-from-minibuffer prompt initial))))
       (floobits-send-to-agent req 'user_input))))
 
@@ -482,9 +491,8 @@ See floobits-share-dir to create one or visit floobits.com."
 
 (defun floobits-get-buffer-text (buffer)
   "returns properties free text of buffer with name (name)"
-  (with-current-buffer buffer
-    (save-excursion
-      (floobits-get-text 1 (+ 1 (buffer-size))))))
+  (floo-when-buf buffer
+    (floobits-get-text 1 (+ 1 (buffer-size)))))
 
 (defun floobits-event-disconnect (req)
   (message "Disconnected: %s" (floo-get-item req 'reason)))
@@ -529,15 +537,14 @@ See floobits-share-dir to create one or visit floobits.com."
     highlights))
 
 (defun floobits-apply-highlight (user_id buffer ranges)
-  (with-current-buffer buffer
-    (save-excursion
-      (let* ((key (list user_id (buffer-file-name buffer)))
-             (previous-ranges (gethash key floobits-user-highlights)))
-        (floobits-debug-message "%s key %s" key previous-ranges)
-        (when previous-ranges
-          (floobits-highlight-apply-f 'hlt-unhighlight-region previous-ranges))
-        (floobits-highlight-apply-f 'hlt-highlight-region ranges)
-        (puthash key ranges floobits-user-highlights)))))
+  (floo-when-buf buffer
+    (let* ((key (list user_id (buffer-file-name buffer)))
+           (previous-ranges (gethash key floobits-user-highlights)))
+      (floobits-debug-message "%s key %s" key previous-ranges)
+      (when previous-ranges
+        (floobits-highlight-apply-f 'hlt-unhighlight-region previous-ranges))
+      (floobits-highlight-apply-f 'hlt-highlight-region ranges)
+      (puthash key ranges floobits-user-highlights))))
 
 (defun floobits-event-highlight (req)
   (setq floobits-last-highlight req)
@@ -552,28 +559,26 @@ See floobits-share-dir to create one or visit floobits.com."
         (should-jump (or (floo-get-item req 'ping) (and floobits-follow-mode (not following))))
         (buffer (or buffer (and should-jump (find-file path)))))
 
-    (when buffer
-      (with-current-buffer buffer
-        (save-excursion
-          (floobits-apply-highlight user_id buffer ranges)
-          (goto-char pos)
-          (bookmark-set (format "floobits-%s-%s" username user_id)))))
+    (floo-when-buf buffer
+      (floobits-apply-highlight user_id buffer ranges)
+      (goto-char pos)
+      (bookmark-set (format "floobits-%s-%s" username user_id)))
 
     (when should-jump
       (unless (window-minibuffer-p (get-buffer-window))
         (switch-to-buffer buffer)
-        (unless (pos-visible-in-window-p pos)
-          (condition-case err
-            (scroll-up (- (line-number-at-pos pos) (line-number-at-pos)))
-            (error)))))))
+        (save-restriction
+          (widen)
+          (unless (pos-visible-in-window-p pos)
+            (condition-case err
+              (scroll-up (- (line-number-at-pos pos) (line-number-at-pos)))
+              (error))))))))
 
 (defun floobits-event-save (req)
-  (let ((buffer (get-file-buffer (floo-get-item req 'full_path))))
-    (when buffer
-      (with-current-buffer buffer
-        (remove-hook 'after-save-hook 'floobits-after-save-hook)
-        (save-buffer)
-        (add-hook 'after-save-hook 'floobits-after-save-hook)))))
+  (floo-when-buf (get-file-buffer (floo-get-item req 'full_path))
+    (remove-hook 'after-save-hook 'floobits-after-save-hook)
+    (save-buffer)
+    (add-hook 'after-save-hook 'floobits-after-save-hook)))
 
 (defun floobits-apply-edit (edit)
   (let* ((inhibit-modification-hooks t)
@@ -604,8 +609,10 @@ See floobits-share-dir to create one or visit floobits.com."
         (edits (floo-get-item req "edits")))
     (when buf
       (with-current-buffer buf
-        (atomic-change-group
-          (mapc 'floobits-apply-edit edits))))))
+        (save-restriction
+          (widen)
+          (atomic-change-group
+            (mapc 'floobits-apply-edit edits)))))))
 
 (defun floobits-event-create_buf (req)
   (let ((filename (floo-get-item req "path" ))
@@ -619,14 +626,10 @@ See floobits-share-dir to create one or visit floobits.com."
       (message "User %s deleted buffer %s" username filename))))
 
 (defun floobits-event-get_buf (req)
-  (let* ((filename (floo-get-item req "full_path"))
-      (buf (get-file-buffer filename)))
-    (when buf
-      (save-excursion
-        (with-current-buffer buf
-          (atomic-change-group
-            (delete-region 1 (+ 1 (buffer-size)))
-            (insert (floo-get-item req "buf"))))))))
+  (floo-when-buf (get-file-buffer (floo-get-item req "full_path"))
+    (atomic-change-group
+      (delete-region 1 (+ 1 (buffer-size)))
+      (insert (floo-get-item req "buf")))))
 
 (defun floobits-event-open_file (req)
   (find-file (floo-get-item req "filename")))
@@ -638,9 +641,9 @@ See floobits-share-dir to create one or visit floobits.com."
   (let* ((new-name (floo-get-item req "new_name"))
       (old-name (floo-get-item req "full_path"))
       (buf (get-file-buffer old-name)))
-    (if buf
+    (when buf
       (if (get-buffer new-name)
-          (message "A buffer named '%s' already exists!" new-name)
+        (message "A buffer named '%s' already exists!" new-name)
         (with-current-buffer buf
           (rename-file old-name new-name t)
           (rename-buffer new-name)

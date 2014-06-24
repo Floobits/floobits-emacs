@@ -35,6 +35,10 @@ class FlooUI(event_emitter.EventEmitter):
         """@returns String"""
         raise NotImplemented()
 
+    def user_dir(self, context, prompt, initial, cb):
+        """@returns a String directory (probably not expanded)"""
+        raise NotImplemented()
+
     def get_a_window(self, abs_path, cb):
         """opens a project in a window or something"""
         raise NotImplemented()
@@ -256,7 +260,7 @@ class FlooUI(event_emitter.EventEmitter):
 
         d = d or os.path.join(G.SHARE_DIR or G.BASE_DIR, owner, name)
         while True:
-            d = yield self.user_charfield, context, 'Save workspace files to: ', d
+            d = yield self.user_dir, context, 'Save workspace files to: ', d
             if not d:
                 return
             d = os.path.realpath(os.path.expanduser(d))
@@ -274,7 +278,7 @@ class FlooUI(event_emitter.EventEmitter):
 
     @utils.inlined_callbacks
     def prompt_share_dir(self, context, ask_about_dir, api_args):
-        dir_to_share = yield self.user_charfield, 'Directory to share:', ask_about_dir
+        dir_to_share = yield self.user_dir, 'Directory to share: ', ask_about_dir
         if not dir_to_share:
             return
         self.share_dir(context, dir_to_share, api_args)
