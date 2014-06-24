@@ -304,7 +304,7 @@ class EmacsHandler(base.BaseHandler):
 
     def _on_share_dir(self, data):
         editor.line_endings = data['line_endings'].find("unix") >= 0 and "\n" or "\r\n"
-        self.ui.share_dir(self, data['dir_to_share'], data['perms'])
+        self.ui.share_dir(self, data['dir_to_share'], {'perms': data['perms']})
 
     def _on_join_workspace(self, data):
         workspace = data['workspace']
