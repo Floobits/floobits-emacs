@@ -54,10 +54,9 @@ class EmacsHandler(base.BaseHandler):
         self.views = {}
         self.emacs_bufs = defaultdict(lambda: [""])
         self.bufs_changed = []
-        self.ui = emui.Emui(self)
+        self.ui = emui.Emui()
 
         def set_agent(a):
-            print('got a')
             self.agent = a
         self.ui.on("agent", set_agent)
 

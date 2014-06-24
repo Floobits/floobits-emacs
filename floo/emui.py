@@ -9,9 +9,8 @@ except (ImportError, ValueError):
 
 
 class Emui(flooui.FlooUI):
-    def __init__(self, emacs):
+    def __init__(self):
         super(Emui, self).__init__()
-        self.emacs = emacs
         self.user_inputs = {}
         self.user_input_count = 0
 
