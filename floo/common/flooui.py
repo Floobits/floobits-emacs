@@ -149,6 +149,12 @@ class FlooUI(event_emitter.EventEmitter):
             if not auth:
                 msg.error("Something went really wrong.")
                 return
+
+        res = api.get_workspace(host, owner, workspace)
+        if res.code == 404:
+            msg.error("The workspace https://%s/%s/%s does not exist" % (host, owner, workspace))
+            return
+
         if self.agent:
             try:
                 self.agent.stop()
@@ -157,7 +163,6 @@ class FlooUI(event_emitter.EventEmitter):
 
         G.WORKSPACE_WINDOW = yield self.get_a_window, d
         self.agent = self._make_agent(context, owner, workspace, auth, get_bufs, d)
-        print("emitting")
         self.emit("agent", self.agent)
         reactor.reactor.connect(self.agent, host, G.DEFAULT_PORT, True)
         url = self.agent.workspace_url
@@ -229,12 +234,15 @@ class FlooUI(event_emitter.EventEmitter):
     def join_workspace(self, context, host, name, owner, possible_dirs=None):
         utils.reload_settings()
 
+        # legacy urls in emacs...
+        if owner and owner[:2] == "r/":
+            owner = owner[2:]
+
         if not utils.can_auth():
             success = yield self.create_or_link_account, context, host, False
             if not success:
                 return
             utils.reload_settings()
-
         possible_dirs = possible_dirs or []
         for d in possible_dirs:
             info = utils.read_floo_file(d)
@@ -244,7 +252,6 @@ class FlooUI(event_emitter.EventEmitter):
                 parsed_url = utils.parse_url(info['url'])
             except Exception:
                 parsed_url = None
-
             if parsed_url and parsed_url['host'] == host and parsed_url['workspace'] == name and parsed_url['owner'] == owner:
                 self.remote_connect(context, host, owner, name, d)
                 return
