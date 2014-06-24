@@ -173,7 +173,7 @@ class FlooUI(event_emitter.EventEmitter):
         if set(anon_perms) != set(new_anon_perms):
             msg.debug(str(anon_perms), str(new_anon_perms))
             w.body['perms']['AnonymousUser'] = new_anon_perms
-            response = utils.update_workspace(workspace_url, w.body)
+            response = api.update_workspace(workspace_url, w.body)
             msg.debug(str(response.body))
         utils.add_workspace_to_persistent_json(w.body['owner'], w.body['name'], workspace_url, dir_to_share)
         return result
