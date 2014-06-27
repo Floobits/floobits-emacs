@@ -22,7 +22,7 @@ class AgentConnection(floo_handler.FlooHandler):
         return self.emacs_handler.get_view(buf_id)
 
     def ok_cancel_dialog(self, prompt, cb):
-        return self.emacs_handler.y_or_n(prompt, "", cb)
+        return self.emacs_handler.ui.y_or_n(prompt, "", cb)
 
     def to_emacs(self, name, data):
         data['name'] = name
@@ -46,9 +46,9 @@ class AgentConnection(floo_handler.FlooHandler):
         remote_len = to_remove_len + to_upload_len
         to_fetch_len = len(to_fetch)
 
-        msg.log('To fetch: %s' % ', '.join(to_fetch))
-        msg.log('To upload: %s' % ', '.join(to_upload))
-        msg.log('To remove: %s' % ', '.join(to_remove))
+        msg.log('To fetch: ', ', '.join(to_fetch))
+        msg.log('To upload: ', ', '.join(to_upload))
+        msg.log('To remove: ', ', '.join(to_remove))
 
         if not to_fetch:
             overwrite_local = 'Fetch nothing'
@@ -89,7 +89,7 @@ class AgentConnection(floo_handler.FlooHandler):
 
         prompt = 'Your copy of %s/%s is out of sync. Do you want to:' % (self.owner, self.workspace)
 
-        self.emacs_handler.choose(prompt, choices, lambda c: cb(choices.index(c)))
+        self.emacs_handler.ui.user_select(self.emacs_handler, prompt, choices, None, lambda c, i: cb(i))
 
     @utils.inlined_callbacks
     def prompt_join_hangout(self, hangout_url):
