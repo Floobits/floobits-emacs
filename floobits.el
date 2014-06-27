@@ -170,10 +170,11 @@
 (defmacro floo-when-buf (buf &rest body)
   "save excursion and widen"
   (list 'when buf
-    (list 'save-excursion
-      (list 'save-restriction
-        (list 'widen)
-        (cons 'progn body)))))
+    (list 'with-current-buffer buf
+      (list 'save-excursion
+        (list 'save-restriction
+          (list 'widen)
+          (cons 'progn body))))))
 
 (defun floobits-send-debug ()
   (when floobits-conn
@@ -536,14 +537,13 @@ See floobits-share-dir to create one or visit floobits.com."
     highlights))
 
 (defun floobits-apply-highlight (user_id buffer ranges)
-  (floo-when-buf buffer
-    (let* ((key (list user_id (buffer-file-name buffer)))
-           (previous-ranges (gethash key floobits-user-highlights)))
-      (floobits-debug-message "%s key %s" key previous-ranges)
-      (when previous-ranges
-        (floobits-highlight-apply-f 'hlt-unhighlight-region previous-ranges))
-      (floobits-highlight-apply-f 'hlt-highlight-region ranges)
-      (puthash key ranges floobits-user-highlights))))
+  (let* ((key (list user_id (buffer-file-name buffer)))
+         (previous-ranges (gethash key floobits-user-highlights)))
+    (floobits-debug-message "%s key %s" key previous-ranges)
+    (when previous-ranges
+      (floobits-highlight-apply-f 'hlt-unhighlight-region previous-ranges))
+    (floobits-highlight-apply-f 'hlt-highlight-region ranges)
+    (puthash key ranges floobits-user-highlights)))
 
 (defun floobits-event-highlight (req)
   (setq floobits-last-highlight req)
