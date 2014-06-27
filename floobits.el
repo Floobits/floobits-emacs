@@ -70,6 +70,7 @@
 
 (defvar floobits-debug nil)
 (defvar floobits-agent-host "127.0.0.1")
+(defvar floobits-message-buffer-name "*Floobits*")
 (defvar floobits-python-path (concat floobits-plugin-dir "floobits.py"))
 (defvar floobits-python-agent)
 
@@ -386,7 +387,7 @@ See floobits-share-dir to create one or visit floobits.com."
   (floobits-send-highlight))
 
 (defun floobits-agent-listener (proc string)
-  (with-current-buffer "*Floobits*"
+  (with-current-buffer floobits-message-buffer-name
     (let ((moving (= (point) (process-mark proc)))
           (callback floobits-on-connect))
       ;; Insert the text, advancing the process marker.
@@ -410,8 +411,8 @@ See floobits-share-dir to create one or visit floobits.com."
       (delete-process floobits-python-agent))
     (error nil))
   (message "Launching Floobits python agent...")
-  (setq floobits-python-agent (start-process "" "*Floobits*" floobits-python-executable floobits-python-path))
-  (switch-to-buffer "*Floobits*")
+  (setq floobits-python-agent (start-process "" floobits-message-buffer-name floobits-python-executable floobits-python-path))
+  (switch-to-buffer floobits-message-buffer-name)
   (set-process-filter floobits-python-agent 'floobits-agent-listener)
   (accept-process-output floobits-python-agent 5)
   (set-process-query-on-exit-flag floobits-python-agent nil)
