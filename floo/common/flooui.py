@@ -290,6 +290,7 @@ class FlooUI(event_emitter.EventEmitter):
             if not success:
                 return
             utils.reload_settings()
+
         possible_dirs = possible_dirs or []
         for d in possible_dirs:
             info = utils.read_floo_file(d)
@@ -299,6 +300,7 @@ class FlooUI(event_emitter.EventEmitter):
                 parsed_url = utils.parse_url(info['url'])
             except Exception:
                 parsed_url = None
+
             if parsed_url and parsed_url['host'] == host and parsed_url['workspace'] == name and parsed_url['owner'] == owner:
                 self.remote_connect(context, host, owner, name, d)
                 return
