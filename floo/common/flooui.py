@@ -236,7 +236,7 @@ class FlooUI(event_emitter.EventEmitter):
 
             if r.code < 400:
                 workspace_url = 'https://%s/%s/%s' % (host, owner, name)
-                msg.log('Created workspace', workspace_url)
+                msg.log('Created workspace ', workspace_url)
                 self.remote_connect(context, host, owner, name, dir_to_share, True)
                 return
 

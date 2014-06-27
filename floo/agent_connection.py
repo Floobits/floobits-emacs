@@ -46,9 +46,9 @@ class AgentConnection(floo_handler.FlooHandler):
         remote_len = to_remove_len + to_upload_len
         to_fetch_len = len(to_fetch)
 
-        msg.log('To fetch: %s' % ', '.join(to_fetch))
-        msg.log('To upload: %s' % ', '.join(to_upload))
-        msg.log('To remove: %s' % ', '.join(to_remove))
+        msg.log('To fetch: ', ', '.join(to_fetch))
+        msg.log('To upload: ', ', '.join(to_upload))
+        msg.log('To remove: ', ', '.join(to_remove))
 
         if not to_fetch:
             overwrite_local = 'Fetch nothing'
