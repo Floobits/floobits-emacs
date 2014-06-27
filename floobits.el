@@ -475,7 +475,12 @@ See floobits-share-dir to create one or visit floobits.com."
           (floobits-send-to-agent req 'highlight)))))
 
 (defun floobits-buffer-is-shareable (buf)
-  (buffer-file-name buf))
+  (let ((name (buffer-name buf)))
+    (cond
+      ((eq nil (buffer-file-name buf)) nil)
+      ((string= name floobits-message-buffer-name) nil)
+      ((string= name "*Messages*") nil)
+      (t t))))
 
 (defun floobits-path-is-shared (path)
   (file-in-directory-p path floobits-share-dir))
