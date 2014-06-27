@@ -167,7 +167,7 @@
   "set an element in an alist"
   (list 'add-to-list alist (list 'cons key value)))
 
-(defmacro floo-when-buf (buf body)
+(defmacro floo-when-buf (buf &rest body)
   "save excursion and widen"
   (list 'when buf
     (list 'save-excursion
