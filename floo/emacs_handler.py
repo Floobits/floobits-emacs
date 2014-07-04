@@ -321,3 +321,6 @@ class EmacsHandler(base.BaseHandler):
 
     def _on_pinocchio(self, data):
         self.ui.pinocchio()
+
+    def _on_delete_workspace(self, data):
+        self.ui.delete_workspace(self, lambda: sys.exit(0))

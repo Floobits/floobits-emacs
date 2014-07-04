@@ -88,6 +88,7 @@
 (defvar floobits-auth)
 (defvar floobits-default-host)
 (defvar floobits-user-input-events)
+(defvar floobits-delete_workspace)
 
 (defun floobits-initialize ()
   (setq floobits-agent-buffer "")
@@ -306,6 +307,10 @@ See floobits-share-dir to create one or visit floobits.com."
             (cons 'current_directory default-directory))))
         (floobits-create-connection (lambda () (floobits-send-to-agent req 'join_workspace)))))
       (message "Invalid url! I should look like: https://floobits.com/owner/workspace/"))))
+
+(defun floobits-delete-workspace ()
+  (interactive)
+  (floobits-create-connection (lambda () (floobits-send-to-agent () 'delete_workspace))))
 
 ;;;###autoload
 (defun floobits-workspace-settings ()

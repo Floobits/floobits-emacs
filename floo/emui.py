@@ -45,8 +45,9 @@ class Emui(flooui.FlooUI):
         def _cb(choice):
             if not choice:
                 return cb(None, -1)
-            c = choice[3:]
-            return cb(c, choices_big.index(c))
+            c = int(choice[:choice.index(".")]) - 1
+            print(c, choices_big[c], choice)
+            return cb(choices_big[c], c)
 
         self._send_input(context, event, _cb)
 
