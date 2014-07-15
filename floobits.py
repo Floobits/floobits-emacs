@@ -15,7 +15,7 @@ def cb(port):
 
 def main():
     G.__VERSION__ = '0.11'
-    G.__PLUGIN_VERSION__ = '1.5.5'
+    G.__PLUGIN_VERSION__ = '1.5.6'
     utils.reload_settings()
 
     if not os.path.exists(G.FLOORC_JSON_PATH):
