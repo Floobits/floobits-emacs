@@ -7,8 +7,8 @@ from floo.common import msg, utils, shared as G
 
 class AgentConnection(floo_handler.FlooHandler):
 
-    def __init__(self, owner, workspace, emacs_handler, auth, upload=True):
-        super(AgentConnection, self).__init__(owner, workspace, auth, upload)
+    def __init__(self, owner, workspace, emacs_handler, auth, join_action):
+        super(AgentConnection, self).__init__(owner, workspace, auth, join_action)
         self.emacs_handler = emacs_handler
 
     def get_view_text_by_path(self, rel_path):

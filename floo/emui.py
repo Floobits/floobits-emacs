@@ -14,9 +14,9 @@ class Emui(flooui.FlooUI):
         self.user_inputs = {}
         self.user_input_count = 0
 
-    def _make_agent(self, context, owner, workspace, auth, created_workspace, d):
+    def _make_agent(self, context, owner, workspace, auth, join_action):
         """@returns new Agent()"""
-        return agent_connection.AgentConnection(owner, workspace, context, auth, created_workspace and d)
+        return agent_connection.AgentConnection(owner, workspace, context, auth, join_action)
 
     def _send_input(self, context, event, cb):
         self.user_input_count += 1
