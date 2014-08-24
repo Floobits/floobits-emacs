@@ -519,8 +519,8 @@ See floobits-share-dir to create one or visit floobits.com."
         (when (and (> (length x) 9) (string="floobits-" (substring x 0 9)))
           (bookmark-delete x)))
       (bookmark-all-names))
-    (dired floobits-share-dir)
-    (floobits-add-hooks)))
+    (floobits-add-hooks)
+    (dired floobits-share-dir)))
 
 (defun floobits-event-join (req)
   (floobits-debug-message "%s" req)
