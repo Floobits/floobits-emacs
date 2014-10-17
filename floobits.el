@@ -292,13 +292,13 @@ See floobits-share-dir to create one or visit floobits.com."
           (if (string= "/" (substring path -1))
             (concat path "")
             (concat path "/")))
-        (_ (string-match "^/\\(.*\\)/\\(.*\\)/" path))
-        (owner (match-string 1 path))
-        (workspace (match-string 2 path)))
+        (path-components (split-string path "\\/"))
+        (owner (nth 1 path-components))
+        (workspace (nth 2 path-components)))
     (if (and path workspace owner)
       (progn
         (floobits-destroy-connection)
-        (lexical-let* ((req 
+        (lexical-let* ((req
           (list
             (cons 'host domain)
             (cons 'workspace workspace)
