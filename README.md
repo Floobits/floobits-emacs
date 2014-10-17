@@ -2,7 +2,7 @@
 
 Real-time collaborative editing. Think Etherpad, but with native editors. This is the plugin for Emacs. We also have plugins for [Sublime Text](https://github.com/Floobits/floobits-sublime), [Vim](https://github.com/Floobits/floobits-vim), and [IntelliJ](https://github.com/Floobits/floobits-intellij).
 
-### Development status: New, but reasonably stable. We've tested it on Emacs 24 and later. Earlier versions probably won't work. This plugin requires Python 2.7 or later.
+### Development status: Reasonably stable. We've tested it on Emacs 24 and later. Earlier versions probably won't work. This plugin requires Python 2.7 or later.
 
 ## Installation
 ### MELPA
