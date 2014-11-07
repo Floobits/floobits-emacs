@@ -403,7 +403,7 @@ See floobits-share-dir to create one or visit floobits.com."
       (when (and floobits-on-connect (search-backward "Now listening on " nil t))
         (let ((port (car (split-string (buffer-substring (+ (length "Now listening on ") (point)) (point-max)) "\n" t))))
           (setq floobits-on-connect nil)
-          (setq floobits-conn (open-network-stream "floobits" nil floobits-agent-host port))
+          (setq floobits-conn (open-network-stream "floobits" nil floobits-agent-host (string-to-number port)))
           (set-process-coding-system floobits-conn 'utf-8 'utf-8)
           (set-process-query-on-exit-flag floobits-conn nil)
           (set-process-filter floobits-conn 'floobits-listener)
@@ -415,13 +415,21 @@ See floobits-share-dir to create one or visit floobits.com."
     (progn
       (delete-process floobits-python-agent))
     (error nil))
+
   (message "Launching Floobits python agent...")
-  (setq floobits-python-agent (start-process "" floobits-message-buffer-name floobits-python-executable floobits-python-path))
-  (switch-to-buffer floobits-message-buffer-name)
-  (set-process-filter floobits-python-agent 'floobits-agent-listener)
-  (accept-process-output floobits-python-agent 5)
-  (set-process-query-on-exit-flag floobits-python-agent nil)
-  (floobits-send-debug))
+
+  (condition-case ex
+    (progn
+      (setq floobits-python-agent
+        (start-process "" floobits-message-buffer-name floobits-python-executable floobits-python-path))
+      (floobits-debug-message "start-process: %s %s %s" floobits-message-buffer-name floobits-python-executable floobits-python-path)
+      (switch-to-buffer floobits-message-buffer-name)
+      (set-process-filter floobits-python-agent 'floobits-agent-listener)
+      (accept-process-output floobits-python-agent 5)
+      (set-process-query-on-exit-flag floobits-python-agent nil)
+      (floobits-send-debug))
+    (error
+      (message "Emacs could not launch the python process! Note: python must be in exec-path\n%s" ex))))
 
 (defun floobits-send-to-agent (req event)
   (if (floobits-process-live-p floobits-conn)
