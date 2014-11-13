@@ -211,6 +211,16 @@
     (message "Follow mode %s." (if floobits-follow-mode "enabled" "disabled"))))
 
 ;;;###autoload
+(defun floobits-follow-user ()
+  "Follow a users changes. This also toggles follow mode."
+  (interactive)
+  (when floobits-conn
+    (message "sending follow_user wtf")
+    (floobits-send-to-agent () 'follow_user)
+    (message "sent follow_user wtf")
+      ))
+
+;;;###autoload
 (defun floobits-leave-workspace ()
   "leaves the current workspace"
   (interactive)

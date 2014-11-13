@@ -28,6 +28,10 @@ class AgentConnection(floo_handler.FlooHandler):
         data['name'] = name
         self.emacs_handler.send(data)
 
+    def highlight(self, *args, **kwargs):
+        # Emacs stores highlight state separately, outside of python
+        pass
+
     def stomp_prompt(self, changed_bufs, missing_bufs, new_files, ignored, cb):
 
         def pluralize(arg):
