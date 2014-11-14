@@ -207,6 +207,7 @@
   (interactive)
   (when floobits-conn
     (setq floobits-follow-mode (not floobits-follow-mode))
+    (setq floobits-follow-users ())
     (floobits-send-to-agent (list (cons 'follow_mode floobits-follow-mode)) 'set_follow_mode)
     (when (and floobits-follow-mode floobits-last-highlight)
       (floobits-event-highlight floobits-last-highlight))
@@ -575,13 +576,9 @@ See floobits-share-dir to create one or visit floobits.com."
         (path (floo-get-item req 'full_path))
         (buffer (get-file-buffer path))
         (following (floo-get-item req 'following))
-        (should-jump (and
-                          (or (not floobits-follow-users) (member username floobits-follow-users)
-                          (or
-                              (floo-get-item req 'ping)
-                              (and
-                                floobits-follow-mode
-                                (not following))))))
+        (should-jump (or (floo-get-item req 'ping) (and
+          (and floobits-follow-mode (or (not floobits-follow-users)
+            (member username floobits-follow-users))) (not following))))
         (buffer (or buffer (and should-jump (find-file path)))))
 
     (floo-when-buf buffer
@@ -645,8 +642,7 @@ See floobits-share-dir to create one or visit floobits.com."
     (floobits-debug-message "User %s created buffer %s" username filename)))
 
 (defun floobits-event-follow_user (req)
-    (let (username (floo-get-item req "username"))
-      (message "Following user %s" username)
+    (let ((username (floo-get-item req "username")))
       (setq floobits-follow-mode t)
       (add-to-list 'floobits-follow-users username)
     )
