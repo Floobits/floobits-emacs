@@ -158,7 +158,7 @@ class AgentConnection(floo_handler.FlooHandler):
     def highlight(self, user=None, **kwargs):
         # Emacs stores highlight state separately, outside of python
         if user is not None:
-            self.to_emacs('follow_user', {'username': user});
+            self.to_emacs('follow_user', {'username': user})
         msg.log("Sent %s to emacs follow_user" % user)
 
     def _on_highlight(self, data):

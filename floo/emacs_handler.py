@@ -155,6 +155,7 @@ class EmacsHandler(base.BaseHandler):
         self.ui.on_user_input(cb_id, data.get("response"))
 
     def _on_set_follow_mode(self, req):
+        G.FOLLOW_USERS = set()
         msg.log('follow mode is %s' % ((req.get('follow_mode') and 'enabled') or 'disabled'))
 
     def _on_change(self, req):
