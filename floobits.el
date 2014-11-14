@@ -575,14 +575,13 @@ See floobits-share-dir to create one or visit floobits.com."
         (path (floo-get-item req 'full_path))
         (buffer (get-file-buffer path))
         (following (floo-get-item req 'following))
-        (should-jump (or (floo-get-item req 'ping) (and floobits-follow-mode (not following))))
         (should-jump (and
                           (or (not floobits-follow-users) (member username floobits-follow-users)
                           (or
                               (floo-get-item req 'ping)
                               (and
-                                floobits-follow-mode 
-                                (not following)))))
+                                floobits-follow-mode
+                                (not following))))))
         (buffer (or buffer (and should-jump (find-file path)))))
 
     (floo-when-buf buffer
