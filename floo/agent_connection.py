@@ -28,10 +28,6 @@ class AgentConnection(floo_handler.FlooHandler):
         data['name'] = name
         self.emacs_handler.send(data)
 
-    def highlight(self, *args, **kwargs):
-        # Emacs stores highlight state separately, outside of python
-        pass
-
     def stomp_prompt(self, changed_bufs, missing_bufs, new_files, ignored, cb):
 
         def pluralize(arg):
@@ -158,6 +154,11 @@ class AgentConnection(floo_handler.FlooHandler):
         if buf:
             return super(AgentConnection, self)._on_rename_buf(data)
         msg.debug('We already renamed %s. Skipping' % data['old_path'])
+
+    def highlight(self, name=None, **kwargs):
+        # Emacs stores highlight state separately, outside of python
+        if name is not None:
+            self.to_emacs('follow_user', {'username': name});
 
     def _on_highlight(self, data):
         buf = self.bufs[data['id']]

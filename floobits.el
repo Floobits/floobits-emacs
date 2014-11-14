@@ -80,6 +80,7 @@
 (defvar floobits-open-buffers)
 (defvar floobits-complete-signup)
 (defvar floobits-follow-mode)
+(defvar floobits-follow-users)
 (defvar floobits-perms)
 (defvar floobits-share-dir)
 (defvar floobits-user-highlights)
@@ -97,6 +98,7 @@
   (setq floobits-current-position '((mark . 1) (point . 1) (name . "")))
   (setq floobits-open-buffers nil)
   (setq floobits-follow-mode nil)
+  (setq floobits-follow-users ())
   (setq floobits-perms nil)
   (setq floobits-share-dir "")
   (setq floobits-on-connect nil)
@@ -215,10 +217,7 @@
   "Follow a users changes. This also toggles follow mode."
   (interactive)
   (when floobits-conn
-    (message "sending follow_user wtf")
-    (floobits-send-to-agent () 'follow_user)
-    (message "sent follow_user wtf")
-      ))
+    (floobits-send-to-agent () 'follow_user)))
 
 ;;;###autoload
 (defun floobits-leave-workspace ()
@@ -577,6 +576,13 @@ See floobits-share-dir to create one or visit floobits.com."
         (buffer (get-file-buffer path))
         (following (floo-get-item req 'following))
         (should-jump (or (floo-get-item req 'ping) (and floobits-follow-mode (not following))))
+        (should-jump (and
+                          (or (not floobits-follow-users) (member username floobits-follow-users)
+                          (or
+                              (floo-get-item req 'ping)
+                              (and
+                                floobits-follow-mode 
+                                (not following)))))
         (buffer (or buffer (and should-jump (find-file path)))))
 
     (floo-when-buf buffer
@@ -638,6 +644,14 @@ See floobits-share-dir to create one or visit floobits.com."
   (let ((filename (floo-get-item req "path" ))
         (username (floo-get-item req "username")))
     (floobits-debug-message "User %s created buffer %s" username filename)))
+
+(defun floobits-event-follow_user (req)
+    (let (username (floo-get-item req "username"))
+      (message "Following user %s" username)
+      (setq floobits-follow-mode t)
+      (add-to-list 'floobits-follow-users username)
+    )
+  )
 
 (defun floobits-event-delete_buf (req)
   (let ((filename (floo-get-item req "path" ))
