@@ -24,7 +24,7 @@ SECURE = True
 ERROR_COUNT = 0
 ERRORS_SENT = 0
 # Don't spam us with error reports
-MAX_ERROR_REPORTS = 0
+MAX_ERROR_REPORTS = 3
 
 # For people who have outbound ports blocked (schools and BigCos)
 OUTBOUND_FILTER_PROXY_HOST = 'proxy.floobits.com'
