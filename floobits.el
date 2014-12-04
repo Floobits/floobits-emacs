@@ -92,18 +92,18 @@
 (defvar floobits-delete_workspace)
 
 (defun floobits-initialize ()
-  (setq floobits-agent-buffer "")
-  (setq floobits-user-input-events nil)
-  (setq floobits-conn nil)
-  (setq floobits-current-position '((mark . 1) (point . 1) (name . "")))
-  (setq floobits-open-buffers nil)
-  (setq floobits-follow-mode nil)
-  (setq floobits-follow-users ())
-  (setq floobits-perms nil)
-  (setq floobits-share-dir "")
-  (setq floobits-on-connect nil)
-  (setq floobits-last-highlight nil)
-  (setq floobits-user-highlights (make-hash-table :test 'equal)))
+  (setq floobits-agent-buffer ""
+        floobits-user-input-events nil
+        floobits-conn nil
+        floobits-current-position '((mark . 1) (point . 1) (name . ""))
+        floobits-open-buffers nil
+        floobits-follow-mode nil
+        floobits-follow-users ()
+        floobits-perms nil
+        floobits-share-dir ""
+        floobits-on-connect nil
+        floobits-last-highlight nil
+        floobits-user-highlights (make-hash-table :test 'equal)))
 
 (add-hook 'kill-emacs-hook (lambda ()
   (ignore-errors
