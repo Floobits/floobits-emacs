@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 import os
-
+import sys
 from floo import emacs_handler
 from floo.common import migrations
 from floo.common import reactor
@@ -11,6 +11,7 @@ from floo.common import shared as G
 
 def cb(port):
     print('Now listening on %s' % port)
+    sys.stdout.flush()
 
 
 def main():
