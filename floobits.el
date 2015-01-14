@@ -68,10 +68,13 @@
 
 (setq max-specpdl-size 1500)
 
+(defconst floobits-version "1.5.16" "Floobits Plugin Version")
+
 (defvar floobits-debug nil)
 (defvar floobits-agent-host "127.0.0.1")
 (defvar floobits-message-buffer-name "*Floobits*")
 (defvar floobits-python-path (concat floobits-plugin-dir "floobits.py"))
+(defvar floobits-python-args (format "--set-version=%s" floobits-version))
 (defvar floobits-python-agent)
 
 (defvar floobits-agent-buffer)
@@ -103,6 +106,7 @@
         floobits-share-dir ""
         floobits-on-connect nil
         floobits-last-highlight nil
+        floobits-python-agent nil
         floobits-user-highlights (make-hash-table :test 'equal)))
 
 (add-hook 'kill-emacs-hook (lambda ()
@@ -112,6 +116,14 @@
     (delete-process floobits-python-agent))))
 
 (floobits-initialize)
+
+(defun floobits-debug-output ()
+  (interactive)
+  (switch-to-buffer (get-buffer-create floobits-message-buffer-name))
+  (dolist (v (apropos-internal "^floobits-" 'boundp))
+    (insert (format "%s: %s\n" v (eval v))))
+  (when floobits-python-agent
+    (insert (format "floobits-python-agent: %s\n" (pp-to-string (process-status floobits-python-agent))))))
 
 (defun floobits-debug-message (text &rest rest)
   (when floobits-debug
@@ -431,8 +443,8 @@ See floobits-share-dir to create one or visit floobits.com."
   (condition-case ex
     (progn
       (setq floobits-python-agent
-        (start-process "" floobits-message-buffer-name floobits-python-executable floobits-python-path))
-      (floobits-debug-message "start-process: %s %s %s" floobits-message-buffer-name floobits-python-executable floobits-python-path)
+        (start-process "" floobits-message-buffer-name floobits-python-executable floobits-python-path floobits-python-args))
+      (floobits-debug-message "start-process: %s %s %s %s" floobits-message-buffer-name floobits-python-executable floobits-python-path floobits-python-args)
       (switch-to-buffer floobits-message-buffer-name)
       (set-process-filter floobits-python-agent 'floobits-agent-listener)
       (accept-process-output floobits-python-agent 5)

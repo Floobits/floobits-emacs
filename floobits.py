@@ -17,16 +17,23 @@ def cb(port):
 
 def main():
     G.__VERSION__ = '0.11'
-    G.__PLUGIN_VERSION__ = '1.5.15'
+    G.__PLUGIN_VERSION__ = None
 
     parser = optparse.OptionParser(usage='%prog [options]')
     parser.add_option("-p", "--port",
                       dest="port",
                       default=0,
                       help="The port to listen on. Useful for debugging.")
+    parser.add_option("--set-version",
+                      dest="version")
 
     options, args = parser.parse_args()
     port = int(options.port)
+    G.__PLUGIN_VERSION__ = options.version
+    if not G.__PLUGIN_VERSION__:
+        print('--set-version is a required argument')
+        print('args: %s' % ' '.join(args))
+        sys.exit(1)
 
     utils.reload_settings()
 
