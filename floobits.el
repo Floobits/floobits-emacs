@@ -9,7 +9,7 @@
 ;;      Geoff Greer
 ;; Keywords: comm, tools
 ;; Package-Requires: ((json "1.2") (highlight "0"))
-;; Package-Version: 1.5.17
+;; Package-Version: 1.5.18
 ;; URL: http://github.com/Floobits/floobits-emacs
 ;; Version: 23.0
 ;;
@@ -68,7 +68,7 @@
 
 (setq max-specpdl-size 1500)
 
-(defconst floobits-version "1.5.17" "Floobits Plugin Version")
+(defconst floobits-version "1.5.18" "Floobits Plugin Version")
 
 (defvar floobits-debug nil)
 (defvar floobits-agent-host "127.0.0.1")
