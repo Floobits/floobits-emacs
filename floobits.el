@@ -168,7 +168,7 @@
 (defadvice rename-file (before floobits-rename-file
     (old-name new-name &optional OK-IF-ALREADY-EXISTS))
   ; ignore renames for files ending in ~ since they're probably backups
-  (when (and (floobits-path-is-shared old-name) (string= "~" (substring new-name -1)))
+  (when (and (floobits-path-is-shared old-name) (not (string= "~" (substring new-name -1))))
     (if (member "rename_buf" floobits-perms)
       (let ((req (list
             (cons 'path new-name)
