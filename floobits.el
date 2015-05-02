@@ -11,7 +11,7 @@
 ;; Package-Requires: ((json "1.2") (highlight "0"))
 ;; Package-Version: 1.5.22
 ;; URL: http://github.com/Floobits/floobits-emacs
-;; Version: 23.0
+;; Version: 24.0
 ;;
 ;;; Commentary:
 ;;
@@ -66,6 +66,7 @@
 (add-to-list 'load-path floobits-plugin-dir)
 (require 'highlight)
 
+;; TODO: figure out why we increased max-specpdl-size
 (setq max-specpdl-size 1500)
 
 (defconst floobits-version "1.5.22" "Floobits Plugin Version")
@@ -133,41 +134,33 @@
 (defun floobits-add-hooks ()
   (add-hook 'after-change-functions 'floobits-after-change nil nil)
   (add-hook 'after-revert-hook 'floobits-after-revert nil nil)
-  (if (> emacs-major-version 23)
-      (progn
-        (add-hook 'post-command-hook 'floobits-send-highlight nil nil)
-        (add-hook 'buffer-list-update-hook 'floobits-buffer-list-change nil nil))
-    (add-hook 'post-command-hook 'floobits-post-command-func nil nil))
+  (add-hook 'post-command-hook 'floobits-send-highlight nil nil)
+  (add-hook 'buffer-list-update-hook 'floobits-buffer-list-change nil nil)
   (add-hook 'after-save-hook 'floobits-after-save-hook nil nil)
   (add-hook 'minibuffer-exit-hook 'floobits-minibuffer-exit-hook nil nil)
   ;; (add-hook 'buffer-list-update-hook 'floobits-buffer-list-change nil nil)
-  (ad-enable-advice 'delete-file 'before 'floobits-delete-file)
-  (ad-enable-advice 'rename-file 'before 'floobits-rename-file)
-  (ad-activate 'delete-file)
-  (ad-activate 'rename-file))
+  (advice-add 'delete-file :before #'floobits--delete-file-advice)
+  (advice-add 'rename-file :before #'floobits--rename-file-advice))
 
 (defun floobits-remove-hooks ()
   (remove-hook 'after-change-functions 'floobits-after-change)
   (remove-hook 'after-revert-hook 'floobits-after-revert)
-  (if (> emacs-major-version 23)
-      (progn
-        (remove-hook 'post-command-hook 'floobits-send-highlight)
-        (remove-hook 'buffer-list-update-hook 'floobits-buffer-list-change))
-    (remove-hook 'post-command-hook 'floobits-post-command-func))
-
+  (remove-hook 'post-command-hook 'floobits-send-highlight)
+  (remove-hook 'buffer-list-update-hook 'floobits-buffer-list-change)
   (remove-hook 'after-save-hook 'floobits-after-save-hook)
   (remove-hook 'minibuffer-exit-hook 'floobits-minibuffer-exit-hook)
-  (ad-disable-advice 'delete-file 'before 'floobits-delete-file)
-  (ad-disable-advice 'rename-file 'before 'floobits-rename-file))
+  (advice-remove 'delete-file #'floobits--delete-file-advice)
+  (advice-remove 'rename-file #'floobits--rename-file-advice))
 
-(defadvice delete-file (before floobits-delete-file (name &optional trash))
-  (when (floobits-path-is-shared name)
+(defun floobits--delete-file-advice (filename &optional trash)
+  "Notify Floobits when workspace files have been deleted."
+  (when (floobits-path-is-shared filename)
     (if (member "delete_buf" floobits-perms)
-        (floobits-send-to-agent (list (cons 'path name)) 'delete_buf)
+        (floobits-send-to-agent (list (cons 'path filename)) 'delete_buf)
       (message "You don't have permission to delete buffers in this workspace."))))
 
-(defadvice rename-file (before floobits-rename-file
-                               (old-name new-name &optional OK-IF-ALREADY-EXISTS))
+(defun floobits--rename-file-advice (old-name new-name &optional ok-if-already-exists)
+  "Notify Floobits when workspace files have been renamed."
   ;; ignore renames for files ending in ~ since they're probably backups
   (when (and (floobits-path-is-shared old-name) (not (string= "~" (substring new-name -1))))
     (if (member "rename_buf" floobits-perms)
@@ -279,15 +272,16 @@ If the directory corresponds to an existing floobits workspace, you will instead
 (defun floobits-event-error (req)
   (display-message-or-buffer (floo-get-item req 'msg)))
 
-(defun _floobits-read-persistent ()
-  (condition-case nil
-      (with-temp-buffer
-        (insert-file-contents "~/floobits/persistent.json")
-        (let* ((json-key-type 'string)
-               (data (json-read-from-string (buffer-string)))
-               (data (floo-get-item data 'recent_workspaces)))
-          (mapcar (lambda (x) (floo-get-item x 'url)) data)))
-    (error '(""))))
+(defun floobits--read-persistent ()
+  "Load contents of Floobits persistence file.
+Return nil if unparseable or nonexistent."
+  (ignore-errors
+    (with-temp-buffer
+      (insert-file-contents "~/floobits/persistent.json")
+      (let* ((json-key-type 'string)
+             (data (json-read-from-string (buffer-string)))
+             (data (floo-get-item data 'recent_workspaces)))
+        (mapcar (lambda (x) (floo-get-item x 'url)) data)))))
 
 (defun _floobits-get-url-from-dot-floo ()
   (condition-case nil
@@ -300,11 +294,11 @@ If the directory corresponds to an existing floobits workspace, you will instead
 
 ;;;###autoload
 (defun floobits-join-workspace (floourl)
-  "Join an existing floobits workspace.
+  "Join an existing Floobits workspace.
 See floobits-share-dir to create one or visit floobits.com."
   (interactive (list
                 ;; read-from-minibuffer prompt &optional initial keymap read history default inherit-input-method
-                (let ((histories (_floobits-read-persistent)))
+                (let ((histories (or (floobits--read-persistent) '(""))))
                   (read-from-minibuffer "Floobits workspace URL (owner/workspace): "
                                         (_floobits-get-url-from-dot-floo) nil nil 'histories))))
   (let* ((url-struct (url-generic-parse-url floourl))
@@ -435,9 +429,8 @@ See floobits-share-dir to create one or visit floobits.com."
 
 (defun floobits-launch-agent ()
   (condition-case nil
-      (progn
-        (delete-process floobits-python-agent))
-    (error nil))
+      (delete-process floobits-python-agent)
+    (error (floobits-debug-message "Couldn't delete python agent process")))
 
   (message "Launching Floobits python agent...")
 
@@ -514,6 +507,7 @@ See floobits-share-dir to create one or visit floobits.com."
   (let ((name (buffer-name buf)))
     (cond
      ((eq nil (buffer-file-name buf)) nil)
+     ;; TODO: figure out why we added these. buffer-file-name should be nil.
      ((string= name floobits-message-buffer-name) nil)
      ((string= name "*Messages*") nil)
      (t t))))
