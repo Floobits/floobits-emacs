@@ -153,12 +153,14 @@
   (advice-remove 'rename-file #'floobits--rename-file-advice))
 
 (defun floobits--delete-file-advice (filename &optional trash)
+  "Notify Floobits when workspace files have been deleted."
   (when (floobits-path-is-shared filename)
     (if (member "delete_buf" floobits-perms)
         (floobits-send-to-agent (list (cons 'path filename)) 'delete_buf)
       (message "You don't have permission to delete buffers in this workspace."))))
 
 (defun floobits--rename-file-advice (old-name new-name &optional ok-if-already-exists)
+  "Notify Floobits when workspace files have been renamed."
   ;; ignore renames for files ending in ~ since they're probably backups
   (when (and (floobits-path-is-shared old-name) (not (string= "~" (substring new-name -1))))
     (if (member "rename_buf" floobits-perms)
