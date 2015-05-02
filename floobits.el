@@ -178,14 +178,16 @@
   "Associate KEY with VALUE in the alist stored in ALIST-VAR."
   `(add-to-list ,alist-var (cons ,key ,value)))
 
-(defmacro floo-when-buf (buf &rest body)
-  "save excursion and widen"
-  (list 'when buf
-        (list 'with-current-buffer buf
-              (list 'save-excursion
-                    (list 'save-restriction
-                          (list 'widen)
-                          (cons 'progn body))))))
+(defmacro floobits--when-buf (buf &rest body)
+  "Like `with-current-buffer' but check for existence of BUF,
+plus widen and save excursion / restriction."
+  (declare (indent defun))
+  `(when ,buf
+     (with-current-buffer ,buf
+       (save-excursion
+         (save-restriction
+           (widen)
+           ,@body)))))
 
 (defun floobits-send-debug ()
   (when floobits-conn
@@ -355,8 +357,8 @@ See floobits-share-dir to create one or visit floobits.com."
   (interactive)
   (maphash
    (lambda (key highlight)
-     (floo-when-buf (get-file-buffer (cadr key))
-                    (hlt-unhighlight-region 0 (buffer-size))))
+     (floobits--when-buf (get-file-buffer (cadr key))
+       (hlt-unhighlight-region 0 (buffer-size))))
    floobits-user-highlights))
 
 ;;;###autoload
@@ -527,8 +529,8 @@ See floobits-share-dir to create one or visit floobits.com."
 
 (defun floobits-get-buffer-text (buffer)
   "returns properties free text of buffer with name (name)"
-  (floo-when-buf buffer
-                 (floobits-get-text 1 (+ 1 (buffer-size)))))
+  (floobits--when-buf buffer
+    (floobits-get-text 1 (1+ (buffer-size)))))
 
 (defun floobits-event-disconnect (req)
   (message "Disconnected: %s" (floobits--get-item req 'reason)))
@@ -596,10 +598,10 @@ See floobits-share-dir to create one or visit floobits.com."
                                                                                         (member username floobits-follow-users))) (not following))))
          (buffer (or buffer (and should-jump (find-file path)))))
 
-    (floo-when-buf buffer
-                   (floobits-apply-highlight user_id buffer ranges)
-                   (goto-char pos)
-                   (bookmark-set (format "floobits-%s-%s" username user_id)))
+    (floobits--when-buf buffer
+      (floobits-apply-highlight user_id buffer ranges)
+      (goto-char pos)
+      (bookmark-set (format "floobits-%s-%s" username user_id)))
 
     (when should-jump
       (unless (window-minibuffer-p (get-buffer-window))
@@ -612,10 +614,10 @@ See floobits-share-dir to create one or visit floobits.com."
               (error))))))))
 
 (defun floobits-event-save (req)
-  (floo-when-buf (get-file-buffer (floobits--get-item req 'full_path))
-                 (remove-hook 'after-save-hook 'floobits-after-save-hook)
-                 (save-buffer)
-                 (add-hook 'after-save-hook 'floobits-after-save-hook)))
+  (floobits--when-buf (get-file-buffer (floobits--get-item req 'full_path))
+    (remove-hook 'after-save-hook 'floobits-after-save-hook)
+    (save-buffer)
+    (add-hook 'after-save-hook 'floobits-after-save-hook)))
 
 (defun floobits-apply-edit (edit)
   (let* ((inhibit-modification-hooks t)
@@ -668,10 +670,10 @@ See floobits-share-dir to create one or visit floobits.com."
       (message "User %s deleted buffer %s" username filename))))
 
 (defun floobits-event-get_buf (req)
-  (floo-when-buf (get-file-buffer (floobits--get-item req "full_path"))
-                 (atomic-change-group
-                   (delete-region 1 (+ 1 (buffer-size)))
-                   (insert (floobits--get-item req "buf")))))
+  (floobits--when-buf (get-file-buffer (floobits--get-item req "full_path"))
+    (atomic-change-group
+      (delete-region 1 (+ 1 (buffer-size)))
+      (insert (floobits--get-item req "buf")))))
 
 (defun floobits-event-open_file (req)
   (find-file (floobits--get-item req "filename")))
