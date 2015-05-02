@@ -279,15 +279,16 @@ If the directory corresponds to an existing floobits workspace, you will instead
 (defun floobits-event-error (req)
   (display-message-or-buffer (floo-get-item req 'msg)))
 
-(defun _floobits-read-persistent ()
-  (condition-case nil
-      (with-temp-buffer
-        (insert-file-contents "~/floobits/persistent.json")
-        (let* ((json-key-type 'string)
-               (data (json-read-from-string (buffer-string)))
-               (data (floo-get-item data 'recent_workspaces)))
-          (mapcar (lambda (x) (floo-get-item x 'url)) data)))
-    (error '(""))))
+(defun floobits--read-persistent ()
+  "Load contents of Floobits persistence file.
+Return nil if unparseable or nonexistent."
+  (ignore-errors
+    (with-temp-buffer
+      (insert-file-contents "~/floobits/persistent.json")
+      (let* ((json-key-type 'string)
+             (data (json-read-from-string (buffer-string)))
+             (data (floo-get-item data 'recent_workspaces)))
+        (mapcar (lambda (x) (floo-get-item x 'url)) data)))))
 
 (defun _floobits-get-url-from-dot-floo ()
   (condition-case nil
@@ -300,11 +301,11 @@ If the directory corresponds to an existing floobits workspace, you will instead
 
 ;;;###autoload
 (defun floobits-join-workspace (floourl)
-  "Join an existing floobits workspace.
+  "Join an existing Floobits workspace.
 See floobits-share-dir to create one or visit floobits.com."
   (interactive (list
                 ;; read-from-minibuffer prompt &optional initial keymap read history default inherit-input-method
-                (let ((histories (_floobits-read-persistent)))
+                (let ((histories (or (floobits--read-persistent) '(""))))
                   (read-from-minibuffer "Floobits workspace URL (owner/workspace): "
                                         (_floobits-get-url-from-dot-floo) nil nil 'histories))))
   (let* ((url-struct (url-generic-parse-url floourl))
@@ -435,9 +436,8 @@ See floobits-share-dir to create one or visit floobits.com."
 
 (defun floobits-launch-agent ()
   (condition-case nil
-      (progn
-        (delete-process floobits-python-agent))
-    (error nil))
+      (delete-process floobits-python-agent)
+    (error (floobits-debug-message "Couldn't delete python agent process")))
 
   (message "Launching Floobits python agent...")
 
