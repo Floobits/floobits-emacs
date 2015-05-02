@@ -58,7 +58,7 @@
   :link '(url-link :tag "Description" "https://github.com/Floobits/floobits-emacs"))
 
 (defcustom floobits-python-executable "python"
-  "Python executable to use when running Floobits"
+  "Python executable to use when running Floobits."
   :type 'string
   :group 'floobits)
 
@@ -198,7 +198,7 @@ plus widen and save excursion / restriction."
 
 ;;;###autoload
 (defun floobits-debug ()
-  "Toggles debug logging."
+  "Toggle Floobits debug logging."
   (interactive)
   (setq floobits-debug (not floobits-debug))
   (message "Debug logging %s." (if floobits-debug "enabled" "disabled"))
@@ -206,13 +206,13 @@ plus widen and save excursion / restriction."
 
 ;;;###autoload
 (defun floobits-summon ()
-  "Summons all users to your cursor position."
+  "Summon all Floobits collaborators to point."
   (interactive)
   (floobits-send-highlight t))
 
 ;;;###autoload
 (defun floobits-follow-mode-toggle ()
-  "Toggles following of recent changes in a workspace"
+  "Toggle following recent changes in Floobits workspace."
   (interactive)
   (when floobits-conn
     (setq floobits-follow-mode (not floobits-follow-mode))
@@ -224,30 +224,33 @@ plus widen and save excursion / restriction."
 
 ;;;###autoload
 (defun floobits-follow-user ()
-  "Follow a users changes. This also toggles follow mode."
+  "Follow a Floobits collaborator's changes.
+Also toggles follow mode (see `floobits-follow-mode-toggle')."
   (interactive)
   (when floobits-conn
     (floobits-send-to-agent () 'follow_user)))
 
 ;;;###autoload
 (defun floobits-leave-workspace ()
-  "leaves the current workspace"
+  "Leave the current Floobits workspace."
   (interactive)
   (floobits-destroy-connection))
 
 ;;;###autoload
 (defun floobits-complete-signup ()
-  "If you created an Floobits account via emacs, you must call this command before you can login to
-  the website."
+  "Finalize creation of you Floobits account.
+If you created a Floobits account via Emacs you must call this
+command before you can log in to the website."
   (interactive)
   (floobits-destroy-connection)
   (floobits-create-connection (lambda () (floobits-send-to-agent () 'pinocchio))))
 
 ;;;###autoload
 (defun floobits-share-dir-public (dir-to-share)
-  "Create a workspace and populate it with the contents of the directory, dir-to-share, or make it.
-If the directory corresponds to an existing floobits workspace, you will instead join the workspace.
-"
+  "Create public Floobits workspace and add contents of DIR-TO-SHARE.
+If DIR-TO-SHARE does not it exist, it will be created.  If the
+directory corresponds to an existing Floobits workspace, the
+workspace will be joined instead."
   (interactive "DDirectory to share: ")
   (floobits-destroy-connection)
   (lexical-let* ((req (list
@@ -259,9 +262,10 @@ If the directory corresponds to an existing floobits workspace, you will instead
 
 ;;;###autoload
 (defun floobits-share-dir-private (dir-to-share)
-  "Create a workspace and populate it with the contents of the directory, dir-to-share, or make it.
-If the directory corresponds to an existing floobits workspace, you will instead join the workspace.
-"
+  "Create private Floobits workspace and add contents of DIR-TO-SHARE.
+If DIR-TO-SHARE does not it exist, it will be created.  If the
+directory corresponds to an existing Floobits workspace, the
+workspace will be joined instead."
   (interactive "DDirectory to share: ")
   (floobits-destroy-connection)
   (lexical-let* ((req (list
@@ -297,7 +301,8 @@ Return nil if unparseable or nonexistent."
 ;;;###autoload
 (defun floobits-join-workspace (floourl)
   "Join an existing Floobits workspace.
-See floobits-share-dir to create one or visit floobits.com."
+Create a new workspace with `floobits-share-dir-public' or
+`floobits-share-dir-private', or by visiting http://floobits.com."
   (interactive (list
                 ;; read-from-minibuffer prompt &optional initial keymap read history default inherit-input-method
                 (let ((histories (or (floobits--read-persistent) '(""))))
@@ -338,7 +343,8 @@ See floobits-share-dir to create one or visit floobits.com."
 
 ;;;###autoload
 (defun floobits-remove-from-workspace (path)
-  "Removes a file from the remote workspace without deleting it locally"
+  "Remove PATH from Floobits workspace.
+Does not delete file locally."
   (interactive "fpath: ")
   (if (member "delete_buf" floobits-perms)
       (progn
@@ -353,7 +359,7 @@ See floobits-share-dir to create one or visit floobits.com."
 
 ;;;###autoload
 (defun floobits-clear-highlights ()
-  "Clears all highlights"
+  "Clear all Floobits highlights."
   (interactive)
   (maphash
    (lambda (key highlight)
@@ -363,14 +369,14 @@ See floobits-share-dir to create one or visit floobits.com."
 
 ;;;###autoload
 (defun floobits-add-to-workspace (path)
-  "Adds a file or directory to the workspace"
+  "Add file or directory at PATH to Floobits workspace."
   (interactive "fpath: ")
   (floobits-send-to-agent (list (cons 'full_path path)) 'create_buf))
 
 (defun floobits-process-live-p (process)
-  "Returns non-nil if PROCESS is alive.
-  A process is considered alive if its status is `run', `open',
-  `listen', `connect' or `stop'."
+  "Return non-nil if PROCESS is alive.
+A process is considered alive if its status is `run', `open',
+`listen', `connect' or `stop'."
   (memq (process-status process)
         '(run open listen connect stop)))
 
@@ -406,7 +412,7 @@ See floobits-share-dir to create one or visit floobits.com."
         (mapcar (lambda (x) (and (funcall condp x) x)) lst)))
 
 (defun floobits-post-command-func ()
-  "used for grabbing changes in point for highlighting"
+  "Transmit changes at point to Floobits for highlighting."
   (floobits-buffer-list-change)
   (floobits-send-highlight))
 
@@ -521,14 +527,14 @@ See floobits-share-dir to create one or visit floobits.com."
   (floobits-path-is-shared (buffer-file-name buf)))
 
 (defun floobits-get-public-buffers ()
-  "returns buffers that aren't internal to emacs"
+  "Return buffers that aren't internal to Emacs."
   (floobits-filter-func 'floobits-buffer-is-shareable (buffer-list)))
 
 (defun floobits-get-text (begin end)
   (buffer-substring-no-properties begin end))
 
 (defun floobits-get-buffer-text (buffer)
-  "returns properties free text of buffer with name (name)"
+  "Return property-free text of BUFFER."
   (floobits--when-buf buffer
     (floobits-get-text 1 (1+ (buffer-size)))))
 
