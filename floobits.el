@@ -238,7 +238,7 @@ Also toggles follow mode (see `floobits-follow-mode-toggle')."
 
 ;;;###autoload
 (defun floobits-complete-signup ()
-  "Finalize creation of you Floobits account.
+  "Finalize creation of your Floobits account.
 If you created a Floobits account via Emacs you must call this
 command before you can log in to the website."
   (interactive)
