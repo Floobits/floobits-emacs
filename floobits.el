@@ -66,6 +66,7 @@
 (add-to-list 'load-path floobits-plugin-dir)
 (require 'highlight)
 
+;; TODO: figure out why we increased max-specpdl-size
 (setq max-specpdl-size 1500)
 
 (defconst floobits-version "1.5.22" "Floobits Plugin Version")
