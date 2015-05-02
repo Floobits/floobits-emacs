@@ -11,7 +11,7 @@
 ;; Package-Requires: ((json "1.2") (highlight "0"))
 ;; Package-Version: 1.5.22
 ;; URL: http://github.com/Floobits/floobits-emacs
-;; Version: 23.0
+;; Version: 24.0
 ;;
 ;;; Commentary:
 ;;
@@ -133,41 +133,31 @@
 (defun floobits-add-hooks ()
   (add-hook 'after-change-functions 'floobits-after-change nil nil)
   (add-hook 'after-revert-hook 'floobits-after-revert nil nil)
-  (if (> emacs-major-version 23)
-      (progn
-        (add-hook 'post-command-hook 'floobits-send-highlight nil nil)
-        (add-hook 'buffer-list-update-hook 'floobits-buffer-list-change nil nil))
-    (add-hook 'post-command-hook 'floobits-post-command-func nil nil))
+  (add-hook 'post-command-hook 'floobits-send-highlight nil nil)
+  (add-hook 'buffer-list-update-hook 'floobits-buffer-list-change nil nil)
   (add-hook 'after-save-hook 'floobits-after-save-hook nil nil)
   (add-hook 'minibuffer-exit-hook 'floobits-minibuffer-exit-hook nil nil)
   ;; (add-hook 'buffer-list-update-hook 'floobits-buffer-list-change nil nil)
-  (ad-enable-advice 'delete-file 'before 'floobits-delete-file)
-  (ad-enable-advice 'rename-file 'before 'floobits-rename-file)
-  (ad-activate 'delete-file)
-  (ad-activate 'rename-file))
+  (advice-add 'delete-file :before #'floobits--delete-file-advice)
+  (advice-add 'rename-file :before #'floobits--rename-file-advice))
 
 (defun floobits-remove-hooks ()
   (remove-hook 'after-change-functions 'floobits-after-change)
   (remove-hook 'after-revert-hook 'floobits-after-revert)
-  (if (> emacs-major-version 23)
-      (progn
-        (remove-hook 'post-command-hook 'floobits-send-highlight)
-        (remove-hook 'buffer-list-update-hook 'floobits-buffer-list-change))
-    (remove-hook 'post-command-hook 'floobits-post-command-func))
-
+  (remove-hook 'post-command-hook 'floobits-send-highlight)
+  (remove-hook 'buffer-list-update-hook 'floobits-buffer-list-change)
   (remove-hook 'after-save-hook 'floobits-after-save-hook)
   (remove-hook 'minibuffer-exit-hook 'floobits-minibuffer-exit-hook)
-  (ad-disable-advice 'delete-file 'before 'floobits-delete-file)
-  (ad-disable-advice 'rename-file 'before 'floobits-rename-file))
+  (advice-remove 'delete-file #'floobits--delete-file-advice)
+  (advice-remove 'rename-file #'floobits--rename-file-advice))
 
-(defadvice delete-file (before floobits-delete-file (name &optional trash))
-  (when (floobits-path-is-shared name)
+(defun floobits--delete-file-advice (filename &optional trash)
+  (when (floobits-path-is-shared filename)
     (if (member "delete_buf" floobits-perms)
-        (floobits-send-to-agent (list (cons 'path name)) 'delete_buf)
+        (floobits-send-to-agent (list (cons 'path filename)) 'delete_buf)
       (message "You don't have permission to delete buffers in this workspace."))))
 
-(defadvice rename-file (before floobits-rename-file
-                               (old-name new-name &optional OK-IF-ALREADY-EXISTS))
+(defun floobits--rename-file-advice (old-name new-name &optional ok-if-already-exists)
   ;; ignore renames for files ending in ~ since they're probably backups
   (when (and (floobits-path-is-shared old-name) (not (string= "~" (substring new-name -1))))
     (if (member "rename_buf" floobits-perms)
@@ -514,6 +504,7 @@ See floobits-share-dir to create one or visit floobits.com."
   (let ((name (buffer-name buf)))
     (cond
      ((eq nil (buffer-file-name buf)) nil)
+     ;; TODO: figure out why we added these. buffer-file-name should be nil.
      ((string= name floobits-message-buffer-name) nil)
      ((string= name "*Messages*") nil)
      (t t))))
