@@ -684,8 +684,11 @@ A process is considered alive if its status is `run', `open',
 (defun floobits-event-open_file (req)
   (find-file (floobits--get-item req "filename")))
 
-(defun floobits-event-message (req)
-  (message "%s" (floobits--get-item req "message")))
+(defun floobits-event-msg (req)
+  "Process incoming chat messages."
+  (message "Floobits message from %s: %s"
+           (floobits--get-item req "username")
+           (floobits--get-item req "data")))
 
 (defun floobits-event-rename (req)
   (let* ((new-name (floobits--get-item req "new_name"))
