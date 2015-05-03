@@ -246,6 +246,13 @@ command before you can log in to the website."
   (floobits-create-connection (lambda () (floobits-send-to-agent () 'pinocchio))))
 
 ;;;###autoload
+(defun floobits-send-message (msg)
+  "Send chat message to all collaborators in Floobits workspace."
+  (interactive "sMessage: ")
+  (when (and floobits-conn (not (string= msg "")))
+    (floobits-send-to-agent `((data . ,msg)) "msg")))
+
+;;;###autoload
 (defun floobits-share-dir-public (dir-to-share)
   "Create public Floobits workspace and add contents of DIR-TO-SHARE.
 If DIR-TO-SHARE does not it exist, it will be created.  If the
