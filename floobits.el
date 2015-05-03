@@ -289,12 +289,12 @@ Return nil if unparseable or nonexistent."
              (data (floobits--get-item data 'recent_workspaces)))
         (mapcar (lambda (x) (floobits--get-item x 'url)) data)))))
 
-(defun _floobits-get-url-from-dot-floo ()
+(defun floobits--get-url-from-dot-floo ()
   (condition-case nil
       (with-temp-buffer
         (insert-file-contents ".floo")
         (let* ((json-key-type 'string)
-               (entry (json-read-from-string  (buffer-string))))
+               (entry (json-read-from-string (buffer-string))))
           (cdr (assoc-string "url" entry))))
     (error "https://floobits.com/")))
 
@@ -307,7 +307,7 @@ Create a new workspace with `floobits-share-dir-public' or
                 ;; read-from-minibuffer prompt &optional initial keymap read history default inherit-input-method
                 (let ((histories (or (floobits--read-persistent) '(""))))
                   (read-from-minibuffer "Floobits workspace URL (owner/workspace): "
-                                        (_floobits-get-url-from-dot-floo) nil nil 'histories))))
+                                        (floobits--get-url-from-dot-floo) nil nil 'histories))))
   (let* ((url-struct (url-generic-parse-url floourl))
          (domain (url-host url-struct))
          (port (url-port url-struct))
