@@ -74,6 +74,7 @@
 (defvar floobits-debug nil)
 (defvar floobits-agent-host "127.0.0.1")
 (defvar floobits-message-buffer-name "*Floobits*")
+(defvar floobits-chat-buffer-name "*Floobits Chat*")
 (defvar floobits-python-path (concat floobits-plugin-dir "floobits.py"))
 (defvar floobits-python-args (format "--set-version=%s" floobits-version))
 (defvar floobits-python-agent)
@@ -250,7 +251,9 @@ command before you can log in to the website."
   "Send chat message to all collaborators in Floobits workspace."
   (interactive "sMessage: ")
   (when (and floobits-conn (not (string= msg "")))
-    (floobits-send-to-agent `((data . ,msg)) "msg")))
+    (floobits-send-to-agent `((data . ,msg)) "msg")
+    ;; TODO: how can we determine our username?
+    (floobits--add-message-to-chat-buffer "me" msg)))
 
 ;;;###autoload
 (defun floobits-share-dir-public (dir-to-share)
@@ -281,6 +284,40 @@ workspace will be joined instead."
                        (cons 'dir_to_share dir-to-share)))
                  (func (lambda () (floobits-send-to-agent req 'share_dir))))
     (floobits-create-connection func)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Chat functionality
+
+(defvar floobits-chat-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map "\C-m" 'floobits-send-message)
+    map))
+
+(define-derived-mode floobits-chat-mode fundamental-mode "Floobits-Chat"
+  "Major mode for chatting with Floobits workspace collaborators.
+\\{floobits-chat-mode-map}")
+
+(defun floobits--format-chat-message (username contents)
+  (let ((time-str (format-time-string "%H:%M" (current-time))))
+    (format "[%s] <%s> %s\n" time-str username contents)))
+
+(defun floobits--add-message-to-chat-buffer (username contents)
+  "Add message to chat buffer, display if newly created."
+  (let* ((buffer-existed (get-buffer floobits-chat-buffer-name))
+         (chat-buffer (or buffer-existed
+                          (get-buffer-create floobits-chat-buffer-name))))
+    (with-current-buffer chat-buffer
+      (unless buffer-existed
+        (floobits-chat-mode)
+        (goto-address-mode)             ; highlight URLs
+        (setq buffer-read-only t))
+      (goto-char (point-max))
+      (let ((inhibit-read-only t))
+        (insert (floobits--format-chat-message username contents))))
+    (unless buffer-existed
+      (display-buffer chat-buffer))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun floobits-event-error (req)
   (display-message-or-buffer (floobits--get-item req 'msg)))
@@ -693,9 +730,10 @@ A process is considered alive if its status is `run', `open',
 
 (defun floobits-event-msg (req)
   "Process incoming chat messages."
-  (message "Floobits message from %s: %s"
-           (floobits--get-item req "username")
-           (floobits--get-item req "data")))
+  (let ((username (floobits--get-item req "username"))
+        (contents (floobits--get-item req "data")))
+    (message "Floobits message from %s: %s" username contents)
+    (floobits--add-message-to-chat-buffer username contents)))
 
 (defun floobits-event-rename (req)
   (let* ((new-name (floobits--get-item req "new_name"))
@@ -709,6 +747,8 @@ A process is considered alive if its status is `run', `open',
           (rename-buffer new-name)
           (set-visited-file-name new-name)
           (set-buffer-modified-p nil))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun floobits-switch (text)
   (floobits-debug-message "%s" text)
