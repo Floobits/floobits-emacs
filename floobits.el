@@ -89,6 +89,7 @@
 (defvar floobits-perms)
 (defvar floobits-share-dir)
 (defvar floobits-user-highlights)
+(defvar floobits-user-name)
 (defvar floobits-on-connect)
 (defvar floobits-last-highlight)
 (defvar floobits-auth)
@@ -252,8 +253,7 @@ command before you can log in to the website."
   (interactive "sMessage: ")
   (when (and floobits-conn (not (string= msg "")))
     (floobits-send-to-agent `((data . ,msg)) "msg")
-    ;; TODO: how can we determine our username?
-    (floobits--add-message-to-chat-buffer "me" msg)))
+    (floobits--add-message-to-chat-buffer floobits-user-name msg)))
 
 ;;;###autoload
 (defun floobits-share-dir-public (dir-to-share)
@@ -588,7 +588,8 @@ A process is considered alive if its status is `run', `open',
 (defun floobits-event-room_info (req)
   (let ((floobits-workspace (floobits--get-item req 'workspace_name)))
     (message "Successfully joined workspace %s." floobits-workspace)
-    (setq floobits-share-dir (floobits--get-item req 'project_path))
+    (setq floobits-share-dir (floobits--get-item req 'project_path)
+          floobits-user-name (floobits--get-item req 'username))
     (message "Project path is %s." floobits-share-dir)
     (setq floobits-perms (append (floobits--get-item req 'perms) nil))
     (mapc
