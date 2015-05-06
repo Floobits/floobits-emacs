@@ -286,6 +286,42 @@ workspace will be joined instead."
     (floobits-create-connection func)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Username colors
+
+(defvar floobits-username-colors
+  (list "#00ff00"
+        "#000000"
+        "#0000ff"
+        "#00008b"
+        "#ff00ff"
+        "#808080"
+        "#008000"
+        "#adff2f"
+        "#4b0082"
+        "#ff00ff"
+        "#191970"
+        "#800000"
+        "#ffa500"
+        "#ff4500"
+        "#800080"
+        "#ff0000"
+        "#008080"
+        "#ffff00")
+  "Colors for highlighting usernames.  Consistent with colors
+used on the web.")
+
+(defun floobits--username-color (username)
+  "Return color which should be used for displaying USERNAME."
+  (let* ((hash (cl-reduce #'+ (md5 username)))
+         (idx  (mod hash (length floobits-username-colors))))
+    (nth idx floobits-username-colors)))
+
+(defun floobits--colorize-username (username)
+  (propertize username
+              'font-lock-face
+              (list :foreground (floobits--username-color username))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Chat functionality
 
 (defvar floobits-chat-mode-map
@@ -298,8 +334,9 @@ workspace will be joined instead."
 \\{floobits-chat-mode-map}")
 
 (defun floobits--format-chat-message (username contents)
-  (let ((time-str (format-time-string "%H:%M" (current-time))))
-    (format "[%s] <%s> %s\n" time-str username contents)))
+  (let ((time-str (format-time-string "%H:%M" (current-time)))
+        (colored-username (floobits--colorize-username username)))
+    (format "[%s] <%s> %s\n" time-str colored-username contents)))
 
 (defun floobits--add-message-to-chat-buffer (username contents)
   "Add message to chat buffer, display if newly created."
