@@ -181,6 +181,7 @@ class AgentConnection(floo_handler.FlooHandler):
     def _on_msg(self, data):
         self.to_emacs('msg', {
             'data': data['data'],
+            'time': data['time'],
             'username': data.get('username', 'unknown user'),
             'user_id': data['user_id']
         })

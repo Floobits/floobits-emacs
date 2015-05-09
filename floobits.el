@@ -333,16 +333,17 @@ used on the web.")
   "Major mode for chatting with Floobits workspace collaborators.
 \\{floobits-chat-mode-map}")
 
-(defun floobits--format-chat-message (username contents)
-  (let ((time-str (format-time-string "%H:%M" (current-time)))
+(defun floobits--format-chat-message (username contents time)
+  (let ((time-str (format-time-string "%H:%M" time))
         (colored-username (floobits--colorize-username username)))
     (format "[%s] <%s> %s\n" time-str colored-username contents)))
 
-(defun floobits--add-message-to-chat-buffer (username contents)
+(defun floobits--add-message-to-chat-buffer (username contents &optional time)
   "Add message to chat buffer, display if newly created."
   (let* ((buffer-existed (get-buffer floobits-chat-buffer-name))
          (chat-buffer (or buffer-existed
-                          (get-buffer-create floobits-chat-buffer-name))))
+                          (get-buffer-create floobits-chat-buffer-name)))
+         (time (or time (current-time))))
     (with-current-buffer chat-buffer
       (unless buffer-existed
         (floobits-chat-mode)
@@ -350,7 +351,7 @@ used on the web.")
         (setq buffer-read-only t))
       (goto-char (point-max))
       (let ((inhibit-read-only t))
-        (insert (floobits--format-chat-message username contents))))
+        (insert (floobits--format-chat-message username contents time))))
     (unless buffer-existed
       (display-buffer chat-buffer))))
 
@@ -769,9 +770,10 @@ A process is considered alive if its status is `run', `open',
 (defun floobits-event-msg (req)
   "Process incoming chat messages."
   (let ((username (floobits--get-item req "username"))
-        (contents (floobits--get-item req "data")))
+        (contents (floobits--get-item req "data"))
+        (time (seconds-to-time (floobits--get-item req "time"))))
     (message "Floobits message from %s: %s" username contents)
-    (floobits--add-message-to-chat-buffer username contents)))
+    (floobits--add-message-to-chat-buffer username contents time)))
 
 (defun floobits-event-rename (req)
   (let* ((new-name (floobits--get-item req "new_name"))
