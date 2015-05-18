@@ -46,7 +46,7 @@
 ;;
 
 ;;; Code:
-(require 'cl)
+(require 'cl-lib)
 (require 'json)
 (require 'url)
 (require 'bookmark)
