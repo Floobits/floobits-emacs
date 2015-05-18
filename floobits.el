@@ -97,6 +97,13 @@
 (defvar floobits-user-input-events)
 (defvar floobits-delete_workspace)
 
+(defvar floobits-receive-chat-message-hook
+  '(floobits--add-message-to-chat-buffer
+    floobits--echo-chat-message)
+  "List of functions to be called when a Floobits chat message is
+  received.  Functions should accept a single argument (the
+  message).")
+
 (cl-defstruct (floobits-message
                (:constructor nil)
                (:constructor make-floobits-message
@@ -360,6 +367,12 @@ used on the web.")
         (insert (floobits--format-chat-message msg))))
     (unless buffer-existed
       (display-buffer chat-buffer))))
+
+(defun floobits--echo-chat-message (msg)
+  "Display message in the minibuffer."
+  (message "Floobits message from %s: %s"
+           (floobits-message-username msg)
+           (floobits-message-contents msg)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -779,8 +792,7 @@ A process is considered alive if its status is `run', `open',
          (contents (floobits--get-item req "data"))
          (time (seconds-to-time (floobits--get-item req "time")))
          (msg (make-floobits-message username contents time)))
-    (message "Floobits message from %s: %s" username contents)
-    (floobits--add-message-to-chat-buffer msg)))
+    (run-hook-with-args 'floobits-receive-chat-message-hook msg)))
 
 (defun floobits-event-rename (req)
   (let* ((new-name (floobits--get-item req "new_name"))
