@@ -3,13 +3,13 @@
 ;; Filename: floobits.el
 ;; Description: Real-time collaborative editing.
 ;;
-;; Copyright 2013-2015 Floobits, Inc.
+;; Copyright 2013-2016 Floobits, Inc.
 ;;
 ;; Author: Matt Kaniaris
 ;;      Geoff Greer
 ;; Keywords: comm, tools
 ;; Package-Requires: ((json "1.2") (highlight "0"))
-;; Package-Version: 1.6.2
+;; Package-Version: 1.6.3
 ;; URL: http://github.com/Floobits/floobits-emacs
 ;; Version: 24.0
 ;;
@@ -69,7 +69,7 @@
 ;; TODO: figure out why we increased max-specpdl-size
 (setq max-specpdl-size 1500)
 
-(defconst floobits-version "1.6.2" "Floobits Plugin Version")
+(defconst floobits-version "1.6.3" "Floobits Plugin Version")
 
 (defvar floobits-debug nil)
 (defvar floobits-agent-host "127.0.0.1")
