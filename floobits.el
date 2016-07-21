@@ -599,9 +599,11 @@ A process is considered alive if its status is `run', `open',
          (path (floobits--get-item req 'full_path))
          (buffer (get-file-buffer path))
          (following (floobits--get-item req 'following))
-         (should-jump (or (floobits--get-item req 'ping) (and
-                                                          (and floobits-follow-mode (or (not floobits-follow-users)
-                                                                                        (member username floobits-follow-users))) (not following))))
+         (should-jump (or (floobits--get-item req 'ping)
+                          (and floobits-follow-mode
+                               (or (not floobits-follow-users)
+                                   (member username floobits-follow-users))
+                               (not following))))
          (buffer (or buffer (and should-jump (find-file path)))))
 
     (floobits--when-buf buffer
@@ -610,10 +612,11 @@ A process is considered alive if its status is `run', `open',
       (bookmark-set (format "floobits-%s-%s" username user_id)))
 
     (when should-jump
-      (unless (window-minibuffer-p (get-buffer-window))
-        (switch-to-buffer buffer)
-        (save-restriction
-          (widen)
+      (floobits--when-buf buffer
+        (with-selected-window
+            (display-buffer buffer
+                            '((display-buffer-reuse-window
+                               display-buffer-use-some-window)))
           (unless (pos-visible-in-window-p pos)
             (condition-case err
                 (scroll-up (- (line-number-at-pos pos) (line-number-at-pos)))
