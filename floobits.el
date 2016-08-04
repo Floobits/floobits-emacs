@@ -62,6 +62,36 @@
   :type 'string
   :group 'floobits)
 
+(defcustom floobits-username-colors
+  (list "#00ff00"
+        "#000000"
+        "#0000ff"
+        "#00008b"
+        "#ff00ff"
+        "#808080"
+        "#008000"
+        "#adff2f"
+        "#4b0082"
+        "#ff00ff" ; duplicate?
+        "#191970"
+        "#800000"
+        "#ffa500"
+        "#ff4500"
+        "#800080"
+        "#ff0000"
+        "#008080"
+        "#ffff00")
+  "Colors for highlighting usernames and their cursors.
+The defaults are consistent with the colors used on the floobits.com interface."
+  :type '(repeat color)
+  :group 'floobits)
+
+(defun floobits--username-color (username)
+  "Return color which should be used for displaying USERNAME."
+  (let* ((hash (cl-reduce #'+ (md5 username)))
+         (idx  (mod hash (length floobits-username-colors))))
+    (nth idx floobits-username-colors)))
+
 (defvar floobits-plugin-dir (file-name-directory load-file-name))
 (add-to-list 'load-path floobits-plugin-dir)
 (require 'highlight)
@@ -571,22 +601,22 @@ A process is considered alive if its status is `run', `open',
   (find-file (floobits--get-item req 'full_path))
   (goto-char (+ 1 (floobits--get-item req 'offset))))
 
-(defun floobits-highlight-apply-f (f highlights)
+(defun floobits-highlight-apply-f (f highlights username)
   ;; convert to list :(
   (mapc
    (lambda(x)
      (let ((start (max 1 (min (buffer-size buffer) (+ (elt x 0) 1))))
            (end (+ (elt x 1) 2)))
-       (funcall f start end)))
+       (funcall f start end `((background-color . ,(floobits--username-color username))))))
    highlights))
 
-(defun floobits-apply-highlight (user_id buffer ranges)
+(defun floobits-apply-highlight (username user_id buffer ranges)
   (let* ((key (list user_id (buffer-file-name buffer)))
          (previous-ranges (gethash key floobits-user-highlights)))
     (floobits-debug-message "%s key %s" key previous-ranges)
     (when previous-ranges
-      (floobits-highlight-apply-f 'hlt-unhighlight-region previous-ranges))
-    (floobits-highlight-apply-f 'hlt-highlight-region ranges)
+      (floobits-highlight-apply-f 'hlt-unhighlight-region previous-ranges username))
+    (floobits-highlight-apply-f 'hlt-highlight-region ranges username)
     (puthash key ranges floobits-user-highlights)))
 
 (defun floobits-event-highlight (req)
@@ -607,7 +637,7 @@ A process is considered alive if its status is `run', `open',
          (buffer (or buffer (and should-jump (find-file path)))))
 
     (floobits--when-buf buffer
-      (floobits-apply-highlight user_id buffer ranges)
+      (floobits-apply-highlight username user_id buffer ranges)
       (goto-char pos)
       (bookmark-set (format "floobits-%s-%s" username user_id)))
 
