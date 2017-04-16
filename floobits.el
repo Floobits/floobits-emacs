@@ -94,7 +94,8 @@ The defaults are consistent with the colors used on the floobits.com interface."
 
 (defvar floobits-plugin-dir (file-name-directory load-file-name))
 (add-to-list 'load-path floobits-plugin-dir)
-(require 'highlight)
+(or (require 'highlight nil t)
+    (require 'highlight "external/highlight"))
 
 ;; TODO: figure out why we increased max-specpdl-size
 (setq max-specpdl-size 1500)
