@@ -1,3 +1,6 @@
+[![MELPA](https://melpa.org/packages/floobits-badge.svg)](https://melpa.org/#/floobits)
+[![MELPA Stable](https://stable.melpa.org/packages/floobits-badge.svg)](https://stable.melpa.org/#/floobits)
+
 # [Floobits](https://floobits.com/) plugin for Emacs
 
 Real-time collaborative editing. Think Etherpad, but with native editors. This is the plugin for Emacs. We also have plugins for [Sublime Text](https://github.com/Floobits/floobits-sublime), [Vim](https://github.com/Floobits/floobits-vim), and [IntelliJ](https://github.com/Floobits/floobits-intellij).
