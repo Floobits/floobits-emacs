@@ -103,9 +103,14 @@ class AgentConnection(floo_handler.FlooHandler):
 
     def _on_room_info(self, data):
         def send_room_info():
+            user_id  = data['user_id']
+            user     = data['users'][unicode(user_id)]
+            username = user['username']
+
             self.to_emacs('room_info', {
                 'perms': data['perms'],
                 'project_path': G.PROJECT_PATH,
+                'username': username,
                 'workspace_name': data['room_name']
             })
         self.once('room_info', send_room_info)
@@ -174,4 +179,9 @@ class AgentConnection(floo_handler.FlooHandler):
         })
 
     def _on_msg(self, data):
-        msg.log('msg')
+        self.to_emacs('msg', {
+            'data': data['data'],
+            'time': data['time'],
+            'username': data.get('username', 'unknown user'),
+            'user_id': data['user_id']
+        })

@@ -170,6 +170,14 @@ class EmacsHandler(base.BaseHandler):
             return
         self.bufs_changed.append(view.buf['id'])
 
+    def _on_msg(self, req):
+        msg_json = {
+            'name': 'msg',
+            'data': req['data']
+        }
+        msg.debug("sending chat message upstream: %s" % msg_json)
+        self.send_to_floobits(msg_json)
+
     @has_perm('highlight')
     def _on_highlight(self, req):
         view = self.get_view_by_path(req['full_path'])
