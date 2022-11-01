@@ -46,7 +46,7 @@
 ;;
 
 ;;; Code:
-(require 'cl)
+(require 'cl-lib)
 (require 'json)
 (require 'url)
 (require 'bookmark)
@@ -413,7 +413,7 @@ A process is considered alive if its status is `run', `open',
 
 (defun floobits-listener (process response)
   (setq floobits-agent-buffer (concat floobits-agent-buffer response))
-  (let ((position (search "\n" floobits-agent-buffer)))
+  (let ((position (cl-search "\n" floobits-agent-buffer)))
     (when position
       (floobits-switch (substring floobits-agent-buffer 0 position))
       (setq floobits-agent-buffer
@@ -602,7 +602,7 @@ A process is considered alive if its status is `run', `open',
   (find-file (floobits--get-item req 'full_path))
   (goto-char (+ 1 (floobits--get-item req 'offset))))
 
-(defun floobits-highlight-apply-f (f highlights username)
+(defun floobits--highlight-apply-f (f highlights username buffer)
   ;; convert to list :(
   (mapc
    (lambda(x)
@@ -616,8 +616,8 @@ A process is considered alive if its status is `run', `open',
          (previous-ranges (gethash key floobits-user-highlights)))
     (floobits-debug-message "%s key %s" key previous-ranges)
     (when previous-ranges
-      (floobits-highlight-apply-f 'hlt-unhighlight-region previous-ranges username))
-    (floobits-highlight-apply-f 'hlt-highlight-region ranges username)
+      (floobits--highlight-apply-f 'hlt-unhighlight-region previous-ranges username buffer))
+    (floobits--highlight-apply-f 'hlt-highlight-region ranges username buffer)
     (puthash key ranges floobits-user-highlights)))
 
 (defun floobits-event-highlight (req)
@@ -776,8 +776,8 @@ A process is considered alive if its status is `run', `open',
 
 (defun floobits-buffer-list-change ()
   (let* ((current-buffers (mapcar 'buffer-file-name (floobits-get-public-buffers)))
-         (added (set-difference current-buffers floobits-open-buffers))
-         (deleted (set-difference floobits-open-buffers current-buffers)))
+         (added (cl-set-difference current-buffers floobits-open-buffers))
+         (deleted (cl-set-difference floobits-open-buffers current-buffers)))
     (when (or added deleted)
       (when (and added (not (member "patch" floobits-perms)))
         (mapc
